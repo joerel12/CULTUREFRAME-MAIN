@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+
+# Environment — never commit credentials
+.env
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploaded product images — keep directory, ignore actual files
+public/uploads/products/*
+!public/uploads/products/.gitkeep
+!public/uploads/products/placeholder.svg

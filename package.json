@@ -1,0 +1,26 @@
+{
+  "name": "cultureframe",
+  "version": "1.0.0",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "xian-start": "node index.js",
+    "xian": "nodemon index.js",
+    "migrate": "node migrate.js",
+    "create:model": "node create.js model",
+    "create:controller": "node create.js controller",
+    "seed": "node seed.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "connect-flash": "^0.1.1",
+    "dotenv": "^16.4.7",
+    "express": "^4.19.2",
+    "express-session": "^1.17.3",
+    "hbs": "^4.2.0",
+    "inquirer": "^9.2.15",
+    "multer": "^1.4.5-lts.1",
+    "mysql2": "^3.9.2",
+    "sequelize": "^6.37.3"
+  }
+}

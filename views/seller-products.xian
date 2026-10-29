@@ -1,0 +1,275 @@
+{{> seller-head}}
+<body>
+  <div class="cf-shell">
+    {{> seller-sidebar}}
+    <div class="cf-main">
+      {{> seller-topbar}}
+      <main class="cf-page">
+
+        <!-- ── Page header ─────────────────────────────────────────── -->
+        <div class="cf-page-header">
+          <div class="cf-page-header-inner">
+            <div>
+              <p class="cf-page-eyebrow">Product Management</p>
+              <h1 class="cf-page-title">My Products</h1>
+              <p class="cf-page-sub">
+                {{#if totalCount}}
+                  {{totalCount}} product{{#if (eq totalCount 1)}}{{else}}s{{/if}} found
+                {{else}}
+                  All your listed cultural heritage products
+                {{/if}}
+              </p>
+            </div>
+            <a href="/seller/products/add" class="cf-link-btn" style="align-self:center;">+ Add Product</a>
+          </div>
+          <div class="cf-weave-divider" aria-hidden="true"></div>
+        </div>
+
+        <!-- ── Database error banner ──────────────────────────────── -->
+        {{#if dbError}}
+          <div style="background:#FFF3E0;border:1px solid #FFCC80;border-radius:10px;padding:16px 20px;margin-bottom:20px;display:flex;align-items:flex-start;gap:12px;" role="alert">
+            <span style="font-size:20px;flex-shrink:0;">⚠️</span>
+            <div>
+              <p style="font-weight:700;color:#E65100;margin:0 0 4px;font-size:14px;">Database Error</p>
+              <p style="color:#BF360C;font-size:13px;margin:0;">{{dbError}}</p>
+            </div>
+          </div>
+        {{/if}}
+
+        <!-- ── Filter bar ──────────────────────────────────────────── -->
+        <form method="GET" action="/seller/products" id="filterForm">
+          <div style="background:var(--white);border:1px solid var(--cream-dark);border-radius:var(--radius);padding:16px 20px;margin-bottom:20px;box-shadow:var(--shadow-sm);">
+
+            <div style="display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:12px;align-items:end;flex-wrap:wrap;">
+
+              <!-- Search -->
+              <div>
+                <label for="search" style="display:block;font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px;">Search</label>
+                <div style="position:relative;">
+                  <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:14px;pointer-events:none;">🔍</span>
+                  <input
+                    type="text"
+                    id="search"
+                    name="search"
+                    value="{{filters.search}}"
+                    placeholder="Search product name…"
+                    maxlength="200"
+                    style="width:100%;padding:9px 12px 9px 32px;border:1px solid var(--cream-dark);border-radius:8px;font-size:13px;background:var(--cream);color:var(--text-dark);outline:none;transition:border-color 0.18s;"
+                    onfocus="this.style.borderColor='var(--terra)'"
+                    onblur="this.style.borderColor='var(--cream-dark)'"
+                  />
+                </div>
+              </div>
+
+              <!-- Category filter -->
+              <div>
+                <label for="category" style="display:block;font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px;">Category</label>
+                <select
+                  id="category"
+                  name="category"
+                  style="width:100%;padding:9px 12px;border:1px solid var(--cream-dark);border-radius:8px;font-size:13px;background:var(--cream);color:var(--text-dark);outline:none;appearance:none;transition:border-color 0.18s;"
+                  onfocus="this.style.borderColor='var(--terra)'"
+                  onblur="this.style.borderColor='var(--cream-dark)'"
+                >
+                  <option value="">All Categories</option>
+                  {{#each categories}}
+                    <option value="{{this.id}}" {{#if this.selected}}selected{{/if}}>{{this.name}}</option>
+                  {{/each}}
+                </select>
+              </div>
+
+              <!-- Status filter -->
+              <div>
+                <label for="status" style="display:block;font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px;">Status</label>
+                <select
+                  id="status"
+                  name="status"
+                  style="width:100%;padding:9px 12px;border:1px solid var(--cream-dark);border-radius:8px;font-size:13px;background:var(--cream);color:var(--text-dark);outline:none;appearance:none;transition:border-color 0.18s;"
+                  onfocus="this.style.borderColor='var(--terra)'"
+                  onblur="this.style.borderColor='var(--cream-dark)'"
+                >
+                  <option value="">All Statuses</option>
+                  <option value="active"   {{#if (eq filters.status "active")}}selected{{/if}}>Active</option>
+                  <option value="inactive" {{#if (eq filters.status "inactive")}}selected{{/if}}>Inactive</option>
+                  <option value="pending"  {{#if (eq filters.status "pending")}}selected{{/if}}>Pending</option>
+                </select>
+              </div>
+
+              <!-- Sort -->
+              <div>
+                <label for="sort" style="display:block;font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px;">Sort By</label>
+                <select
+                  id="sort"
+                  name="sort"
+                  style="width:100%;padding:9px 12px;border:1px solid var(--cream-dark);border-radius:8px;font-size:13px;background:var(--cream);color:var(--text-dark);outline:none;appearance:none;transition:border-color 0.18s;"
+                  onfocus="this.style.borderColor='var(--terra)'"
+                  onblur="this.style.borderColor='var(--cream-dark)'"
+                >
+                  <option value="date"       {{#if (eq filters.sort "date")}}selected{{/if}}>Newest First</option>
+                  <option value="date_asc"   {{#if (eq filters.sort "date_asc")}}selected{{/if}}>Oldest First</option>
+                  <option value="name"       {{#if (eq filters.sort "name")}}selected{{/if}}>Name A–Z</option>
+                  <option value="name_desc"  {{#if (eq filters.sort "name_desc")}}selected{{/if}}>Name Z–A</option>
+                  <option value="price"      {{#if (eq filters.sort "price")}}selected{{/if}}>Price Low–High</option>
+                  <option value="price_desc" {{#if (eq filters.sort "price_desc")}}selected{{/if}}>Price High–Low</option>
+                  <option value="stock"      {{#if (eq filters.sort "stock")}}selected{{/if}}>Stock High–Low</option>
+                  <option value="stock_asc"  {{#if (eq filters.sort "stock_asc")}}selected{{/if}}>Stock Low–High</option>
+                </select>
+              </div>
+
+              <!-- Buttons -->
+              <div style="display:flex;gap:8px;">
+                <button
+                  type="submit"
+                  style="background:var(--terra);color:#fff;border:none;border-radius:8px;padding:9px 18px;font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;transition:background 0.18s;"
+                  onmouseover="this.style.background='var(--terra-light)'"
+                  onmouseout="this.style.background='var(--terra)'"
+                >
+                  Filter
+                </button>
+                <a
+                  href="/seller/products"
+                  style="background:var(--cream-dark);color:var(--text-mid);border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;display:inline-flex;align-items:center;transition:background 0.18s;white-space:nowrap;"
+                  onmouseover="this.style.background='#e0d5c4'"
+                  onmouseout="this.style.background='var(--cream-dark)'"
+                  title="Clear all filters"
+                >
+                  ✕ Clear
+                </a>
+              </div>
+
+            </div>
+          </div>
+        </form>
+
+        <!-- ── Products table ──────────────────────────────────────── -->
+        <div class="cf-table-card">
+          <div class="cf-table-wrap">
+            <table class="cf-table" role="table" aria-label="Product listings">
+              <thead>
+                <tr>
+                  <th scope="col" style="width:36px;">#</th>
+                  <th scope="col">Product</th>
+                  <th scope="col">Category</th>
+                  <th scope="col">Price</th>
+                  <th scope="col">Stock</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Date Added</th>
+                  <th scope="col">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+
+                {{#if products.length}}
+                  {{#each products}}
+                  <tr>
+                    <!-- Row number -->
+                    <td style="color:var(--text-muted);font-size:12px;text-align:center;">{{inc @index}}</td>
+
+                    <!-- Product name + image -->
+                    <td>
+                      <div class="cf-product-cell">
+                        <img
+                          src="{{#if this.imagePath}}/{{this.imagePath}}{{else}}/uploads/products/placeholder.svg{{/if}}"
+                          alt="{{this.name}}"
+                          width="38" height="38"
+                          style="width:38px;height:38px;border-radius:8px;object-fit:cover;border:1px solid var(--cream-dark);flex-shrink:0;background:var(--cream-dark);"
+                          onerror="this.src='/uploads/products/placeholder.svg';this.onerror=null;"
+                        />
+                        <div>
+                          <div class="cf-product-name">{{this.name}}</div>
+                          <div class="cf-product-sku">{{this.sku}}</div>
+                        </div>
+                      </div>
+                    </td>
+
+                    <!-- Category -->
+                    <td style="font-size:13px;color:var(--text-mid);">{{this.categoryName}}</td>
+
+                    <!-- Price -->
+                    <td style="font-weight:600;color:var(--brown);">{{formatPrice this.price}}</td>
+
+                    <!-- Stock — colour-code low stock -->
+                    <td>
+                      {{#if (eq this.stock 0)}}
+                        <span style="color:#C62828;font-weight:700;font-size:13px;">Out of stock</span>
+                      {{else}}
+                        <span style="font-size:13px;{{#if (eq this.stock 1)}}color:#E65100;font-weight:600;{{/if}}">
+                          {{this.stock}}
+                        </span>
+                      {{/if}}
+                    </td>
+
+                    <!-- Status pill -->
+                    <td>
+                      <span class="cf-status cf-status--{{this.statusClass}}">
+                        {{this.status}}
+                      </span>
+                    </td>
+
+                    <!-- Date -->
+                    <td style="font-size:12px;color:var(--text-muted);white-space:nowrap;">
+                      {{formatDate this.createdAt}}
+                    </td>
+
+                    <!-- Actions -->
+                    <td>
+                      <div class="cf-action-group">
+                        <a
+                          href="/seller/products/edit/{{this.id}}"
+                          class="cf-action-btn"
+                          aria-label="Edit {{this.name}}"
+                          title="Edit"
+                        >✏️</a>
+                        <a
+                          href="/seller/products/delete/{{this.id}}"
+                          class="cf-action-btn"
+                          aria-label="Delete {{this.name}}"
+                          title="Delete (coming soon)"
+                          style="pointer-events:none;opacity:0.4;"
+                        >🗑️</a>
+                      </div>
+                    </td>
+
+                  </tr>
+                  {{/each}}
+
+                {{else}}
+                  <tr>
+                    <td colspan="8">
+                      <div class="cf-table-empty">
+                        <div class="cf-table-empty-icon" aria-hidden="true">
+                          {{#if filters.search}}🔍{{else}}🏺{{/if}}
+                        </div>
+                        {{#if filters.search}}
+                          <p class="cf-table-empty-msg">No products match "{{filters.search}}"</p>
+                          <p class="cf-table-empty-hint">
+                            Try a different search term or <a href="/seller/products" style="color:var(--terra);font-weight:600;">clear all filters</a>.
+                          </p>
+                        {{else}}
+                          <p class="cf-table-empty-msg">No products listed yet</p>
+                          <p class="cf-table-empty-hint">
+                            <a href="/seller/products/add" style="color:var(--terra);font-weight:600;">Add your first cultural product</a> to get started.
+                          </p>
+                        {{/if}}
+                      </div>
+                    </td>
+                  </tr>
+                {{/if}}
+
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Table footer — count summary -->
+          {{#if products.length}}
+          <div style="padding:12px 16px;border-top:1px solid var(--cream-dark);background:var(--cream);font-size:12px;color:var(--text-muted);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <span>Showing <strong>{{totalCount}}</strong> product{{#if (eq totalCount 1)}}{{else}}s{{/if}}</span>
+            {{#if filters.search}}
+              <span>Search: "<strong>{{filters.search}}</strong>"</span>
+            {{/if}}
+          </div>
+          {{/if}}
+
+        </div><!-- /.cf-table-card -->
+
+{{> seller-footer}}

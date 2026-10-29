@@ -1,0 +1,66 @@
+<!-- Mobile overlay -->
+<div class="cf-overlay" id="cfOverlay"></div>
+
+<aside class="cf-sidebar" id="cfSidebar" role="navigation" aria-label="Seller navigation">
+  <!-- Weaving strip -->
+  <div class="cf-sidebar-weave" aria-hidden="true"></div>
+
+  <!-- Brand -->
+  <div class="cf-sidebar-brand">
+    <div class="cf-brand-icon" aria-hidden="true">🏛️</div>
+    <p class="cf-brand-title">CultureFrame</p>
+    <p class="cf-brand-sub">Mansalay Heritage</p>
+  </div>
+
+  <!-- Seller identity -->
+  <div class="cf-seller-badge">
+    <div class="cf-seller-avatar" aria-hidden="true">S</div>
+    <div class="cf-seller-info">
+      <div class="cf-seller-name">Seller Dashboard</div>
+      <div class="cf-seller-role">Product Manager</div>
+    </div>
+  </div>
+
+  <!-- Navigation -->
+  <p class="cf-nav-label">Main Menu</p>
+  <ul class="cf-nav" role="list">
+    <li class="cf-nav-item">
+      <a href="/seller/dashboard"
+         class="cf-nav-link {{#if activeDashboard}}active{{/if}}"
+         aria-current="{{#if activeDashboard}}page{{/if}}">
+        <span class="cf-nav-icon" aria-hidden="true">📊</span>
+        Dashboard
+      </a>
+    </li>
+    <li class="cf-nav-item">
+      <a href="/seller/products"
+         class="cf-nav-link {{#if activeProducts}}active{{/if}}"
+         aria-current="{{#if activeProducts}}page{{/if}}">
+        <span class="cf-nav-icon" aria-hidden="true">🏺</span>
+        My Products
+      </a>
+    </li>
+    <li class="cf-nav-item">
+      <a href="/seller/products/add"
+         class="cf-nav-link {{#if activeAddProduct}}active{{/if}}"
+         aria-current="{{#if activeAddProduct}}page{{/if}}">
+        <span class="cf-nav-icon" aria-hidden="true">➕</span>
+        Add Product
+      </a>
+    </li>
+    <li class="cf-nav-item">
+      <a href="/seller/categories"
+         class="cf-nav-link {{#if activeCategories}}active{{/if}}"
+         aria-current="{{#if activeCategories}}page{{/if}}">
+        <span class="cf-nav-icon" aria-hidden="true">🗂️</span>
+        Categories
+      </a>
+    </li>
+  </ul>
+
+  <!-- Bottom strip -->
+  <div class="cf-sidebar-footer">
+    <div class="cf-weave-bar" aria-hidden="true"></div>
+    <p class="cf-sidebar-footer-text">Mindoro State University</p>
+  </div>
+</aside>
