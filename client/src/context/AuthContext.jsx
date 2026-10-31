@@ -28,8 +28,11 @@ export function AuthProvider({ children }) {
   }, []);
 
   const logout = useCallback(async () => {
-    await authService.logout();
-    setAdmin(null);
+    try {
+      await authService.logout();
+    } finally {
+      setAdmin(null);
+    }
   }, []);
 
   return (

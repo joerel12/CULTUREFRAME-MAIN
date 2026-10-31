@@ -12,6 +12,57 @@
  */
 
 const { cultureFrameClient } = require('./cultureframeClient');
+const PAGE_SIZE = 200;
+const MAX_PAGES = 100;
+
+async function getAllPages(path, params = {}) {
+  const firstPage = await cultureFrameClient.get(path, { ...params, page: 1, limit: PAGE_SIZE });
+  if (!Array.isArray(firstPage?.data)) return firstPage;
+
+  const rawTotalPages = firstPage.pagination?.totalPages;
+  if ((rawTotalPages === undefined || rawTotalPages === null) && firstPage.data.length >= PAGE_SIZE) {
+    throw Object.assign(new Error(`CultureFrame returned a full page without pagination metadata for ${path}.`), {
+      code: 'CULTUREFRAME_INVALID_RESPONSE',
+      status: 502,
+      exposeMessage: true,
+    });
+  }
+  const totalPages = rawTotalPages === undefined || rawTotalPages === null ? 1 : Number(rawTotalPages);
+  if (!Number.isInteger(totalPages) || totalPages < 1 || totalPages > MAX_PAGES) {
+    throw Object.assign(new Error(`CultureFrame pagination exceeded the supported ${MAX_PAGES}-page limit for ${path}.`), {
+      code: 'CULTUREFRAME_PAGINATION_LIMIT',
+      status: 502,
+      exposeMessage: true,
+    });
+  }
+
+  const records = [...firstPage.data];
+  // Keep the upstream request fan-out bounded while retrieving all advertised pages.
+  for (let first = 2; first <= totalPages; first += 5) {
+    const last = Math.min(first + 4, totalPages);
+    const pages = await Promise.all(
+      Array.from({ length: last - first + 1 }, (_, index) =>
+        cultureFrameClient.get(path, { ...params, page: first + index, limit: PAGE_SIZE })
+      )
+    );
+    for (const page of pages) {
+      if (!Array.isArray(page?.data)) {
+        throw Object.assign(new Error(`CultureFrame returned an invalid paginated response for ${path}.`), {
+          code: 'CULTUREFRAME_INVALID_RESPONSE',
+          status: 502,
+          exposeMessage: true,
+        });
+      }
+      records.push(...page.data);
+    }
+  }
+
+  return {
+    ...firstPage,
+    data: records,
+    pagination: { ...firstPage.pagination, page: 1, limit: PAGE_SIZE, totalPages },
+  };
+}
 
 // Configurable endpoint paths — update these to match the real CultureFrame routes
 const ENDPOINTS = {
@@ -36,14 +87,14 @@ class CultureFrameAdapter {
    * Fetch paginated orders. Supports startDate, endDate, page, limit.
    */
   async getOrders(params = {}) {
-    return cultureFrameClient.get(ENDPOINTS.orders, params);
+    return getAllPages(ENDPOINTS.orders, params);
   }
 
   /**
    * Fetch paginated products.
    */
   async getProducts(params = {}) {
-    return cultureFrameClient.get(ENDPOINTS.products, params);
+    return getAllPages(ENDPOINTS.products, params);
   }
 
   /**
@@ -57,21 +108,21 @@ class CultureFrameAdapter {
    * Fetch events and registration counts.
    */
   async getEvents(params = {}) {
-    return cultureFrameClient.get(ENDPOINTS.events, params);
+    return getAllPages(ENDPOINTS.events, params);
   }
 
   /**
    * Fetch cultural heritage records.
    */
   async getHeritage(params = {}) {
-    return cultureFrameClient.get(ENDPOINTS.heritage, params);
+    return getAllPages(ENDPOINTS.heritage, params);
   }
 
   /**
    * Fetch scenic destination records.
    */
   async getScenicDestinations(params = {}) {
-    return cultureFrameClient.get(ENDPOINTS.scenic, params);
+    return getAllPages(ENDPOINTS.scenic, params);
   }
 
   /** Return the configured endpoint map (for documentation/status display) */
@@ -81,4 +132,4 @@ class CultureFrameAdapter {
 }
 
 const cultureFrameAdapter = new CultureFrameAdapter();
-module.exports = { cultureFrameAdapter };
+module.exports = { cultureFrameAdapter, getAllPages };

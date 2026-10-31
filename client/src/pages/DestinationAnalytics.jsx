@@ -6,6 +6,7 @@ import ErrorMessage from '../components/ui/ErrorMessage';
 import EmptyState from '../components/ui/EmptyState';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { analyticsService } from '../services/analyticsService';
+import { reportService } from '../services/reportService';
 import { MapPin, Landmark, Eye, Globe, Download } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -13,12 +14,22 @@ const fmt = (n) => Number(n || 0).toLocaleString('en-PH');
 
 export default function DestinationAnalytics() {
   const [tab, setTab] = useState('heritage');
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
 
   const { data, loading, error, refetch } = useAnalytics(
     () => analyticsService.getDestinations()
   );
 
   const current = tab === 'heritage' ? data?.heritage : data?.scenic;
+
+  const exportCsv = async () => {
+    setExporting(true);
+    setExportError('');
+    try { await reportService.download('destinations'); }
+    catch (err) { setExportError(err.message); }
+    finally { setExporting(false); }
+  };
 
   return (
     <div className="flex flex-col h-full">
@@ -109,10 +120,11 @@ export default function DestinationAnalytics() {
             )}
 
             <div className="flex justify-end">
-              <button onClick={() => window.open(`/api/v1/reports/destinations.csv`, '_blank')} className="btn-secondary flex items-center gap-1.5 text-xs">
-                <Download size={14} /> Export CSV
+              <button onClick={exportCsv} disabled={exporting} className="btn-secondary flex items-center gap-1.5 text-xs">
+                <Download size={14} /> {exporting ? 'Preparing…' : 'Export CSV'}
               </button>
             </div>
+            {exportError && <p role="alert" className="text-sm text-red-700">{exportError}</p>}
           </>
         )}
       </div>

@@ -26,7 +26,7 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.JSONB,
         allowNull: false,
         defaultValue: {},
-        comment: 'Aggregated metric data. No passwords, tokens, or personal identifiers.',
+        comment: 'Normalized provider payload for diagnostics. No passwords, tokens, or customer personal identifiers.',
       },
       sourceSystem: {
         type: DataTypes.STRING(64),
@@ -37,7 +37,7 @@ module.exports = (sequelize, DataTypes) => {
         type: DataTypes.STRING(16),
         allowNull: false,
         defaultValue: 'mock',
-        comment: '"mock" | "live" | "snapshot"',
+        comment: 'Source mode for this diagnostic archive: "mock" | "live". Analytics do not read snapshots.',
       },
       generatedAt: {
         type: DataTypes.DATE,

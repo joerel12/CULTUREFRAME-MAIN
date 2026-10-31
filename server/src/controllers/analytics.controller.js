@@ -7,18 +7,25 @@ const { getCustomerMetrics } = require('../services/analytics/customerAnalytics'
 const { getEventMetrics } = require('../services/analytics/eventAnalytics');
 const { getDestinationMetrics } = require('../services/analytics/destinationAnalytics');
 const { fetchOverview } = require('../services/analytics/dataProvider');
-const { IntegrationSyncRun } = require('../models');
+const { IntegrationSyncRun, isEphemeralStorageActive } = require('../models');
+const { env } = require('../config/environment');
 
 async function getOverview(req, res, next) {
   try {
     const { overview, _dataMode } = await fetchOverview();
     const lastSync = await IntegrationSyncRun.findOne({
-      where: { status: 'completed' },
+      where: { status: 'completed', dataMode: env.DATA_MODE },
       order: [['startedAt', 'DESC']],
     });
     return res.json({
       success: true,
-      data: { ...overview, _dataMode, lastSyncAt: lastSync?.startedAt || null },
+      data: {
+        ...overview,
+        _dataMode,
+        lastSyncAt: lastSync?.startedAt || null,
+        _storageMode: isEphemeralStorageActive() ? 'ephemeral' : 'postgres',
+        _ephemeralStorage: isEphemeralStorageActive(),
+      },
     });
   } catch (err) {
     return next(err);

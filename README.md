@@ -30,12 +30,49 @@ CultureMetrics/
 ## Prerequisites
 
 - **Node.js** 18 or higher: https://nodejs.org
-- **PostgreSQL** 14 or higher: https://www.postgresql.org
+- **PostgreSQL** 14 or higher only for persistent database mode; it is not required for the local demo.
 - **npm** (comes with Node.js)
 
 ---
 
-## Local Setup (Windows / PowerShell)
+## Local Demo Setup (Windows / PowerShell)
+
+The default local configuration is development + mock data. When PostgreSQL authentication/connection fails in this exact mode, the API starts with **ephemeral in-memory storage**. No database, migrations, seeders, or `bootstrap-admin` command are needed.
+
+```powershell
+cd C:\Users\jomar\Desktop\CultureMetrics\server
+npm install
+cd ..
+npm.cmd run dev
+```
+
+If PostgreSQL is reachable, the API keeps using the normal PostgreSQL path. Production and live mode never fall back; database connection failure stops startup.
+
+The local demo account is read from `ADMIN_BOOTSTRAP_*` settings. Without overrides, development-only defaults are:
+
+| Setting | Local demo default |
+|---|---|
+| `ADMIN_BOOTSTRAP_USERNAME` | `demo-admin` |
+| `ADMIN_BOOTSTRAP_EMAIL` | `demo-admin@culturemetrics.local` |
+| `ADMIN_BOOTSTRAP_PASSWORD` | `DemoPassword123!` |
+
+These are public local demo credentials; do not use them outside a local demo. If `server/.env` exists, its `ADMIN_BOOTSTRAP_*` values override these defaults. The demo admin is created in memory at startup; changing its password works for the current process only.
+
+Open another PowerShell terminal to run the UI:
+
+```powershell
+cd C:\Users\jomar\Desktop\CultureMetrics\client
+npm install
+npm.cmd run dev
+```
+
+Vite proxies API requests to the local backend. Open http://localhost:5174/login and use the development demo credentials above (or your configured `ADMIN_BOOTSTRAP_*` values).
+
+**Ephemeral behavior:** login, the current admin/password, connection-test status, sync history, snapshots/diagnostics, and overview last-sync state exist only in the running API process. They are lost when it restarts. The app logs and dashboard Integration page identify this state. No changes are written to PostgreSQL in fallback mode.
+
+## Persistent PostgreSQL Setup (optional for local development)
+
+For normal persistent database mode, configure a real `DATABASE_URL`, `JWT_SECRET`, and `SESSION_SECRET` in `server/.env`, create the database, run migrations, and create the initial admin using `npm run bootstrap:admin`. Admin setup is mandatory in normal DB mode; startup does not silently provision an account there.
 
 ### 1. Clone or download the project
 
@@ -136,11 +173,11 @@ Leave `VITE_API_BASE_URL` as-is for local development (Vite proxies `/api` to th
 npm run dev
 ```
 
-The dashboard will open at: http://localhost:5173
+The dashboard will open at: http://localhost:5174
 
 ### 10. Log in
 
-Open http://localhost:5173/login  
+Open http://localhost:5174/login
 Username: `admin` (or whatever you set in `ADMIN_BOOTSTRAP_USERNAME`)  
 Password: the password you set in `ADMIN_BOOTSTRAP_PASSWORD`
 
@@ -189,9 +226,11 @@ Invoke-WebRequest -Method POST -Uri http://localhost:5000/api/v1/auth/login -Bod
    CULTUREMETRICS_DATA_MODE=live
    ```
 4. Restart the backend: `npm run dev`
-5. Go to **CultureFrame Integration** page in the dashboard
-6. Click **Test Connection** — should show success
-7. Click **Trigger Sync Now** to fetch initial data
+5. Go to **CultureFrame Integration** in the dashboard and review the server-side readiness checklist
+6. Click **Test required analytics endpoint**. This checks the contract's overview route, not just whether the CultureFrame website responds.
+7. If the required endpoints are implemented, run a data check to record aggregate snapshots and diagnostics.
+
+The analytics pages request live data directly; the recorded normalized provider snapshots are an audit/diagnostic archive and do **not** populate or replace analytics. The documented CultureFrame routes are currently **proposed**. Until CultureFrame implements them, the endpoint test and live analytics will fail with a visible, actionable error. Use demo mode for presentations and development.
 
 ---
 

@@ -9,11 +9,14 @@ import EmptyState from '../components/ui/EmptyState';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { analyticsService } from '../services/analyticsService';
+import { reportService } from '../services/reportService';
 import { Calendar, Users, XCircle, Clock, Download } from 'lucide-react';
 
 const fmt = (n) => Number(n || 0).toLocaleString('en-PH');
 
 export default function EventAnalytics() {
+  const [exporting, setExporting] = React.useState(false);
+  const [exportError, setExportError] = React.useState('');
   const { startDate, endDate, setStartDate, setEndDate, setPreset } = useDateFilter(90);
 
   const { data, loading, error, refetch } = useAnalytics(
@@ -21,16 +24,25 @@ export default function EventAnalytics() {
     { startDate, endDate }
   );
 
+  const exportCsv = async () => {
+    setExporting(true);
+    setExportError('');
+    try { await reportService.download('events', { startDate, endDate }); }
+    catch (err) { setExportError(err.message); }
+    finally { setExporting(false); }
+  };
+
   return (
     <div className="flex flex-col h-full">
       <Header />
       <div className="flex-1 p-6 overflow-y-auto space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <DateRangeFilter startDate={startDate} endDate={endDate} onStartChange={setStartDate} onEndChange={setEndDate} onPreset={setPreset} />
-          <button onClick={() => window.open(`/api/v1/reports/events.csv`, '_blank')} className="btn-secondary flex items-center gap-1.5 text-xs">
-            <Download size={14} /> Export CSV
+          <button onClick={exportCsv} disabled={exporting} className="btn-secondary flex items-center gap-1.5 text-xs">
+            <Download size={14} /> {exporting ? 'Preparing…' : 'Export CSV'}
           </button>
         </div>
+        {exportError && <p role="alert" className="text-sm text-red-700">{exportError}</p>}
 
         {!data?.hasAttendanceData && !loading && !error && (
           <div className="bg-amber-50 border border-amber-100 rounded-lg px-4 py-2 text-xs text-amber-700">

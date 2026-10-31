@@ -21,7 +21,7 @@ Browser
             │         ├─ MockProvider (DATA_MODE=mock)
             │         └─ CultureFrameAdapter (DATA_MODE=live)
             │              └─ CultureFrameClient (HTTP → CultureFrame)
-            ├─ Sync service → PostgreSQL (analytics_snapshots)
+            ├─ Sync/data-check service → PostgreSQL (diagnostic snapshots and run history)
             └─ CSV reporter
 ```
 
@@ -38,9 +38,11 @@ Browser
 
 ## Key Design Decisions
 
-- **Mock provider is isolated** — activated only when `DATA_MODE=mock`. Never mixed with live data.
+- **Demo and live providers are isolated** — `CULTUREMETRICS_DATA_MODE=mock` uses fictional sample data; `live` requests CultureFrame directly. The browser does not switch the mode.
 - **Normalizer validates all source data** — records with invalid fields are rejected, not silently accepted.
 - **Monetary values as strings** — all financial values flow as decimal strings to avoid float imprecision.
 - **JWT in httpOnly cookie + sessionStorage fallback** — secure browser auth with non-cookie client support.
 - **No CultureFrame DB access** — CultureMetrics only communicates through CultureFrame's REST API.
-- **Synchronization is idempotent** — repeated syncs do not duplicate records; unique external IDs prevent double-counting.
+- **Data checks are not an analytics cache** — runs retain aggregate snapshots and diagnostics, but analytics endpoints query the selected provider directly. Stored snapshots are not consumed by analytics.
+- **Live pagination is bounded** — the adapter retrieves all advertised pages (up to 100 pages per endpoint) and fails visibly if pagination metadata is missing/invalid or the contract advertises more.
+- **CultureFrame availability is not assumed** — the required analytics endpoints are proposed; a successful website response alone does not establish integration availability.

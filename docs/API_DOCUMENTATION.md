@@ -67,9 +67,9 @@ All support query params: `startDate` (YYYY-MM-DD), `endDate`, `page`, `limit`.
 | Endpoint | Description |
 |---|---|
 | GET /integration/status | Current integration status |
-| POST /integration/test-connection | Test CultureFrame connectivity |
-| POST /integration/sync | Trigger manual sync |
-| GET /integration/sync-history | Past sync runs |
+| POST /integration/test-connection | Test the proposed CultureFrame overview analytics endpoint |
+| POST /integration/sync | Capture normalized provider snapshots and a data-check run summary (not an analytics cache) |
+| GET /integration/sync-history | Past data-check runs and outcomes |
 | GET /integration/configuration-status | Integration checklist |
 
 ---

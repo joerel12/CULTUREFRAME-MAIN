@@ -25,23 +25,24 @@ export default function Dashboard() {
     () => analyticsService.getOverview()
   );
 
-  const { data: sales, loading: sLoading, error: sError } = useAnalytics(
+  const { data: sales, loading: sLoading, error: sError, refetch: refetchSales } = useAnalytics(
     () => analyticsService.getSales({ granularity: 'day' })
   );
 
-  const { data: orders, loading: oLoading, error: oError } = useAnalytics(
+  const { data: orders, loading: oLoading, error: oError, refetch: refetchOrders } = useAnalytics(
     () => analyticsService.getOrders()
   );
 
-  const { data: events, loading: eLoading, error: eError } = useAnalytics(
+  const { data: events, loading: eLoading, error: eError, refetch: refetchEvents } = useAnalytics(
     () => analyticsService.getEvents()
   );
 
   const dataMode = overview?._dataMode || sales?._dataMode || 'mock';
+  const refreshDashboard = () => Promise.all([refetchOv(), refetchSales(), refetchOrders(), refetchEvents()]);
 
   return (
     <div className="flex flex-col h-full">
-      <Header onRefresh={refetchOv} />
+      <Header onRefresh={refreshDashboard} />
 
       <div className="flex-1 p-6 overflow-y-auto space-y-6">
         {/* Demo data warning banner */}
@@ -49,7 +50,8 @@ export default function Dashboard() {
           <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-3 flex items-center gap-3">
             <DataModeBadge mode="mock" />
             <p className="text-sm text-amber-800">
-              <strong>Demo Mode:</strong> Displaying fictional sample data. Connect CultureFrame in the Integration settings to show real data.
+              <strong>Demo mode:</strong> This page uses fictional sample data. Live mode is selected through server configuration; CultureFrame analytics endpoints must be implemented before real data is available.
+              {overview?._ephemeralStorage && <span className="block mt-1 font-semibold">This server is using ephemeral in-memory storage. Login changes, sync history, and diagnostics are not persistent and will reset on restart.</span>}
             </p>
           </div>
         )}

@@ -35,12 +35,13 @@ function buildRow(values) {
   }).join(',');
 }
 
-function buildCsv(headers, rows) {
-  const lines = [buildRow(headers)];
+function buildCsv(headers, rows, dataMode = 'live') {
+  const modeLabel = dataMode === 'mock' ? 'DEMO DATA — NOT REAL' : 'LIVE DATA';
+  const lines = [buildRow(['Data mode', ...headers])];
   for (const row of rows) {
-    lines.push(buildRow(row));
+    lines.push(buildRow([modeLabel, ...row]));
   }
-  return lines.join('\r\n');
+  return `\uFEFF${lines.join('\r\n')}`;
 }
 
 async function generateSalesCsv(params = {}) {
@@ -48,7 +49,7 @@ async function generateSalesCsv(params = {}) {
   const headers = ['Period', 'Gross Sales (PHP)', 'Order Count'];
   const rows = (data.trend || []).map((t) => [t.period, t.grossSales, t.orderCount]);
   return {
-    csv: buildCsv(headers, rows),
+    csv: buildCsv(headers, rows, data._dataMode),
     filename: `culturemetrics-sales-${new Date().toISOString().slice(0, 10)}.csv`,
     dataMode: data._dataMode,
   };
@@ -69,7 +70,7 @@ async function generateProductsCsv(params = {}) {
     p.isAvailable ? 'Yes' : 'No',
   ]);
   return {
-    csv: buildCsv(headers, rows),
+    csv: buildCsv(headers, rows, data._dataMode),
     filename: `culturemetrics-products-${new Date().toISOString().slice(0, 10)}.csv`,
     dataMode: data._dataMode,
   };
@@ -80,7 +81,7 @@ async function generateOrdersCsv(params = {}) {
   const headers = ['Status', 'Count'];
   const rows = (data.byStatus || []).map((s) => [s.status, s.count]);
   return {
-    csv: buildCsv(headers, rows),
+    csv: buildCsv(headers, rows, data._dataMode),
     filename: `culturemetrics-orders-${new Date().toISOString().slice(0, 10)}.csv`,
     dataMode: data._dataMode,
   };
@@ -99,7 +100,7 @@ async function generateEventsCsv(params = {}) {
     e.confirmedAttendance ?? 'N/A',
   ]);
   return {
-    csv: buildCsv(headers, rows),
+    csv: buildCsv(headers, rows, data._dataMode),
     filename: `culturemetrics-events-${new Date().toISOString().slice(0, 10)}.csv`,
     dataMode: data._dataMode,
   };
@@ -118,7 +119,7 @@ async function generateDestinationsCsv(params = {}) {
 
   const headers = ['Type', 'ID', 'Name', 'Category', 'Location', 'View Count', 'Published'];
   return {
-    csv: buildCsv(headers, rows),
+    csv: buildCsv(headers, rows, data._dataMode),
     filename: `culturemetrics-destinations-${new Date().toISOString().slice(0, 10)}.csv`,
     dataMode: data._dataMode,
   };

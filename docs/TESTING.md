@@ -14,6 +14,7 @@ npm test
 | `tests/auth.test.js` | bcrypt hashing, JWT sign/verify, expiry, wrong secret |
 | `tests/analytics.test.js` | isQualifyingOrder, filterByDateRange, getSalesMetrics shape |
 | `tests/integration.test.js` | Mock provider, normalizer, CSV reporter |
+| `tests/cultureframeAdapter.test.js` | CultureFrame pagination behavior and safety bound |
 
 ## Test Strategy
 
@@ -38,3 +39,4 @@ Import the service or function to test and use Jest's `describe`/`it`/`expect` A
 - Normalizer not converting missing paymentStatus to 'paid'
 - CSV generation without errors
 - CSV data mode labeling
+- Complete paginated API collection with a bounded page count

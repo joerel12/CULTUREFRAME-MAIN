@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import Header from '../components/layout/Header';
 import DateRangeFilter from '../components/filters/DateRangeFilter';
 import MetricCard from '../components/ui/MetricCard';
@@ -8,6 +8,7 @@ import ErrorMessage from '../components/ui/ErrorMessage';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { analyticsService } from '../services/analyticsService';
+import { reportService } from '../services/reportService';
 import { ShoppingCart, CheckCircle, XCircle, TrendingDown, Download } from 'lucide-react';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -18,6 +19,8 @@ const fmtCurrency = (n) =>
   new Intl.NumberFormat('en-PH', { style: 'currency', currency: 'PHP', maximumFractionDigits: 0 }).format(Number(n || 0));
 
 export default function OrderAnalytics() {
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState('');
   const { startDate, endDate, setStartDate, setEndDate, setPreset } = useDateFilter(30);
 
   const { data, loading, error, refetch } = useAnalytics(
@@ -31,10 +34,21 @@ export default function OrderAnalytics() {
       <div className="flex-1 p-6 overflow-y-auto space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <DateRangeFilter startDate={startDate} endDate={endDate} onStartChange={setStartDate} onEndChange={setEndDate} onPreset={setPreset} />
-          <button onClick={() => window.open(`/api/v1/reports/orders.csv`, '_blank')} className="btn-secondary flex items-center gap-1.5 text-xs">
-            <Download size={14} /> Export CSV
+          <button
+            onClick={async () => {
+              setExporting(true);
+              setExportError('');
+              try { await reportService.download('orders', { startDate, endDate }); }
+              catch (err) { setExportError(err.message); }
+              finally { setExporting(false); }
+            }}
+            disabled={exporting}
+            className="btn-secondary flex items-center gap-1.5 text-xs"
+          >
+            <Download size={14} /> {exporting ? 'Preparing…' : 'Export CSV'}
           </button>
         </div>
+        {exportError && <p role="alert" className="text-sm text-red-700">{exportError}</p>}
 
         {loading && <LoadingSpinner />}
         {!loading && error && <ErrorMessage message={error} onRetry={refetch} />}

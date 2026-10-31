@@ -9,32 +9,44 @@ const PRESETS = [
 ];
 
 export default function DateRangeFilter({ startDate, endDate, onStartChange, onEndChange, onPreset }) {
+  const updateStart = (value) => {
+    onStartChange(value);
+    if (value && endDate && value > endDate) onEndChange(value);
+  };
+  const updateEnd = (value) => {
+    onEndChange(value);
+    if (value && startDate && value < startDate) onStartChange(value);
+  };
+
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Calendar size={16} className="text-gray-400" />
+    <div className="flex flex-wrap items-center gap-2.5" aria-label="Analytics date range">
+      <Calendar size={16} className="text-forest-600" aria-hidden="true" />
       {PRESETS.map((p) => (
         <button
           key={p.days}
+          type="button"
           onClick={() => onPreset?.(p.days)}
-          className="text-xs px-2.5 py-1 rounded-md border border-gray-200 hover:border-forest-500 hover:text-forest-700 transition-colors"
+          className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-xs font-semibold text-gray-600 transition-colors hover:border-forest-500 hover:text-forest-700"
         >
           {p.label}
         </button>
       ))}
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-2">
         <input
           type="date"
           value={startDate}
-          onChange={(e) => onStartChange(e.target.value)}
-          className="input text-xs w-36"
+          max={endDate || undefined}
+          onChange={(e) => updateStart(e.target.value)}
+          className="input w-36 text-xs"
           aria-label="Start date"
         />
-        <span className="text-gray-400 text-xs">to</span>
+        <span className="text-xs text-gray-400">to</span>
         <input
           type="date"
           value={endDate}
-          onChange={(e) => onEndChange(e.target.value)}
-          className="input text-xs w-36"
+          min={startDate || undefined}
+          onChange={(e) => updateEnd(e.target.value)}
+          className="input w-36 text-xs"
           aria-label="End date"
         />
       </div>

@@ -16,6 +16,11 @@ export default function Login() {
   const navigate = useNavigate();
   const [showPw, setShowPw] = useState(false);
   const [serverError, setServerError] = useState('');
+  const [notice] = useState(() => {
+    const message = sessionStorage.getItem('cm_notice') || '';
+    sessionStorage.removeItem('cm_notice');
+    return message;
+  });
 
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm({
     resolver: zodResolver(schema),
@@ -48,6 +53,12 @@ export default function Login() {
         {/* Card */}
         <div className="bg-white rounded-2xl shadow-2xl p-8">
           <h2 className="text-lg font-semibold text-gray-800 mb-6">Sign In</h2>
+
+          {notice && (
+            <div role="status" className="mb-5 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+              <Leaf size={16} aria-hidden="true" />{notice}
+            </div>
+          )}
 
           {serverError && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-5">
@@ -116,6 +127,12 @@ export default function Login() {
               )}
             </button>
           </form>
+
+          {import.meta.env.DEV && (
+            <p className="mt-5 rounded-lg bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-800">
+              Local demo login uses the API's <code>ADMIN_BOOTSTRAP_USERNAME</code> and <code>ADMIN_BOOTSTRAP_PASSWORD</code> settings. In fallback mode, accounts and password changes last only until the API restarts. See README for the default demo account.
+            </p>
+          )}
         </div>
 
         <p className="text-center text-forest-300 text-xs mt-6">

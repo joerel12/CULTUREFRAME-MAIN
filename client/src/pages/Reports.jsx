@@ -3,26 +3,30 @@ import Header from '../components/layout/Header';
 import DateRangeFilter from '../components/filters/DateRangeFilter';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { FileText, Download, AlertCircle } from 'lucide-react';
+import { reportService } from '../services/reportService';
 
 const REPORTS = [
-  { id: 'sales', label: 'Sales Report', desc: 'Revenue trend by period, including gross/net sales breakdown.', endpoint: '/api/v1/reports/sales.csv' },
-  { id: 'products', label: 'Products Report', desc: 'Ranked product performance with units sold and revenue.', endpoint: '/api/v1/reports/products.csv' },
-  { id: 'orders', label: 'Orders Report', desc: 'Order counts grouped by status.', endpoint: '/api/v1/reports/orders.csv' },
-  { id: 'events', label: 'Events Report', desc: 'Event registrations and attendance data.', endpoint: '/api/v1/reports/events.csv' },
-  { id: 'destinations', label: 'Destinations Report', desc: 'Heritage sites and scenic destinations with view counts.', endpoint: '/api/v1/reports/destinations.csv' },
+  { id: 'sales', label: 'Sales Report', desc: 'Revenue trend by period, including gross/net sales breakdown.' },
+  { id: 'products', label: 'Products Report', desc: 'Ranked product performance with units sold and revenue.' },
+  { id: 'orders', label: 'Orders Report', desc: 'Order counts grouped by status.' },
+  { id: 'events', label: 'Events Report', desc: 'Event registrations and attendance data.' },
+  { id: 'destinations', label: 'Destinations Report', desc: 'Heritage sites and scenic destinations with view counts.' },
 ];
 
 export default function Reports() {
   const { startDate, endDate, setStartDate, setEndDate, setPreset } = useDateFilter(30);
   const [errors, setErrors] = useState({});
+  const [downloading, setDownloading] = useState(null);
 
-  const download = (report) => {
+  const download = async (report) => {
     setErrors((prev) => ({ ...prev, [report.id]: null }));
-    const url = `${report.endpoint}?startDate=${startDate}&endDate=${endDate}`;
+    setDownloading(report.id);
     try {
-      window.open(url, '_blank');
+      await reportService.download(report.id, { startDate, endDate });
     } catch (err) {
-      setErrors((prev) => ({ ...prev, [report.id]: 'Failed to generate report.' }));
+      setErrors((prev) => ({ ...prev, [report.id]: err.message || 'Failed to generate report.' }));
+    } finally {
+      setDownloading(null);
     }
   };
 
@@ -33,7 +37,7 @@ export default function Reports() {
         <div className="card">
           <h3 className="text-sm font-semibold text-gray-700 mb-3">Select Date Range</h3>
           <DateRangeFilter startDate={startDate} endDate={endDate} onStartChange={setStartDate} onEndChange={setEndDate} onPreset={setPreset} />
-          <p className="text-xs text-gray-400 mt-2">Date range applies to sales, products, and orders reports.</p>
+          <p className="text-xs text-gray-400 mt-2">The selected range applies to sales, products, orders and events reports. Destination lists are catalog snapshots.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -58,10 +62,11 @@ export default function Reports() {
 
               <button
                 onClick={() => download(report)}
+                disabled={downloading !== null}
                 className="btn-primary flex items-center justify-center gap-1.5 mt-auto"
               >
                 <Download size={14} />
-                Download CSV
+                {downloading === report.id ? 'Preparing…' : 'Download CSV'}
               </button>
             </div>
           ))}

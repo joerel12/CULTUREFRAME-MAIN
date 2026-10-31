@@ -48,7 +48,7 @@ function errorHandler(err, req, res, next) { // eslint-disable-line no-unused-va
   const statusCode = err.status || err.statusCode || 500;
   const code = err.code || 'INTERNAL_SERVER_ERROR';
   const message =
-    statusCode < 500
+    statusCode < 500 || err.exposeMessage === true
       ? err.message || 'An error occurred.'
       : 'An internal server error occurred. Please try again later.';
 

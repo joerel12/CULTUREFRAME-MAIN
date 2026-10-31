@@ -68,6 +68,12 @@ class CultureFrameClient {
           status: 503,
         });
       }
+      if (!token) {
+        throw Object.assign(new Error('CULTUREFRAME_API_TOKEN is not configured on the server.'), {
+          code: 'INTEGRATION_TOKEN_MISSING',
+          status: 503,
+        });
+      }
 
       this._instance = buildAxiosInstance(baseUrl, token, timeout);
     }
@@ -100,11 +106,15 @@ class CultureFrameClient {
       const err = new Error(safeMessage);
       err.code = this._errorCode(error);
       err.status = 502;
+      err.exposeMessage = true;
       throw err;
     }
   }
 
   _safeErrorMessage(error) {
+    if (error.code === 'INTEGRATION_TOKEN_MISSING') {
+      return 'CULTUREFRAME_API_TOKEN is not configured on the server.';
+    }
     if (!error.response) {
       return 'CultureFrame API is unreachable. Check the API URL and network connectivity.';
     }
@@ -125,6 +135,7 @@ class CultureFrameClient {
   }
 
   _errorCode(error) {
+    if (error.code === 'INTEGRATION_TOKEN_MISSING') return 'INTEGRATION_TOKEN_MISSING';
     if (!error.response) return 'CULTUREFRAME_UNAVAILABLE';
     const status = error.response.status;
     if (status === 401 || status === 403) return 'CULTUREFRAME_AUTH_FAILED';

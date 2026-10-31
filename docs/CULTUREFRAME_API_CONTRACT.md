@@ -309,11 +309,11 @@ Before CultureMetrics can use live data, the CultureFrame backend must:
 - [ ] Apply rate limiting on the integration endpoints.
 - [ ] Document any endpoints that differ from this contract.
 
-Once complete, set these in CultureMetrics `.env`:
+Once complete, set these in the CultureMetrics server `.env`:
 ```
 CULTUREFRAME_API_TOKEN=<your-issued-token>
 CULTUREFRAME_INTEGRATION_ENABLED=true
 CULTUREMETRICS_DATA_MODE=live
 ```
 
-Then run a connection test and sync from the Integration Settings page.
+The Integration Settings page tests the overview endpoint specifically. A data check writes diagnostic normalized provider snapshots and run history; the analytics pages continue querying CultureFrame directly and do not read the stored snapshots. Missing/unimplemented routes will fail visibly rather than fall back to demo values.

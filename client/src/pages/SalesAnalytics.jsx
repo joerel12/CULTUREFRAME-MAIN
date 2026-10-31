@@ -10,6 +10,7 @@ import ErrorMessage from '../components/ui/ErrorMessage';
 import { useAnalytics } from '../hooks/useAnalytics';
 import { useDateFilter } from '../hooks/useDateFilter';
 import { analyticsService } from '../services/analyticsService';
+import { reportService } from '../services/reportService';
 import { DollarSign, TrendingUp, ShoppingBag, BarChart2, Download } from 'lucide-react';
 
 const fmtCurrency = (n) =>
@@ -24,9 +25,19 @@ export default function SalesAnalytics() {
     { startDate, endDate }
   );
 
-  const handleExport = () => {
-    const url = `/api/v1/reports/sales.csv?startDate=${startDate}&endDate=${endDate}`;
-    window.open(url, '_blank');
+  const [exporting, setExporting] = React.useState(false);
+  const [exportError, setExportError] = React.useState('');
+
+  const handleExport = async () => {
+    setExporting(true);
+    setExportError('');
+    try {
+      await reportService.download('sales', { startDate, endDate });
+    } catch (error) {
+      setExportError(error.message);
+    } finally {
+      setExporting(false);
+    }
   };
 
   return (
@@ -42,10 +53,11 @@ export default function SalesAnalytics() {
             onEndChange={setEndDate}
             onPreset={setPreset}
           />
-          <button onClick={handleExport} className="btn-secondary flex items-center gap-1.5 text-xs">
-            <Download size={14} /> Export CSV
+          <button onClick={handleExport} disabled={exporting} className="btn-secondary flex items-center gap-1.5 text-xs">
+            <Download size={14} /> {exporting ? 'Preparing…' : 'Export CSV'}
           </button>
         </div>
+        {exportError && <p role="alert" className="text-sm text-red-700">{exportError}</p>}
 
         {/* Metric definitions note */}
         <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-2 text-xs text-blue-700">

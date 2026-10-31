@@ -5,7 +5,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { authService } from '../services/authService';
-import { CheckCircle, AlertCircle } from 'lucide-react';
+import { AlertCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const schema = z.object({
   currentPassword: z.string().min(1, 'Required'),
@@ -17,20 +18,28 @@ const schema = z.object({
 });
 
 export default function Settings() {
-  const { admin } = useAuth();
-  const [success, setSuccess] = useState('');
+  const { admin, logout } = useAuth();
+  const navigate = useNavigate();
   const [serverError, setServerError] = useState('');
 
   const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm({ resolver: zodResolver(schema) });
 
   const onSubmit = async (data) => {
-    setSuccess(''); setServerError('');
+    setServerError('');
+    let passwordChanged = false;
     try {
       await authService.changePassword(data.currentPassword, data.newPassword);
-      setSuccess('Password changed successfully. You have been logged out — please log in again.');
+      passwordChanged = true;
+      sessionStorage.setItem('cm_notice', 'Password changed successfully. Sign in again with your new password.');
+      await logout();
       reset();
+      navigate('/login', { replace: true });
     } catch (err) {
-      setServerError(err.response?.data?.error?.message || 'Failed to change password.');
+      if (passwordChanged) {
+        navigate('/login', { replace: true });
+      } else {
+        setServerError(err.response?.data?.error?.message || 'Failed to change password.');
+      }
     }
   };
 
@@ -53,11 +62,6 @@ export default function Settings() {
         <div className="card">
           <h3 className="text-sm font-semibold text-gray-700 mb-4">Change Password</h3>
 
-          {success && (
-            <div className="flex items-center gap-2 bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-lg text-sm mb-4">
-              <CheckCircle size={15} />{success}
-            </div>
-          )}
           {serverError && (
             <div className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
               <AlertCircle size={15} />{serverError}
@@ -71,9 +75,9 @@ export default function Settings() {
               { id: 'confirmPassword', label: 'Confirm New Password' },
             ].map(({ id, label }) => (
               <div key={id}>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-                <input type="password" className={`input ${errors[id] ? 'border-red-400' : ''}`} {...register(id)} />
-                {errors[id] && <p className="text-red-500 text-xs mt-1">{errors[id].message}</p>}
+                <label htmlFor={id} className="mb-1 block text-sm font-medium text-gray-700">{label}</label>
+                <input id={id} type="password" autoComplete={id === 'currentPassword' ? 'current-password' : 'new-password'} aria-invalid={Boolean(errors[id])} aria-describedby={errors[id] ? `${id}-error` : undefined} className={`input ${errors[id] ? 'border-red-400' : ''}`} {...register(id)} />
+                {errors[id] && <p id={`${id}-error`} role="alert" className="text-red-500 text-xs mt-1">{errors[id].message}</p>}
               </div>
             ))}
             <button type="submit" disabled={isSubmitting} className="btn-primary flex items-center gap-2">

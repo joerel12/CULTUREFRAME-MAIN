@@ -42,10 +42,12 @@
 | recordsProcessed | INTEGER | |
 | recordsRejected | INTEGER | |
 | errorSummary | TEXT | Non-sensitive summary only |
-| dataMode | VARCHAR(16) | mock / live / snapshot |
+| dataMode | VARCHAR(16) | mock / live |
 | createdAt | TIMESTAMP | |
 
 ### `analytics_snapshots`
+
+Aggregate copies captured by a manual data check for diagnostics/history. Analytics requests do not read this table.
 
 | Column | Type | Notes |
 |---|---|---|
