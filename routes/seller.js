@@ -14,7 +14,8 @@ import {
   editProductPost,
   deleteProductPost,
   categoriesPage,
-  addCategoryPost
+  addCategoryPost,
+  deleteCategoryPost
 } from "../controllers/sellerController.js";
 
 const router = express.Router();
@@ -40,7 +41,8 @@ router.post("/products/edit/:id", uploadProductImage, editProductPost);
 router.post("/products/delete/:id", deleteProductPost);
 
 // Categories
-router.get("/categories",      categoriesPage);
-router.post("/categories/add", addCategoryPost);
+router.get("/categories",               categoriesPage);
+router.post("/categories/add",          addCategoryPost);
+router.post("/categories/delete/:id",   deleteCategoryPost);
 
 export default router;

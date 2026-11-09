@@ -27,7 +27,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(process.cwd(), "public")));
 
 app.use(session({
-  secret: "xianfire-secret-key",
+  secret: process.env.SESSION_SECRET || "cultureframe-xianfire-fallback",
   resave: false,
   saveUninitialized: false
 }));

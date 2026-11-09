@@ -13,9 +13,7 @@ import { Product, Category } from "../models/index.js";
 import { checkMagicBytes, deleteUploadedFile, UPLOAD_CONFIG } from "../middleware/upload.js";
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname  = dirname(fileURLToPath(import.meta.url));
-
-function dirname(p) { return path.dirname(p); }
+const __dirname  = path.dirname(fileURLToPath(import.meta.url));
 
 // ── Allowed sort columns — validated before use in ORDER BY ────────────
 const ALLOWED_SORT = {
@@ -33,49 +31,91 @@ const DEFAULT_SORT = ALLOWED_SORT.date;
 // ── Dashboard ──────────────────────────────────────────────────────────
 export const dashboardPage = async (req, res) => {
   try {
-    const totalProducts  = await Product.count();
-    const activeProducts = await Product.count({ where: { status: "active" } });
-    const pendingProducts = await Product.count({ where: { status: "pending" } });
-    const categoriesUsed = await Product.count({
-      distinct: true,
-      col: "category_id"
-    });
+    /*
+     * All four counts run in parallel for performance.
+     *
+     * Definitions:
+     *   Total Products   — every row in the products table
+     *   Published        — status = 'active' (visible to buyers)
+     *   Low Stock        — stock_quantity BETWEEN 1 AND 5
+     *   Out of Stock     — stock_quantity = 0
+     *
+     * NOTE: seller_id filter is intentionally omitted here because
+     * authentication is not yet implemented (seller_id = 1 placeholder).
+     * When real auth is added, add: where: { seller_id: req.session.userId }
+     * to every count and the recentProducts query below.
+     */
+    const [
+      totalProducts,
+      publishedProducts,
+      lowStockProducts,
+      outOfStockProducts,
+      recentProducts
+    ] = await Promise.all([
+      // Total — all products regardless of status or stock
+      Product.count(),
 
-    const recentProducts = await Product.findAll({
-      limit: 5,
-      order: [["created_at", "DESC"]],
-      include: [{ model: Category, as: "category", attributes: ["name"] }]
-    });
+      // Published — status is 'active'
+      Product.count({
+        where: { status: "active" }
+      }),
 
-    // Flatten for the template
+      // Low stock — between 1 and 5 inclusive
+      Product.count({
+        where: { stock_quantity: { [Op.between]: [1, 5] } }
+      }),
+
+      // Out of stock — exactly 0
+      Product.count({
+        where: { stock_quantity: 0 }
+      }),
+
+      // 5 most recently added products for the Recent Products table
+      Product.findAll({
+        limit: 5,
+        order: [["created_at", "DESC"]],
+        include: [{ model: Category, as: "category", attributes: ["name"] }]
+      })
+    ]);
+
     const recentForTemplate = recentProducts.map(p => ({
       id:          p.id,
       name:        p.name,
       sku:         `CF-${String(p.id).padStart(4, "0")}`,
+      imagePath:   p.image_path,
       category:    p.category?.name ?? "—",
+      price:       p.price,
+      stock:       p.stock_quantity,
       status:      p.status,
       statusClass: p.status,
-      dateAdded:   p.created_at
+      createdAt:   p.created_at
     }));
 
     res.render("seller-dashboard", {
-      title: "Dashboard",
-      pageTitle: "Dashboard",
+      title:      "Dashboard",
+      pageTitle:  "Dashboard",
       activeDashboard: true,
+      // ── stat cards ──────────────────────────────────
       totalProducts,
-      activeProducts,
-      pendingProducts,
-      categoriesUsed,
+      publishedProducts,
+      lowStockProducts,
+      outOfStockProducts,
+      // ── recent table ────────────────────────────────
       recentProducts: recentForTemplate
     });
+
   } catch (err) {
     console.error("Dashboard error:", err.message);
     res.render("seller-dashboard", {
-      title: "Dashboard",
-      pageTitle: "Dashboard",
+      title:      "Dashboard",
+      pageTitle:  "Dashboard",
       activeDashboard: true,
-      dbError: "Could not load dashboard data. Check that MySQL is running.",
-      recentProducts: []
+      dbError:         "Could not load dashboard data. Check that MySQL is running.",
+      totalProducts:      0,
+      publishedProducts:  0,
+      lowStockProducts:   0,
+      outOfStockProducts: 0,
+      recentProducts:     []
     });
   }
 };
@@ -544,6 +584,58 @@ export const editProductPost = async (req, res) => {
   }
 };
 
+// ── Delete Product (POST) ─────────────────────────────────────────────
+export const deleteProductPost = async (req, res) => {
+  // ── 1. Validate the ID is a safe integer ─────────────────────────
+  const productId = parseInt(req.params.id, 10);
+  if (!productId || productId < 1) {
+    req.flash("error_msg", "Invalid product ID.");
+    return res.redirect("/seller/products");
+  }
+
+  try {
+    // ── 2. Load the product — never delete blindly ────────────────
+    const product = await Product.findByPk(productId);
+
+    if (!product) {
+      // Already gone — redirect gracefully, don't crash
+      req.flash("error_msg", "Product not found or already deleted.");
+      return res.redirect("/seller/products");
+    }
+
+    const productName  = product.name;
+    const imageToClean = product.image_path;   // save before destroy()
+
+    // ── 3. Delete the database record ────────────────────────────
+    await product.destroy();
+
+    // ── 4. Clean up the image file ONLY after successful DB delete ─
+    //    If the image is the shared placeholder we never touch it.
+    //    fire-and-forget: a missing file is not a fatal error.
+    if (imageToClean && !imageToClean.includes("placeholder")) {
+      const absPath = path.join(
+        path.dirname(fileURLToPath(import.meta.url)),
+        "../public",
+        imageToClean
+      );
+      fs.unlink(absPath, (err) => {
+        if (err && err.code !== "ENOENT") {
+          console.warn(`⚠️  Could not delete image file: ${absPath} —`, err.message);
+        }
+      });
+    }
+
+    console.log(`🗑️  Product deleted: ID ${productId} — "${productName}"`);
+    req.flash("success_msg", `Product "${productName}" deleted successfully.`);
+    res.redirect("/seller/products");
+
+  } catch (err) {
+    console.error("Delete product error:", err.message);
+    req.flash("error_msg", "Could not delete product. Please try again.");
+    res.redirect("/seller/products");
+  }
+};
+
 // ── Categories (GET) ───────────────────────────────────────────────────
 export const categoriesPage = async (req, res) => {
   try {
@@ -571,8 +663,72 @@ export const categoriesPage = async (req, res) => {
   }
 };
 
-// ── Add Category (POST) — placeholder until admin flow is built ────────
-export const addCategoryPost = (req, res) => {
-  req.flash("success_msg", "Category saved successfully.");
+// ── Delete Category (POST) ────────────────────────────────────────────
+export const deleteCategoryPost = async (req, res) => {
+  const categoryId = parseInt(req.params.id, 10);
+  if (!categoryId || categoryId < 1) {
+    req.flash("error_msg", "Invalid category ID.");
+    return res.redirect("/seller/categories");
+  }
+
+  try {
+    const category = await Category.findByPk(categoryId);
+    if (!category) {
+      req.flash("error_msg", "Category not found or already deleted.");
+      return res.redirect("/seller/categories");
+    }
+
+    // Block deletion if products are still assigned to this category
+    const productCount = await Product.count({ where: { category_id: categoryId } });
+    if (productCount > 0) {
+      req.flash("error_msg",
+        `Cannot delete "${category.name}" — ${productCount} product${productCount > 1 ? "s are" : " is"} still using it. Re-assign them first.`
+      );
+      return res.redirect("/seller/categories");
+    }
+
+    const categoryName = category.name;
+    await category.destroy();
+    console.log(`🗑️  Category deleted: ID ${categoryId} — "${categoryName}"`);
+    req.flash("success_msg", `Category "${categoryName}" deleted.`);
+  } catch (err) {
+    console.error("Delete category error:", err.message);
+    req.flash("error_msg", "Could not delete category. Please try again.");
+  }
+
+  res.redirect("/seller/categories");
+};
+
+// ── Add Category (POST) ────────────────────────────────────────────────
+export const addCategoryPost = async (req, res) => {
+  const name        = (req.body.name        || "").trim();
+  const description = (req.body.description || "").trim();
+
+  // Validate
+  if (!name || name.length < 2) {
+    req.flash("error_msg", "Category name is required (minimum 2 characters).");
+    return res.redirect("/seller/categories");
+  }
+  if (name.length > 120) {
+    req.flash("error_msg", "Category name must be 120 characters or fewer.");
+    return res.redirect("/seller/categories");
+  }
+
+  try {
+    const [, created] = await Category.findOrCreate({
+      where:    { name },
+      defaults: { description: description || null, is_active: true }
+    });
+
+    if (created) {
+      req.flash("success_msg", `Category "${name}" added successfully.`);
+    } else {
+      req.flash("error_msg", `Category "${name}" already exists.`);
+    }
+  } catch (err) {
+    console.error("Add category error:", err.message);
+    req.flash("error_msg", "Database error: could not save category. Please try again.");
+  }
+
   res.redirect("/seller/categories");
 };
