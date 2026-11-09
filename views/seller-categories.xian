@@ -100,7 +100,14 @@
                         </td>
                         <td>
                           <div class="cf-action-group">
-                            <a href="/seller/categories/delete/{{this.id}}" class="cf-action-btn" aria-label="Delete {{this.name}}" title="Delete">🗑️</a>
+                            <button
+                              type="button"
+                              class="cf-action-btn"
+                              aria-label="Delete {{this.name}}"
+                              title="Delete"
+                              onclick="cfConfirmCatDelete({{this.id}}, '{{this.name}}')"
+                              style="background:none;border:1px solid var(--cream-dark);cursor:pointer;"
+                            >🗑️</button>
                           </div>
                         </td>
                       </tr>
@@ -123,5 +130,48 @@
           </div>
 
         </div>
+
+        <!-- ── Delete confirmation modal ──────────────────────────── -->
+        <div
+          id="cfCatDeleteModal"
+          role="dialog" aria-modal="true" aria-labelledby="cfCatDeleteTitle"
+          style="display:none;position:fixed;inset:0;z-index:500;align-items:center;justify-content:center;"
+        >
+          <div style="position:absolute;inset:0;background:rgba(10,46,10,0.55);" onclick="cfCloseCatDelete()"></div>
+          <div style="position:relative;z-index:501;background:#fff;border-radius:16px;padding:32px 28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(10,46,10,0.25);">
+            <div style="width:52px;height:52px;background:#E8F5E9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 16px;">🗂️</div>
+            <h2 id="cfCatDeleteTitle" style="font-size:18px;font-weight:800;color:#0A2E0A;text-align:center;margin:0 0 8px;">Delete Category?</h2>
+            <p style="font-size:13px;color:#558B2F;text-align:center;margin:0 0 6px;">You are about to delete:</p>
+            <p id="cfCatDeleteName" style="font-size:14px;font-weight:700;color:#1B5E20;text-align:center;margin:0 0 12px;padding:8px 12px;background:#E8F5E9;border-radius:8px;"></p>
+            <p style="font-size:12px;color:#558B2F;text-align:center;margin:0 0 24px;">Categories with assigned products cannot be deleted.</p>
+            <form id="cfCatDeleteForm" method="POST" action="">
+              <div style="display:flex;gap:12px;justify-content:center;">
+                <button type="submit" id="cfCatDeleteConfirmBtn"
+                  style="background:#C62828;color:#fff;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:700;cursor:pointer;min-width:120px;">
+                  Yes, Delete
+                </button>
+                <button type="button" onclick="cfCloseCatDelete()"
+                  style="background:#E8F5E9;color:#1B5E20;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:600;cursor:pointer;">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <script>
+        function cfConfirmCatDelete(id, name) {
+          document.getElementById('cfCatDeleteName').textContent = name;
+          document.getElementById('cfCatDeleteForm').action = '/seller/categories/delete/' + id;
+          var m = document.getElementById('cfCatDeleteModal');
+          m.style.display = 'flex';
+          setTimeout(function(){ document.getElementById('cfCatDeleteConfirmBtn').focus(); }, 50);
+        }
+        function cfCloseCatDelete() {
+          document.getElementById('cfCatDeleteModal').style.display = 'none';
+          document.getElementById('cfCatDeleteForm').action = '';
+        }
+        document.addEventListener('keydown', function(e){ if(e.key==='Escape') cfCloseCatDelete(); });
+        </script>
 
 {{> seller-footer}}
