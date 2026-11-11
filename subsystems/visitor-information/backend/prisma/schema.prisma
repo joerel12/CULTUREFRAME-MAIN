@@ -1,0 +1,187 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  VISITOR
+  ADMIN
+}
+
+enum PublicationStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum ContentKind {
+  HERITAGE
+  HISTORICAL_SITE
+  TRADITION
+  EVENT
+  ATTRACTION
+  FESTIVAL
+  LOCAL_PRODUCT
+}
+
+model User {
+  id           String           @id @default(cuid())
+  firstName    String           @map("first_name")
+  lastName     String           @map("last_name")
+  email        String           @unique
+  contact      String?
+  passwordHash String           @map("password_hash")
+  role         UserRole         @default(VISITOR)
+  status       String           @default("ACTIVE")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  sessions     AuthSession[]
+  feedback     VisitorFeedback[]
+  createdItems ContentRecord[]  @relation("CreatedContent")
+  media        MediaAsset[]     @relation("UploadedMedia")
+  auditLogs    AuditLog[]
+
+  @@index([createdAt])
+  @@map("users")
+}
+
+model AuthSession {
+  id        String   @id @default(cuid())
+  tokenHash String   @unique @map("token_hash")
+  userId    String   @map("user_id")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("auth_sessions")
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  email     String
+  tokenHash String   @unique @map("token_hash")
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@index([email])
+  @@map("password_reset_tokens")
+}
+
+model HeritageCategory {
+  id        String          @id @default(cuid())
+  name      String          @unique
+  slug      String          @unique
+  createdAt DateTime        @default(now()) @map("created_at")
+  items     ContentRecord[]
+
+  @@map("heritage_categories")
+}
+
+model ContentRecord {
+  id                    String            @id @default(cuid())
+  kind                  ContentKind
+  categoryId            String?           @map("category_id")
+  title                 String
+  slug                  String            @unique
+  summary               String            @default("")
+  description           String            @default("")
+  culturalSignificance  String            @default("") @map("cultural_significance")
+  historicalBackground  String            @default("") @map("historical_background")
+  payload               Json              @default("{}")
+  publicationStatus     PublicationStatus @default(DRAFT) @map("publication_status")
+  featured              Boolean           @default(false)
+  createdById            String?           @map("created_by")
+  createdAt              DateTime          @default(now()) @map("created_at")
+  updatedAt              DateTime          @updatedAt @map("updated_at")
+  category               HeritageCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  createdBy              User?             @relation("CreatedContent", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([kind, publicationStatus])
+  @@index([title])
+  @@map("content_records")
+}
+
+model MediaAsset {
+  id               String   @id @default(cuid())
+  filePath         String   @map("file_path")
+  fileName         String   @map("file_name")
+  mimeType         String   @map("mime_type")
+  fileSize         Int      @map("file_size")
+  altText          String   @default("") @map("alt_text")
+  caption          String   @default("")
+  photographer     String   @default("")
+  sourceUrl        String?  @map("source_url")
+  license          String   @default("UNVERIFIED")
+  permissionStatus String   @default("PENDING") @map("permission_status")
+  uploadedById     String?  @map("uploaded_by")
+  createdAt        DateTime @default(now()) @map("created_at")
+  uploadedBy       User?    @relation("UploadedMedia", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@map("media_assets")
+}
+
+model Location {
+  id          String   @id @default(cuid())
+  name        String
+  address     String   @default("")
+  description String   @default("")
+  latitude    Float?
+  longitude   Float?
+  verified    Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("locations")
+}
+
+model VisitorFeedback {
+  id               String   @id @default(cuid())
+  userId           String?  @map("user_id")
+  category         String
+  subject          String
+  rating           Int
+  message          String
+  relatedHeritageId String? @map("related_heritage_id")
+  status           String   @default("NEW")
+  createdAt        DateTime @default(now()) @map("created_at")
+  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@map("visitor_feedback")
+}
+
+model HomepageContent {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("homepage_content")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?  @map("user_id")
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model SystemSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     Json
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("system_settings")
+}

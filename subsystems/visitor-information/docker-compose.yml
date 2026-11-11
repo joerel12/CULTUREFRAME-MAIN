@@ -1,0 +1,15 @@
+services:
+  database:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: cultureframe
+      POSTGRES_USER: cultureframe
+      POSTGRES_PASSWORD: cultureframe
+    ports:
+      - "5433:5432"
+    volumes:
+      - cultureframe-postgres:/var/lib/postgresql/data
+
+volumes:
+  cultureframe-postgres:
