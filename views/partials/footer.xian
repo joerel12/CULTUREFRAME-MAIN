@@ -1,5 +1,51 @@
-<footer class="mt-8 py-4 text-center text-gray-500 text-sm">
-  &copy; 2025 CultureFrame &mdash; Mindoro State University
+<footer class="mt-20 bg-[#082f21] text-white">
+  <div class="cf-shell py-12">
+    <div class="grid grid-cols-1 gap-10 md:grid-cols-[1.4fr_1fr_1fr_1fr]">
+      <div>
+        <a href="/" class="cf-brand">
+          <span class="cf-brand-mark"><img src="/images/logo.png" alt="" /></span>
+          <span class="cf-brand-copy"><strong>CultureFrame</strong><span>One cultural ecosystem</span></span>
+        </a>
+        <p class="mt-5 max-w-sm text-sm leading-7 text-emerald-100/65">
+          A connected cultural platform for Mansalay—bringing visitor information,
+          local commerce, secure payments and community intelligence together.
+        </p>
+      </div>
+
+      <div>
+        <h3 class="mb-4 text-xs font-extrabold uppercase tracking-[.14em] text-emerald-300">Discover</h3>
+        <div class="space-y-3 text-sm text-emerald-100/70">
+          <a href="/discover/heritage" class="block hover:text-white">Heritage</a>
+          <a href="/discover/traditions" class="block hover:text-white">Traditions</a>
+          <a href="/discover/events" class="block hover:text-white">Events</a>
+          <a href="/discover/attractions" class="block hover:text-white">Attractions</a>
+        </div>
+      </div>
+
+      <div>
+        <h3 class="mb-4 text-xs font-extrabold uppercase tracking-[.14em] text-emerald-300">Marketplace</h3>
+        <div class="space-y-3 text-sm text-emerald-100/70">
+          <a href="/shop" class="block hover:text-white">Shop local products</a>
+          <a href="/cart" class="block hover:text-white">My cart</a>
+          <a href="/customer/orders" class="block hover:text-white">My orders</a>
+          <a href="/wishlist" class="block hover:text-white">Wishlist</a>
+        </div>
+      </div>
+
+      <div>
+        <h3 class="mb-4 text-xs font-extrabold uppercase tracking-[.14em] text-emerald-300">Account</h3>
+        <div class="space-y-3 text-sm text-emerald-100/70">
+          <a href="/login" class="block hover:text-white">Sign in</a>
+          <a href="/register" class="block hover:text-white">Create account</a>
+          <a href="/dashboard" class="block hover:text-white">My workspace</a>
+          <a href="/terms" class="block hover:text-white">Terms and conditions</a>
+        </div>
+      </div>
+    </div>
+
+    <div class="mt-10 flex flex-col gap-3 border-t border-white/10 pt-5 text-xs text-emerald-100/45 sm:flex-row sm:items-center sm:justify-between">
+      <p>&copy; 2026 CultureFrame Mansalay. Built for cultural continuity.</p>
+      <p><i class="fas fa-location-dot mr-1 text-emerald-300"></i> Mansalay, Oriental Mindoro</p>
+    </div>
+  </div>
 </footer>
-</body>
-</html>

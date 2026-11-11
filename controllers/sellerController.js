@@ -1,734 +1,208 @@
-/*
-  CultureFrame — Seller Dashboard Controller
-  Queries use Sequelize parameterised methods — no raw string interpolation
-  of user input anywhere.  All user-supplied query params are validated
-  against an allowed-values list before being used in ORDER BY.
-*/
-
 import { Op } from "sequelize";
-import fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import { Product, Category } from "../models/index.js";
-import { checkMagicBytes, deleteUploadedFile, UPLOAD_CONFIG } from "../middleware/upload.js";
+import { Seller } from "../models/Seller.js";
+import { Product } from "../models/Product.js";
+import { User } from "../models/userModel.js";
+import { sequelize } from "../models/db.js";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname  = path.dirname(fileURLToPath(import.meta.url));
+const accountStatusForSeller = sellerStatus => sellerStatus === "inactive" ? "inactive" : "active";
 
-// ── Allowed sort columns — validated before use in ORDER BY ────────────
-const ALLOWED_SORT = {
-  name:       ["name",           "ASC"],
-  name_desc:  ["name",           "DESC"],
-  price:      ["price",          "ASC"],
-  price_desc: ["price",          "DESC"],
-  date:       ["created_at",     "DESC"],
-  date_asc:   ["created_at",     "ASC"],
-  stock:      ["stock_quantity", "DESC"],
-  stock_asc:  ["stock_quantity", "ASC"]
-};
-const DEFAULT_SORT = ALLOWED_SORT.date;
-
-// ── Dashboard ──────────────────────────────────────────────────────────
-export const dashboardPage = async (req, res) => {
-  try {
-    /*
-     * All four counts run in parallel for performance.
-     *
-     * Definitions:
-     *   Total Products   — every row in the products table
-     *   Published        — status = 'active' (visible to buyers)
-     *   Low Stock        — stock_quantity BETWEEN 1 AND 5
-     *   Out of Stock     — stock_quantity = 0
-     *
-     * NOTE: seller_id filter is intentionally omitted here because
-     * authentication is not yet implemented (seller_id = 1 placeholder).
-     * When real auth is added, add: where: { seller_id: req.session.userId }
-     * to every count and the recentProducts query below.
-     */
-    const [
-      totalProducts,
-      publishedProducts,
-      lowStockProducts,
-      outOfStockProducts,
-      recentProducts
-    ] = await Promise.all([
-      // Total — all products regardless of status or stock
-      Product.count(),
-
-      // Published — status is 'active'
-      Product.count({
-        where: { status: "active" }
-      }),
-
-      // Low stock — between 1 and 5 inclusive
-      Product.count({
-        where: { stock_quantity: { [Op.between]: [1, 5] } }
-      }),
-
-      // Out of stock — exactly 0
-      Product.count({
-        where: { stock_quantity: 0 }
-      }),
-
-      // 5 most recently added products for the Recent Products table
-      Product.findAll({
-        limit: 5,
-        order: [["created_at", "DESC"]],
-        include: [{ model: Category, as: "category", attributes: ["name"] }]
-      })
-    ]);
-
-    const recentForTemplate = recentProducts.map(p => ({
-      id:          p.id,
-      name:        p.name,
-      sku:         `CF-${String(p.id).padStart(4, "0")}`,
-      imagePath:   p.image_path,
-      category:    p.category?.name ?? "—",
-      price:       p.price,
-      stock:       p.stock_quantity,
-      status:      p.status,
-      statusClass: p.status,
-      createdAt:   p.created_at
-    }));
-
-    res.render("seller-dashboard", {
-      title:      "Dashboard",
-      pageTitle:  "Dashboard",
-      activeDashboard: true,
-      // ── stat cards ──────────────────────────────────
-      totalProducts,
-      publishedProducts,
-      lowStockProducts,
-      outOfStockProducts,
-      // ── recent table ────────────────────────────────
-      recentProducts: recentForTemplate
-    });
-
-  } catch (err) {
-    console.error("Dashboard error:", err.message);
-    res.render("seller-dashboard", {
-      title:      "Dashboard",
-      pageTitle:  "Dashboard",
-      activeDashboard: true,
-      dbError:         "Could not load dashboard data. Check that MySQL is running.",
-      totalProducts:      0,
-      publishedProducts:  0,
-      lowStockProducts:   0,
-      outOfStockProducts: 0,
-      recentProducts:     []
-    });
-  }
-};
-
-// ── My Products ────────────────────────────────────────────────────────
-export const productsPage = async (req, res) => {
-  // ── 1. Read + sanitise query params ────────────────────────────────
-  const search   = (req.query.search   || "").trim().slice(0, 200);
-  const catId    = parseInt(req.query.category, 10) || null;
-  const status   = ["active", "inactive", "pending"].includes(req.query.status)
-                     ? req.query.status
-                     : null;
-  const sortKey  = req.query.sort || "date";
-  const [sortCol, sortDir] = ALLOWED_SORT[sortKey] ?? DEFAULT_SORT;
-
-  // ── 2. Build safe WHERE clause using Sequelize Op ──────────────────
-  const where = {};
-
-  if (search)  where.name        = { [Op.like]: `%${search}%` };
-  if (catId)   where.category_id = catId;
-  if (status)  where.status      = status;
-
-  try {
-    // ── 3. Load categories for the filter dropdown ──────────────────
-    const categories = await Category.findAll({
-      where:  { is_active: true },
-      order:  [["name", "ASC"]],
-      attributes: ["id", "name"]
-    });
-
-    // ── 4. Query products with category JOIN ────────────────────────
-    const products = await Product.findAll({
-      where,
-      order: [[sortCol, sortDir]],
-      include: [{ model: Category, as: "category", attributes: ["name"] }]
-    });
-
-    // ── 5. Flatten for the template (no raw Sequelize objects in HBS)
-    const rows = products.map(p => ({
-      id:            p.id,
-      name:          p.name,
-      sku:           `CF-${String(p.id).padStart(4, "0")}`,
-      categoryName:  p.category?.name ?? "—",
-      price:         p.price,
-      stock:         p.stock_quantity,
-      imagePath:     p.image_path,
-      status:        p.status,
-      statusClass:   p.status,           // maps to cf-status--active etc.
-      createdAt:     p.created_at
-    }));
-
-    res.render("seller-products", {
-      title:      "My Products",
-      pageTitle:  "My Products",
-      activeProducts: true,
-      products:   rows,
-      categories: categories.map(c => ({
-        id:       c.id,
-        name:     c.name,
-        selected: c.id === catId
-      })),
-      // Echo filters back so the form stays populated
-      filters: {
-        search,
-        category: catId,
-        status,
-        sort: sortKey
-      },
-      totalCount: rows.length
-    });
-
-  } catch (err) {
-    console.error("Products page error:", err.message);
-    res.render("seller-products", {
-      title:      "My Products",
-      pageTitle:  "My Products",
-      activeProducts: true,
-      products:   [],
-      categories: [],
-      filters:    { search: "", category: null, status: null, sort: "date" },
-      totalCount: 0,
-      dbError:    "Could not load products. Check that MySQL is running and run npm run migrate."
-    });
-  }
-};
-
-// ── Add Product (GET) ──────────────────────────────────────────────────
-export const addProductPage = async (req, res) => {
-  try {
-    const categories = await Category.findAll({
-      where: { is_active: true },
-      order: [["name", "ASC"]]
-    });
-    res.render("seller-add-product", {
-      title:            "Add Product",
-      pageTitle:        "Add Product",
-      activeAddProduct: true,
-      categories:       categories.map(c => ({ id: c.id, name: c.name })),
-      old:              {}    // empty repopulation object on fresh load
-    });
-  } catch (err) {
-    console.error("Add product page error:", err.message);
-    res.render("seller-add-product", {
-      title:            "Add Product",
-      pageTitle:        "Add Product",
-      activeAddProduct: true,
-      categories:       [],
-      dbError:          "Could not load categories.",
-      old:              {}
-    });
-  }
-};
-
-// ── Add Product (POST) ─────────────────────────────────────────────────
-export const addProductPost = async (req, res) => {
-  // Helper: reload the Add Product form with errors
-  const reloadForm = async (errors, old) => {
-    let categories = [];
+const sellerController = {
+  index: async (req, res) => {
     try {
-      const cats = await Category.findAll({
-        where: { is_active: true }, order: [["name", "ASC"]]
-      });
-      categories = cats.map(c => ({ id: c.id, name: c.name }));
-    } catch (_) {}
-    return res.render("seller-add-product", {
-      title: "Add Product", pageTitle: "Add Product",
-      activeAddProduct: true, categories, fieldErrors: errors, old
-    });
-  };
-
-  // ── 1. Collect raw body values ────────────────────────────────────
-  const name        = (req.body.name        || "").trim();
-  const description = (req.body.description || "").trim();
-  const categoryRaw = req.body.category;
-  const priceRaw    = req.body.price;
-  const stockRaw    = req.body.stock;
-  const statusRaw   = req.body.status;
-
-  const old = {
-    name, description,
-    category: parseInt(categoryRaw, 10) || "",
-    price:    priceRaw,
-    stock:    stockRaw,
-    status:   statusRaw
-  };
-
-  // ── 2. Handle multer errors (oversized, wrong MIME) ───────────────
-  if (req.uploadError) {
-    return reloadForm([req.uploadError], old);
-  }
-
-  // ── 3. Magic-byte verification ────────────────────────────────────
-  //    The file has been saved with a .tmp extension.
-  //    Read its first bytes, confirm it is actually an image,
-  //    then rename it with the correct extension derived from the bytes.
-  let imagePath = null;
-
-  if (req.file) {
-    const magic = checkMagicBytes(req.file.path);
-
-    if (!magic.ok) {
-      // File failed magic-byte check — delete it immediately
-      deleteUploadedFile(req.file.path);
-      return reloadForm([`Upload rejected: ${magic.reason}`], old);
-    }
-
-    // Rename .tmp → correct extension derived from magic bytes (not filename)
-    const finalName = req.file.filename.replace(/\.tmp$/, magic.ext);
-    const finalPath = path.join(UPLOAD_CONFIG.UPLOAD_DIR, finalName);
-
-    try {
-      fs.renameSync(req.file.path, finalPath);
-      imagePath = "uploads/products/" + finalName;
-    } catch (err) {
-      deleteUploadedFile(req.file.path);
-      console.error("File rename error:", err.message);
-      return reloadForm(["Could not save image file. Please try again."], old);
-    }
-  }
-
-  // ── 4. Field validation ───────────────────────────────────────────
-  const errors = [];
-
-  if (!name || name.length < 2)
-    errors.push("Product name is required (minimum 2 characters).");
-  if (name.length > 200)
-    errors.push("Product name must be 200 characters or fewer.");
-
-  const categoryId = parseInt(categoryRaw, 10);
-  if (!categoryRaw || isNaN(categoryId) || categoryId < 1)
-    errors.push("Please select a valid category.");
-
-  const price = parseFloat(priceRaw);
-  if (priceRaw === undefined || priceRaw === "" || isNaN(price))
-    errors.push("Price is required.");
-  else if (price < 0)
-    errors.push("Price cannot be negative.");
-  else if (price > 99999999.99)
-    errors.push("Price exceeds the maximum allowed value.");
-
-  const stock = parseInt(stockRaw, 10);
-  if (stockRaw !== undefined && stockRaw !== "" && (isNaN(stock) || stock < 0))
-    errors.push("Stock quantity cannot be negative.");
-
-  const ALLOWED_STATUS = ["active", "inactive"];
-  if (!ALLOWED_STATUS.includes(statusRaw))
-    errors.push("Invalid status value.");
-
-  if (errors.length > 0) {
-    // Delete the renamed image if field validation then fails
-    if (imagePath) deleteUploadedFile(path.join(UPLOAD_CONFIG.UPLOAD_DIR, path.basename(imagePath)));
-    return reloadForm(errors, old);
-  }
-
-  // ── 5. Confirm category exists in DB (prevents spoofed IDs) ──────
-  try {
-    const validCat = await Category.findOne({
-      where: { id: categoryId, is_active: true }
-    });
-    if (!validCat) {
-      if (imagePath) deleteUploadedFile(path.join(UPLOAD_CONFIG.UPLOAD_DIR, path.basename(imagePath)));
-      return reloadForm(["Selected category does not exist."], old);
-    }
-  } catch (err) {
-    console.error("Category lookup error:", err.message);
-  }
-
-  // ── 6. Save to MySQL via Sequelize parameterised create() ─────────
-  try {
-    const product = await Product.create({
-      seller_id:      1,     // DEV PLACEHOLDER — replace with session.userId when auth is built
-      category_id:    categoryId,
-      name,
-      description:    description || null,
-      price:          price.toFixed(2),
-      stock_quantity: isNaN(stock) ? 0 : stock,
-      image_path:     imagePath,
-      status:         statusRaw
-    });
-
-    console.log(`✅ Product saved: ID ${product.id} — "${product.name}" | image: ${imagePath ?? "none"}`);
-    req.flash("success_msg", `Product "${product.name}" added successfully.`);
-    res.redirect("/seller/products");
-
-  } catch (err) {
-    console.error("Product create error:", err.message);
-    if (imagePath) deleteUploadedFile(path.join(UPLOAD_CONFIG.UPLOAD_DIR, path.basename(imagePath)));
-    return reloadForm(["Database error: could not save product. Please try again."], old);
-  }
-};
-
-// ── Edit Product (GET) ─────────────────────────────────────────────────
-export const editProductPage = async (req, res) => {
-  const productId = parseInt(req.params.id, 10);
-  if (!productId || productId < 1) {
-    return res.redirect("/seller/products");
-  }
-
-  try {
-    const [product, categories] = await Promise.all([
-      Product.findByPk(productId, {
-        include: [{ model: Category, as: "category", attributes: ["name"] }]
-      }),
-      Category.findAll({ where: { is_active: true }, order: [["name", "ASC"]] })
-    ]);
-
-    if (!product) {
-      req.flash("error_msg", "Product not found.");
-      return res.redirect("/seller/products");
-    }
-
-    res.render("seller-edit-product", {
-      title:          "Edit Product",
-      pageTitle:      "Edit Product",
-      activeProducts: true,
-      categories:     categories.map(c => ({ id: c.id, name: c.name })),
-      product: {
-        id:          product.id,
-        name:        product.name,
-        description: product.description ?? "",
-        category_id: product.category_id,
-        price:       product.price,
-        stock:       product.stock_quantity,
-        imagePath:   product.image_path,
-        status:      product.status
+      const { status, search } = req.query;
+      const where = {};
+      if (status && status !== "all") where.status = status;
+      if (search) {
+        const likeOperator = sequelize.getDialect() === "postgres" ? Op.iLike : Op.like;
+        where[Op.or] = [
+          { business_name: { [likeOperator]: `%${search}%` } },
+          { email: { [likeOperator]: `%${search}%` } }
+        ];
       }
-    });
-  } catch (err) {
-    console.error("Edit product page error:", err.message);
-    req.flash("error_msg", "Could not load product.");
-    res.redirect("/seller/products");
-  }
-};
 
-// ── Edit Product (POST) ────────────────────────────────────────────────
-export const editProductPost = async (req, res) => {
-  const productId = parseInt(req.params.id, 10);
-  if (!productId || productId < 1) {
-    return res.redirect("/seller/products");
-  }
-
-  // Helper: reload the edit form with errors
-  const reloadForm = async (errors, old, currentImagePath) => {
-    let categories = [];
-    try {
-      const cats = await Category.findAll({
-        where: { is_active: true }, order: [["name", "ASC"]]
+      const sellers = await Seller.findAll({ where, order: [["createdAt", "DESC"]] });
+      const counts = {
+        all: await Seller.count(),
+        active: await Seller.count({ where: { status: "active" } }),
+        pending: await Seller.count({ where: { status: "pending" } }),
+        inactive: await Seller.count({ where: { status: "inactive" } })
+      };
+      res.render("admin/seller-list", {
+        title: "Seller Management",
+        activePage: "sellers",
+        sellers,
+        counts,
+        filter: status || "all",
+        search: search || ""
       });
-      categories = cats.map(c => ({ id: c.id, name: c.name }));
-    } catch (_) {}
-    return res.render("seller-edit-product", {
-      title: "Edit Product", pageTitle: "Edit Product",
-      activeProducts: true, categories,
-      fieldErrors: errors,
-      product: { ...old, id: productId, imagePath: currentImagePath }
-    });
-  };
-
-  // ── 1. Load existing product first ───────────────────────────────
-  let existingProduct;
-  try {
-    existingProduct = await Product.findByPk(productId);
-    if (!existingProduct) {
-      req.flash("error_msg", "Product not found.");
-      return res.redirect("/seller/products");
+    } catch (error) {
+      console.error(error);
+      res.status(500).send("Error loading sellers");
     }
-  } catch (err) {
-    console.error("Product lookup error:", err.message);
-    req.flash("error_msg", "Database error. Please try again.");
-    return res.redirect("/seller/products");
-  }
+  },
 
-  // ── 2. Collect raw body values ────────────────────────────────────
-  const name        = (req.body.name        || "").trim();
-  const description = (req.body.description || "").trim();
-  const categoryRaw = req.body.category;
-  const priceRaw    = req.body.price;
-  const stockRaw    = req.body.stock;
-  const statusRaw   = req.body.status;
+  addForm: (_req, res) => res.render("admin/seller-add", {
+    title: "Add Seller",
+    activePage: "sellers"
+  }),
 
-  const old = {
-    name, description,
-    category_id: parseInt(categoryRaw, 10) || "",
-    price:       priceRaw,
-    stock:       stockRaw,
-    status:      statusRaw
-  };
+  add: async (req, res) => {
+    const {
+      business_name, contact_name, email, phone, address, category,
+      status, commission_rate, notes, temporary_password
+    } = req.body;
+    const normalizedEmail = String(email || "").trim().toLowerCase();
 
-  // ── 3. Handle multer upload errors ───────────────────────────────
-  if (req.uploadError) {
-    return reloadForm([req.uploadError], old, existingProduct.image_path);
-  }
-
-  // ── 4. Process new image if uploaded ─────────────────────────────
-  let newImagePath = null;   // null = keep existing
-
-  if (req.file) {
-    const magic = checkMagicBytes(req.file.path);
-
-    if (!magic.ok) {
-      deleteUploadedFile(req.file.path);
-      return reloadForm(
-        [`Upload rejected: ${magic.reason}`],
-        old, existingProduct.image_path
-      );
+    if (String(temporary_password || "").length < 12) {
+      req.flash("error_msg", "A temporary seller password of at least 12 characters is required.");
+      return res.redirect("/admin/sellers/add");
     }
-
-    // Rename .tmp → extension from magic bytes
-    const finalName = req.file.filename.replace(/\.tmp$/, magic.ext);
-    const finalPath = path.join(UPLOAD_CONFIG.UPLOAD_DIR, finalName);
 
     try {
-      fs.renameSync(req.file.path, finalPath);
-      newImagePath = "uploads/products/" + finalName;
-    } catch (err) {
-      deleteUploadedFile(req.file.path);
-      console.error("File rename error:", err.message);
-      return reloadForm(
-        ["Could not save image file. Please try again."],
-        old, existingProduct.image_path
-      );
+      await sequelize.transaction(async transaction => {
+        const existingUser = await User.findOne({ where: { email: normalizedEmail }, transaction });
+        if (existingUser) throw new Error("A login account already uses this email address.");
+
+        const sellerUser = await User.create({
+          name: String(contact_name || business_name || "Seller").trim(),
+          email: normalizedEmail,
+          password: temporary_password,
+          role: "seller",
+          status: accountStatusForSeller(status || "pending"),
+          phone: phone || null,
+          address: address || null
+        }, { transaction });
+
+        await Seller.create({
+          user_id: sellerUser.id,
+          business_name,
+          contact_name,
+          email: normalizedEmail,
+          phone,
+          address,
+          category,
+          status: status || "pending",
+          commission_rate: parseFloat(commission_rate) || 10,
+          notes
+        }, { transaction });
+      });
+
+      req.flash("success_msg", `Seller "${business_name}" and its login account were added.`);
+      res.redirect("/admin/sellers");
+    } catch (error) {
+      req.flash("error_msg", `Failed: ${error.message}`);
+      res.redirect("/admin/sellers/add");
     }
-  }
+  },
 
-  // ── 5. Field validation ───────────────────────────────────────────
-  const errors = [];
-
-  if (!name || name.length < 2)
-    errors.push("Product name is required (minimum 2 characters).");
-  if (name.length > 200)
-    errors.push("Product name must be 200 characters or fewer.");
-
-  const categoryId = parseInt(categoryRaw, 10);
-  if (!categoryRaw || isNaN(categoryId) || categoryId < 1)
-    errors.push("Please select a valid category.");
-
-  const price = parseFloat(priceRaw);
-  if (priceRaw === undefined || priceRaw === "" || isNaN(price))
-    errors.push("Price is required.");
-  else if (price < 0)
-    errors.push("Price cannot be negative.");
-  else if (price > 99999999.99)
-    errors.push("Price exceeds the maximum allowed value.");
-
-  const stock = parseInt(stockRaw, 10);
-  if (stockRaw !== undefined && stockRaw !== "" && (isNaN(stock) || stock < 0))
-    errors.push("Stock quantity cannot be negative.");
-
-  const ALLOWED_STATUS = ["active", "inactive"];
-  if (!ALLOWED_STATUS.includes(statusRaw))
-    errors.push("Invalid status value.");
-
-  if (errors.length > 0) {
-    if (newImagePath) deleteUploadedFile(path.join(UPLOAD_CONFIG.UPLOAD_DIR, path.basename(newImagePath)));
-    return reloadForm(errors, old, existingProduct.image_path);
-  }
-
-  // ── 6. Confirm category exists in DB ─────────────────────────────
-  try {
-    const validCat = await Category.findOne({
-      where: { id: categoryId, is_active: true }
-    });
-    if (!validCat) {
-      if (newImagePath) deleteUploadedFile(path.join(UPLOAD_CONFIG.UPLOAD_DIR, path.basename(newImagePath)));
-      return reloadForm(["Selected category does not exist."], old, existingProduct.image_path);
+  editForm: async (req, res) => {
+    try {
+      const seller = await Seller.findByPk(req.params.id);
+      if (!seller) return res.status(404).send("Not found");
+      res.render("admin/seller-edit", {
+        title: "Edit Seller",
+        activePage: "sellers",
+        seller,
+        hasLoginAccount: Boolean(seller.user_id)
+      });
+    } catch (_error) {
+      res.status(500).send("Error");
     }
-  } catch (err) {
-    console.error("Category lookup error:", err.message);
-  }
+  },
 
-  // ── 7. Update the product record ──────────────────────────────────
-  try {
-    const oldImagePath = existingProduct.image_path;
+  update: async (req, res) => {
+    const {
+      business_name, contact_name, email, phone, address, category,
+      status, commission_rate, notes, reset_password
+    } = req.body;
+    const normalizedEmail = String(email || "").trim().toLowerCase();
 
-    existingProduct.name           = name;
-    existingProduct.description    = description || null;
-    existingProduct.category_id    = categoryId;
-    existingProduct.price          = price.toFixed(2);
-    existingProduct.stock_quantity = isNaN(stock) ? 0 : stock;
-    existingProduct.status         = statusRaw;
-
-    // Only update image_path if a new valid image was uploaded
-    if (newImagePath) {
-      existingProduct.image_path = newImagePath;
+    if (reset_password && reset_password.length < 12) {
+      req.flash("error_msg", "A new seller password must contain at least 12 characters.");
+      return res.redirect(`/admin/sellers/edit/${req.params.id}`);
     }
 
-    await existingProduct.save();
+    try {
+      let accountCreated = false;
+      await sequelize.transaction(async transaction => {
+        const seller = await Seller.findByPk(req.params.id, { transaction });
+        if (!seller) throw new Error("Seller not found.");
 
-    // Delete the old image file only after a successful save and only
-    // if a new image replaced it — never delete if save fails
-    if (newImagePath && oldImagePath) {
-      deleteUploadedFile(path.join(UPLOAD_CONFIG.UPLOAD_DIR, path.basename(oldImagePath)));
-    }
+        let user = seller.user_id ? await User.findByPk(seller.user_id, { transaction }) : null;
+        if (!user && reset_password) {
+          const emailOwner = await User.findOne({ where: { email: normalizedEmail }, transaction });
+          if (emailOwner) throw new Error("A login account already uses this email address.");
+          user = await User.create({
+            name: String(contact_name || business_name || "Seller").trim(),
+            email: normalizedEmail,
+            password: reset_password,
+            role: "seller",
+            status: accountStatusForSeller(status),
+            phone: phone || null,
+            address: address || null
+          }, { transaction });
+          seller.user_id = user.id;
+          accountCreated = true;
+        } else if (user) {
+          const emailOwner = await User.findOne({
+            where: { email: normalizedEmail, id: { [Op.ne]: user.id } },
+            transaction
+          });
+          if (emailOwner) throw new Error("A login account already uses this email address.");
 
-    console.log(`✅ Product updated: ID ${existingProduct.id} — "${existingProduct.name}"`);
-    req.flash("success_msg", `Product "${existingProduct.name}" updated successfully.`);
-    res.redirect("/seller/products");
-
-  } catch (err) {
-    console.error("Product update error:", err.message);
-    if (newImagePath) deleteUploadedFile(path.join(UPLOAD_CONFIG.UPLOAD_DIR, path.basename(newImagePath)));
-    return reloadForm(
-      ["Database error: could not update product. Please try again."],
-      old, existingProduct.image_path
-    );
-  }
-};
-
-// ── Delete Product (POST) ─────────────────────────────────────────────
-export const deleteProductPost = async (req, res) => {
-  // ── 1. Validate the ID is a safe integer ─────────────────────────
-  const productId = parseInt(req.params.id, 10);
-  if (!productId || productId < 1) {
-    req.flash("error_msg", "Invalid product ID.");
-    return res.redirect("/seller/products");
-  }
-
-  try {
-    // ── 2. Load the product — never delete blindly ────────────────
-    const product = await Product.findByPk(productId);
-
-    if (!product) {
-      // Already gone — redirect gracefully, don't crash
-      req.flash("error_msg", "Product not found or already deleted.");
-      return res.redirect("/seller/products");
-    }
-
-    const productName  = product.name;
-    const imageToClean = product.image_path;   // save before destroy()
-
-    // ── 3. Delete the database record ────────────────────────────
-    await product.destroy();
-
-    // ── 4. Clean up the image file ONLY after successful DB delete ─
-    //    If the image is the shared placeholder we never touch it.
-    //    fire-and-forget: a missing file is not a fatal error.
-    if (imageToClean && !imageToClean.includes("placeholder")) {
-      const absPath = path.join(
-        path.dirname(fileURLToPath(import.meta.url)),
-        "../public",
-        imageToClean
-      );
-      fs.unlink(absPath, (err) => {
-        if (err && err.code !== "ENOENT") {
-          console.warn(`⚠️  Could not delete image file: ${absPath} —`, err.message);
+          user.name = String(contact_name || business_name || "Seller").trim();
+          user.email = normalizedEmail;
+          user.role = "seller";
+          user.status = accountStatusForSeller(status);
+          user.phone = phone || null;
+          user.address = address || null;
+          if (reset_password) user.password = reset_password;
+          await user.save({ transaction });
         }
+
+        await seller.update({
+          user_id: seller.user_id,
+          business_name,
+          contact_name,
+          email: normalizedEmail,
+          phone,
+          address,
+          category,
+          status,
+          commission_rate: parseFloat(commission_rate) || 10,
+          notes
+        }, { transaction });
       });
+
+      req.flash("success_msg", accountCreated ? "Seller updated and login account created." : "Seller updated.");
+      res.redirect("/admin/sellers");
+    } catch (error) {
+      req.flash("error_msg", `Failed: ${error.message}`);
+      res.redirect(`/admin/sellers/edit/${req.params.id}`);
     }
+  },
 
-    console.log(`🗑️  Product deleted: ID ${productId} — "${productName}"`);
-    req.flash("success_msg", `Product "${productName}" deleted successfully.`);
-    res.redirect("/seller/products");
+  delete: async (req, res) => {
+    try {
+      await sequelize.transaction(async transaction => {
+        const seller = await Seller.findByPk(req.params.id, { transaction });
+        if (!seller) throw new Error("Seller not found.");
 
-  } catch (err) {
-    console.error("Delete product error:", err.message);
-    req.flash("error_msg", "Could not delete product. Please try again.");
-    res.redirect("/seller/products");
+        const productCount = await Product.count({ where: { seller_id: seller.id }, transaction });
+        if (productCount > 0) {
+          throw new Error("This seller has products. Set the seller to inactive instead of deleting it.");
+        }
+
+        const userId = seller.user_id;
+        await seller.destroy({ transaction });
+        if (userId) await User.destroy({ where: { id: userId }, transaction });
+      });
+      req.flash("success_msg", "Seller and its login account were deleted.");
+    } catch (error) {
+      req.flash("error_msg", error.message || "Failed to delete seller.");
+    }
+    res.redirect("/admin/sellers");
   }
 };
 
-// ── Categories (GET) ───────────────────────────────────────────────────
-export const categoriesPage = async (req, res) => {
-  try {
-    const categories = await Category.findAll({ order: [["name", "ASC"]] });
-    res.render("seller-categories", {
-      title:           "Categories",
-      pageTitle:       "Categories",
-      activeCategories: true,
-      categories:      categories.map(c => ({
-        id:          c.id,
-        name:        c.name,
-        description: c.description,
-        is_active:   c.is_active
-      }))
-    });
-  } catch (err) {
-    console.error("Categories page error:", err.message);
-    res.render("seller-categories", {
-      title:           "Categories",
-      pageTitle:       "Categories",
-      activeCategories: true,
-      categories:      [],
-      dbError:         "Could not load categories."
-    });
-  }
-};
-
-// ── Delete Category (POST) ────────────────────────────────────────────
-export const deleteCategoryPost = async (req, res) => {
-  const categoryId = parseInt(req.params.id, 10);
-  if (!categoryId || categoryId < 1) {
-    req.flash("error_msg", "Invalid category ID.");
-    return res.redirect("/seller/categories");
-  }
-
-  try {
-    const category = await Category.findByPk(categoryId);
-    if (!category) {
-      req.flash("error_msg", "Category not found or already deleted.");
-      return res.redirect("/seller/categories");
-    }
-
-    // Block deletion if products are still assigned to this category
-    const productCount = await Product.count({ where: { category_id: categoryId } });
-    if (productCount > 0) {
-      req.flash("error_msg",
-        `Cannot delete "${category.name}" — ${productCount} product${productCount > 1 ? "s are" : " is"} still using it. Re-assign them first.`
-      );
-      return res.redirect("/seller/categories");
-    }
-
-    const categoryName = category.name;
-    await category.destroy();
-    console.log(`🗑️  Category deleted: ID ${categoryId} — "${categoryName}"`);
-    req.flash("success_msg", `Category "${categoryName}" deleted.`);
-  } catch (err) {
-    console.error("Delete category error:", err.message);
-    req.flash("error_msg", "Could not delete category. Please try again.");
-  }
-
-  res.redirect("/seller/categories");
-};
-
-// ── Add Category (POST) ────────────────────────────────────────────────
-export const addCategoryPost = async (req, res) => {
-  const name        = (req.body.name        || "").trim();
-  const description = (req.body.description || "").trim();
-
-  // Validate
-  if (!name || name.length < 2) {
-    req.flash("error_msg", "Category name is required (minimum 2 characters).");
-    return res.redirect("/seller/categories");
-  }
-  if (name.length > 120) {
-    req.flash("error_msg", "Category name must be 120 characters or fewer.");
-    return res.redirect("/seller/categories");
-  }
-
-  try {
-    const [, created] = await Category.findOrCreate({
-      where:    { name },
-      defaults: { description: description || null, is_active: true }
-    });
-
-    if (created) {
-      req.flash("success_msg", `Category "${name}" added successfully.`);
-    } else {
-      req.flash("error_msg", `Category "${name}" already exists.`);
-    }
-  } catch (err) {
-    console.error("Add category error:", err.message);
-    req.flash("error_msg", "Database error: could not save category. Please try again.");
-  }
-
-  res.redirect("/seller/categories");
-};
+export { sellerController };

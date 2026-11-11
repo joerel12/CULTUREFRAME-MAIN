@@ -80,12 +80,12 @@ Visitor Information owns visitor-facing cultural documentation:
 - attractions and festivals; and
 - local-product stories that provide cultural context.
 
-Jenny's application continues to own commerce, carts, purchasable products,
-orders, sellers, payments, customer accounts, and event registrations. A local
-product in Visitor Information is informational and never supplies a checkout
-price or stock count. Existing `/heritage`, `/events`, `/scenic`, and `/crafts`
-pages remain available while the team reviews legacy local content; the new
-`/discover` area is the authoritative federated entry point.
+The main application continues to own commerce, carts, purchasable products,
+orders, sellers and customer accounts. A local product in Visitor Information
+is informational and never supplies a checkout price or stock count. The old
+`/heritage`, `/events`, `/scenic`, and `/crafts` page routes now issue permanent
+redirects to the equivalent `/discover` category. Their duplicate templates and
+administrator content-management pages were removed.
 
 ## CultureFrame routes
 
@@ -141,11 +141,9 @@ as part of this code integration.
   application's actual Visitor client against the included Express API. Only
   database reads are replaced by fixtures; publication filters are asserted.
 - Frontend API-client test passes (1 test).
-- The main application's Visitor integration suite passes (7 tests).
-- The full main-system test run also exposes three existing failures in
-  unchanged files: analytics imports an undeclared `bcrypt` package; payment
-  integration expects a named `Product` export; seller integration expects a
-  named `Seller` export. This import preserves those collaborators' files and
-  does not claim that the complete main application is ready for deployment.
+- The main application's Visitor integration contract is covered by its
+  consolidated integration suite.
+- The full main-system integration suite passes 20 tests, including analytics,
+  payment, seller-account, checkout-trust, and Visitor Information contracts.
 - Live PostgreSQL migrations, content persistence, and deployment activation
   require a separately configured Visitor database and were not exercised.

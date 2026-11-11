@@ -36,23 +36,18 @@ const sellerCookie = await login(
 
 const publicPaths = [
   "/",
-  "/heritage",
-  "/heritage/1",
   "/shop",
   "/shop/product/1",
-  "/events",
-  "/events/1",
-  "/scenic",
-  "/scenic/1",
-  "/crafts",
-  "/crafts/1",
   "/discover",
   "/discover/heritage",
+  "/discover/events",
+  "/discover/attractions",
+  "/discover/traditions",
   "/discover/heritage/integration-mangyan-heritage"
 ];
+const retiredPublicPaths = ["/heritage", "/events", "/scenic", "/crafts"];
 const customerPaths = [
   "/customer/dashboard",
-  "/customer/events",
   "/customer/profile",
   "/customer/profile/edit",
   "/customer/moments",
@@ -72,6 +67,10 @@ const sellerPaths = [
 
 const results = [];
 for (const path of publicPaths) results.push(await check(path));
+for (const path of retiredPublicPaths) {
+  const response = await fetch(`${baseUrl}${path}`, { redirect: "manual" });
+  results.push({ path, status: response.status, ok: response.status === 301 });
+}
 for (const path of customerPaths) results.push(await check(path, customerCookie));
 for (const path of sellerPaths) results.push(await check(path, sellerCookie));
 

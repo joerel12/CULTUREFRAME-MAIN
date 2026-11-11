@@ -30,12 +30,14 @@ Server will run at: http://localhost:3000
 
 | Command | Description |
 |---------|-------------|
-| `npm run xian` | Start server with auto-reload (development) |
-| `npm run xian-start` | Start server (production) |
+| `npm run dev` | Start server with auto-reload (development) |
+| `npm start` | Start server (production-style) |
 | `npm run sync` | Create/update database tables (safe) |
 | `npm run migrate` | Reset database (⚠️ deletes data) |
-| `npm create:model` | Create new model |
-| `npm create:controller` | Create new controller |
+| `npm run seed:integration` | Add local end-to-end acceptance data |
+| `npm run test:integration` | Test all service contracts |
+| `npm run test:admin-smoke` | Test retained admin pages and retired-page redirects |
+| `npm run test:portal-smoke` | Test public, customer and seller portals |
 
 ## Seller Workspace
 
@@ -73,6 +75,23 @@ Only records published by the Visitor Information team are displayed. See
 `docs/integration/VISITOR_INFORMATION_INTEGRATION.md` for ownership rules,
 routes, deployment configuration, and verification details.
 
+## System Ownership
+
+The main application is the authentication, customer, order and integration
+orchestrator. It deliberately does not duplicate pages owned by another system:
+
+| Module | Owning system | Main-system entry point |
+| --- | --- | --- |
+| Heritage, traditions, events and attractions | Visitor Information | `/discover` |
+| Seller product catalog | Seller Workspace | `/seller` (seller accounts) |
+| Payments, refunds, receipts and payouts | CultureFrame Payments | configured `PAYMENT_SYSTEM_URL` |
+| Reports and business analytics | CultureMetrics | configured `CULTUREMETRICS_SYSTEM_URL` |
+| Accounts, carts, checkout, orders, sellers and customers | Main CultureFrame | this application |
+
+Old public content URLs redirect to `/discover`. Old duplicate administrator
+GET routes redirect to the owning system, while retired write routes return
+HTTP `410 Gone` so records cannot be edited in two places.
+
 ## CultureMetrics Integration
 
 The integration branch implements the seven read-only analytics endpoints used
@@ -102,8 +121,8 @@ darling/
 ├── views/             # Frontend templates (.xian files)
 │   ├── admin/         # Admin pages
 │   ├── customer/      # Customer pages
-│   ├── events/        # Events pages
-│   ├── heritage/      # Heritage pages
+│   ├── discover/      # Visitor Information integration pages
+│   ├── seller/        # Seller product workspace
 │   ├── shop/          # Shop pages
 │   └── partials/      # Reusable components
 ├── public/            # Static files
@@ -116,10 +135,8 @@ darling/
 ## Features
 
 ### Public Features
-- 🏛️ Heritage Sites Explorer
-- 📅 Events & Festivals
-- 🖼️ Scenic Spots Gallery
-- 🎨 Arts & Crafts Showcase
+- 🧭 Federated Visitor Information discovery
+- 🔎 Cultural search and published record details
 - 🛍️ Local Products Shop
 
 ### Customer Features
@@ -128,21 +145,17 @@ darling/
 - 🛒 Shopping Cart
 - ❤️ Wishlist
 - 📦 Order Tracking
-- 🎫 Event Registration
 
 ### Admin Features
-- 📊 Dashboard with Statistics
-- 🏛️ Heritage Management
-- 📅 Event Management
-- 🛍️ Product Management
-- 📦 Order Management
-- 🖼️ Scenic Spots Management
-- 🎨 Crafts Management
+- 🧩 Connected-system control center
+- 📦 Order and feedback management
+- 👥 Customer and seller-account management
+- ↗️ Direct access to Visitor Information, Payments and CultureMetrics
 
 ## Tech Stack
 
 - **Backend:** Node.js + Express.js
-- **Database:** MySQL + Sequelize ORM
+- **Database:** PostgreSQL + Sequelize ORM
 - **Frontend:** Handlebars (.xian templates)
 - **Styling:** Tailwind CSS
 - **File Upload:** Multer
@@ -151,15 +164,15 @@ darling/
 ## Troubleshooting
 
 ### "Failed to create moment" Error
-Run: `npm run sync` to create missing tables
+Run: `npm run sync` to create missing tables.
 
 ### Database Connection Error
-1. Check MySQL is running
-2. Verify credentials in `models/db.js`
-3. Ensure database 'darling' exists
+1. Check PostgreSQL is running.
+2. Verify `DATABASE_URL` in `.env`.
+3. For local PostgreSQL without TLS, set `DATABASE_SSL=false`.
 
 ### Port Already in Use
-Change port in `index.js`:
+Change the port in `.env`:
 ```javascript
 const PORT = process.env.PORT || 3000;
 ```
@@ -174,7 +187,7 @@ mkdir public/uploads
 
 ### Watch for Changes
 ```bash
-npm run xian
+npm run dev
 ```
 Server auto-restarts on file changes
 
@@ -204,5 +217,3 @@ For issues or questions:
 **Developer:** Christian I. Cabrera
 **Institution:** Mindoro State University - Philippines
 **License:** MIT
-
-<!-- Updated by JennyJoyIrmo -->

@@ -1,198 +1,81 @@
-<nav class="bg-gradient-to-r from-emerald-800 via-emerald-700 to-green-800 shadow-lg sticky top-0 z-50">
-  <div class="max-w-7xl mx-auto px-4">
-    <div class="flex items-center justify-between h-16">
+<nav class="cf-nav" id="siteNav" aria-label="Primary navigation">
+  <div class="cf-shell">
+    <div class="cf-nav-row">
+      <a href="/" class="cf-brand" aria-label="CultureFrame home">
+        <span class="cf-brand-mark"><img src="/images/logo.png" alt="" /></span>
+        <span class="cf-brand-copy">
+          <strong>CultureFrame</strong>
+          <span>One cultural ecosystem</span>
+        </span>
+      </a>
 
-      <!-- Logo -->
-      <div class="flex items-center gap-6">
-        <a href="/" class="flex items-center gap-2.5 group flex-shrink-0">
-          <div class="w-9 h-9 bg-white rounded-lg flex items-center justify-center shadow-md group-hover:scale-105 transition-transform duration-200">
-            <img src="/images/logo.png" alt="CultureFrame" class="w-8 h-8 object-contain rounded-md" />
-          </div>
-          <div class="hidden sm:block">
-            <p class="text-white font-bold text-base leading-none tracking-tight">CultureFrame</p>
-            <p class="text-emerald-300 text-[10px] leading-none mt-0.5 font-medium">Mansalay Heritage</p>
-          </div>
-        </a>
-
-        <!-- Desktop nav links -->
-        <div class="hidden lg:flex items-center gap-1">
-          <a href="/" class="nav-link"><i class="fas fa-home text-xs"></i> Home</a>
-          <a href="/discover" class="nav-link"><i class="fas fa-compass text-xs"></i> Discover</a>
-          <a href="/heritage" class="nav-link"><i class="fas fa-landmark text-xs"></i> Heritage</a>
-          <a href="/events" class="nav-link"><i class="fas fa-calendar-alt text-xs"></i> Events</a>
-          <a href="/scenic" class="nav-link"><i class="fas fa-mountain text-xs"></i> Scenic</a>
-          <a href="/crafts" class="nav-link"><i class="fas fa-paint-brush text-xs"></i> Crafts</a>
-          <a href="/shop" class="nav-link"><i class="fas fa-shopping-bag text-xs"></i> Shop</a>
-          <a href="/community" class="nav-link"><i class="fas fa-users text-xs"></i> Community</a>
-        </div>
+      <div class="cf-nav-links" aria-label="Main links">
+        <a href="/" class="cf-nav-link"><i class="fas fa-house"></i> Home</a>
+        <a href="/discover" class="cf-nav-link"><i class="fas fa-compass"></i> Discover</a>
+        <a href="/shop" class="cf-nav-link"><i class="fas fa-store"></i> Marketplace</a>
       </div>
 
-      <!-- Right side -->
-      <div class="flex items-center gap-2">
-        <!-- Search (desktop) -->
-        <form action="/shop" method="GET" class="hidden xl:flex items-center">
-          <div class="flex bg-white/15 backdrop-blur-sm border border-white/20 rounded-lg overflow-hidden">
-            <input name="search" placeholder="Search…"
-              class="px-3 py-1.5 bg-transparent text-white placeholder-white/60 text-sm w-40 outline-none" />
-            <button type="submit" class="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white transition-colors">
-              <i class="fas fa-search text-xs"></i>
-            </button>
-          </div>
-        </form>
-
+      <div class="cf-nav-actions">
+        <a href="/discover/search" class="cf-nav-icon" aria-label="Search visitor information" title="Search">
+          <i class="fas fa-magnifying-glass"></i>
+        </a>
         {{#if isLoggedIn}}
-        <!-- Cart -->
-        <a href="/cart" class="relative p-2 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all" title="Cart">
-          <i class="fas fa-shopping-cart"></i>
-          {{#if cartCount}}
-          <span class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{{cartCount}}</span>
-          {{/if}}
-        </a>
-        <!-- Wishlist -->
-        <a href="/wishlist" class="relative p-2 text-white/80 hover:text-white hover:bg-white/15 rounded-lg transition-all" title="Wishlist">
-          <i class="fas fa-heart"></i>
-          {{#if wishlistCount}}
-          <span class="absolute -top-0.5 -right-0.5 bg-pink-500 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">{{wishlistCount}}</span>
-          {{/if}}
-        </a>
-        <!-- Profile avatar -->
-        <a href="/customer/profile" class="flex items-center gap-2 px-2 py-1.5 text-white/90 hover:bg-white/15 rounded-lg transition-all" title="Profile">
-          {{#if user.profileImage}}
-          <img src="/uploads/{{user.profileImage}}" class="w-7 h-7 rounded-full object-cover border-2 border-white/50" alt="Profile" />
+          <a href="/cart" class="cf-nav-icon" aria-label="Shopping cart" title="Cart">
+            <i class="fas fa-bag-shopping"></i>
+            {{#if cartCount}}<span class="sr-only">{{cartCount}} items</span>{{/if}}
+          </a>
+          {{#if (eq sessionUserRole 'admin')}}
+            <a href="/admin/dashboard" class="cf-nav-user" title="Open administration">
           {{else}}
-          <div class="w-7 h-7 rounded-full bg-emerald-500 border-2 border-white/50 flex items-center justify-center text-white font-bold text-xs">
-            {{#if user.name}}{{user.name.[0]}}{{else}}U{{/if}}
-          </div>
+            {{#if (eq sessionUserRole 'seller')}}
+              <a href="/seller/dashboard" class="cf-nav-user" title="Open seller workspace">
+            {{else}}
+              <a href="/customer/dashboard" class="cf-nav-user" title="Open your dashboard">
+            {{/if}}
           {{/if}}
-          <span class="hidden md:block text-sm font-medium truncate max-w-[100px]">{{user.name}}</span>
-        </a>
-        <!-- Logout -->
-        <a href="/logout" class="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-white/80 hover:text-white hover:bg-red-500/25 border border-white/15 rounded-lg transition-all text-sm font-medium">
-          <i class="fas fa-sign-out-alt text-xs"></i> Logout
-        </a>
-
+              <span class="cf-nav-avatar">{{#if user.name}}{{user.name.[0]}}{{else}}U{{/if}}</span>
+              <span>{{user.name}}</span>
+            </a>
+          <a href="/logout" class="cf-nav-icon" aria-label="Sign out" title="Sign out"><i class="fas fa-arrow-right-from-bracket"></i></a>
         {{else}}
-        <!-- Guest -->
-        <a href="/login" class="px-3 py-1.5 text-white/90 hover:text-white hover:bg-white/15 border border-white/20 rounded-lg transition-all text-sm font-medium">
-          <i class="fas fa-sign-in-alt mr-1"></i> Login
-        </a>
-        <a href="/register" class="px-3 py-1.5 bg-white text-emerald-700 hover:bg-emerald-50 rounded-lg transition-all text-sm font-semibold shadow-md">
-          <i class="fas fa-user-plus mr-1"></i> Register
-        </a>
+          <a href="/login" class="cf-nav-link">Sign in</a>
+          <a href="/register" class="cf-nav-cta">Join CultureFrame <i class="fas fa-arrow-right"></i></a>
         {{/if}}
-
-        <!-- Mobile menu button -->
-        <button id="mobileMenuBtn" class="lg:hidden p-2 text-white hover:bg-white/15 rounded-lg transition-colors" aria-label="Menu">
+        <button id="mobileMenuButton" class="cf-menu-toggle" type="button" aria-expanded="false" aria-controls="mobileMenu" aria-label="Open menu">
           <i class="fas fa-bars"></i>
-        </button>
-
-        <!-- Dark mode toggle -->
-        <button class="dm-toggle" id="dmToggle" aria-label="Toggle dark mode" title="Toggle dark mode">
-          <i class="fas fa-moon text-sm" id="dmIcon"></i>
         </button>
       </div>
     </div>
-  </div>
 
-  <!-- Mobile menu -->
-  <div id="mobileMenu" class="hidden lg:hidden border-t border-white/10 bg-emerald-900/95 backdrop-blur-sm">
-    <div class="max-w-7xl mx-auto px-4 py-3 space-y-1">
-      <a href="/" class="mobile-nav-link"><i class="fas fa-home w-4"></i> Home</a>
-      <a href="/discover" class="mobile-nav-link"><i class="fas fa-compass w-4"></i> Discover</a>
-      <a href="/heritage" class="mobile-nav-link"><i class="fas fa-landmark w-4"></i> Heritage</a>
-      <a href="/events" class="mobile-nav-link"><i class="fas fa-calendar-alt w-4"></i> Events</a>
-      <a href="/scenic" class="mobile-nav-link"><i class="fas fa-mountain w-4"></i> Scenic</a>
-      <a href="/crafts" class="mobile-nav-link"><i class="fas fa-paint-brush w-4"></i> Crafts</a>
-      <a href="/shop" class="mobile-nav-link"><i class="fas fa-shopping-bag w-4"></i> Shop</a>
-      <a href="/community" class="mobile-nav-link"><i class="fas fa-users w-4"></i> Community</a>
-
-      <!-- Mobile search -->
-      <form action="/shop" method="GET" class="pt-2">
-        <div class="flex bg-white/10 border border-white/20 rounded-lg overflow-hidden">
-          <input name="search" placeholder="Search products..."
-            class="flex-1 px-3 py-2.5 bg-transparent text-white placeholder-white/60 text-sm outline-none" />
-          <button type="submit" class="px-4 bg-white/10 hover:bg-white/20 text-white transition-colors">
-            <i class="fas fa-search text-sm"></i>
-          </button>
-        </div>
-      </form>
-
+    <div id="mobileMenu" class="cf-mobile-menu">
+      <a href="/" class="cf-mobile-link"><i class="fas fa-house"></i> Home</a>
+      <a href="/discover" class="cf-mobile-link"><i class="fas fa-compass"></i> Discover culture</a>
+      <a href="/shop" class="cf-mobile-link"><i class="fas fa-store"></i> Marketplace</a>
+      <a href="/discover/search" class="cf-mobile-link"><i class="fas fa-magnifying-glass"></i> Search</a>
       {{#if isLoggedIn}}
-      <div class="pt-2 mt-2 border-t border-white/10 space-y-1">
-        <a href="/cart" class="mobile-nav-link"><i class="fas fa-shopping-cart w-4"></i> Cart {{#if cartCount}}<span class="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">{{cartCount}}</span>{{/if}}</a>
-        <a href="/wishlist" class="mobile-nav-link"><i class="fas fa-heart w-4"></i> Wishlist</a>
-        <a href="/customer/profile" class="mobile-nav-link"><i class="fas fa-user w-4"></i> Profile</a>
-        <a href="/logout" class="mobile-nav-link text-red-300 hover:text-red-200"><i class="fas fa-sign-out-alt w-4"></i> Logout</a>
-      </div>
+        <a href="/dashboard" class="cf-mobile-link"><i class="fas fa-table-cells-large"></i> My workspace</a>
+        <a href="/logout" class="cf-mobile-link"><i class="fas fa-arrow-right-from-bracket"></i> Sign out</a>
       {{else}}
-      <div class="pt-2 mt-2 border-t border-white/10 flex gap-2">
-        <a href="/login" class="flex-1 text-center py-2.5 text-white border border-white/20 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors">Login</a>
-        <a href="/register" class="flex-1 text-center py-2.5 bg-white text-emerald-700 rounded-lg text-sm font-semibold hover:bg-emerald-50 transition-colors">Register</a>
-      </div>
+        <a href="/login" class="cf-mobile-link"><i class="fas fa-right-to-bracket"></i> Sign in</a>
       {{/if}}
     </div>
   </div>
 </nav>
 
-<style>
-  .nav-link {
-    display: inline-flex; align-items: center; gap: 4px;
-    padding: 6px 10px;
-    color: rgba(255,255,255,.85);
-    font-size: .825rem; font-weight: 500;
-    border-radius: 8px;
-    transition: all .15s;
-    text-decoration: none;
-  }
-  .nav-link:hover { color: #fff; background: rgba(255,255,255,.15); }
-  .mobile-nav-link {
-    display: flex; align-items: center; gap: 10px;
-    padding: 10px 12px;
-    color: rgba(255,255,255,.85);
-    font-size: .9rem; font-weight: 500;
-    border-radius: 8px;
-    transition: all .15s;
-    text-decoration: none;
-  }
-  .mobile-nav-link:hover { color: #fff; background: rgba(255,255,255,.12); }
-</style>
-
 <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const btn  = document.getElementById('mobileMenuBtn');
+  (() => {
+    const nav = document.getElementById('siteNav');
+    const button = document.getElementById('mobileMenuButton');
     const menu = document.getElementById('mobileMenu');
-    if (btn && menu) {
-      btn.addEventListener('click', () => {
-        const open = !menu.classList.contains('hidden');
-        menu.classList.toggle('hidden', open);
-        btn.querySelector('i').className = open ? 'fas fa-bars' : 'fas fa-xmark';
+    const syncNav = () => nav && nav.classList.toggle('is-scrolled', window.scrollY > 8);
+    syncNav();
+    window.addEventListener('scroll', syncNav, { passive: true });
+    if (button && menu) {
+      button.addEventListener('click', () => {
+        const open = menu.classList.toggle('is-open');
+        button.setAttribute('aria-expanded', String(open));
+        button.querySelector('i').className = open ? 'fas fa-xmark' : 'fas fa-bars';
       });
     }
-
-    // Dark mode toggle
-    const dmBtn  = document.getElementById('dmToggle');
-    const dmIcon = document.getElementById('dmIcon');
-    const html   = document.documentElement;
-
-    function applyDark(dark) {
-      if (dark) {
-        html.classList.add('dark');
-        if (dmIcon) dmIcon.className = 'fas fa-sun text-sm text-yellow-300';
-        localStorage.setItem('cf-dark', '1');
-      } else {
-        html.classList.remove('dark');
-        if (dmIcon) dmIcon.className = 'fas fa-moon text-sm';
-        localStorage.setItem('cf-dark', '0');
-      }
-    }
-
-    // Set initial icon based on saved preference
-    applyDark(localStorage.getItem('cf-dark') === '1');
-
-    if (dmBtn) {
-      dmBtn.addEventListener('click', () => {
-        applyDark(!html.classList.contains('dark'));
-      });
-    }
-  });
+  })();
 </script>

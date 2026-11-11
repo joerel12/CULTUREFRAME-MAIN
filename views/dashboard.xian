@@ -20,8 +20,8 @@
         <span class="rounded-full bg-emerald-700/20 px-4 py-2">Welcome, {{user.name}}</span>
         <a href="/" class="px-4 py-2 rounded-lg bg-emerald-700/20 hover:bg-emerald-600 transition">Home</a>
         <a href="/shop" class="px-4 py-2 rounded-lg bg-emerald-700/20 hover:bg-emerald-600 transition">Shop</a>
-        <a href="/heritage" class="px-4 py-2 rounded-lg bg-emerald-700/20 hover:bg-emerald-600 transition">Heritage</a>
-        <a href="/events" class="px-4 py-2 rounded-lg bg-emerald-700/20 hover:bg-emerald-600 transition">Events</a>
+        <a href="/discover/heritage" class="px-4 py-2 rounded-lg bg-emerald-700/20 hover:bg-emerald-600 transition">Heritage</a>
+        <a href="/discover/events" class="px-4 py-2 rounded-lg bg-emerald-700/20 hover:bg-emerald-600 transition">Events</a>
         <a href="/logout" class="px-4 py-2 rounded-lg bg-red-500 hover:bg-red-600 transition text-white">Logout</a>
       </div>
     </div>
@@ -72,11 +72,11 @@
               <p class="text-sm text-slate-500">Browse</p>
               <p class="mt-2 font-semibold text-slate-900">Shop products</p>
             </a>
-            <a href="/heritage" class="rounded-3xl border border-slate-200 p-4 hover:border-emerald-200 hover:bg-emerald-50 transition">
+            <a href="/discover/heritage" class="rounded-3xl border border-slate-200 p-4 hover:border-emerald-200 hover:bg-emerald-50 transition">
               <p class="text-sm text-slate-500">Discover</p>
               <p class="mt-2 font-semibold text-slate-900">Heritage sites</p>
             </a>
-            <a href="/events" class="rounded-3xl border border-slate-200 p-4 hover:border-emerald-200 hover:bg-emerald-50 transition">
+            <a href="/discover/events" class="rounded-3xl border border-slate-200 p-4 hover:border-emerald-200 hover:bg-emerald-50 transition">
               <p class="text-sm text-slate-500">Attend</p>
               <p class="mt-2 font-semibold text-slate-900">Upcoming events</p>
             </a>

@@ -1,12 +1,123 @@
-{{> head}}
-<body class="bg-gray-50">
-  <div class="container mx-auto px-4 py-8 text-center">
-    <h1 class="text-4xl font-bold mt-10 text-blue-800">
-      🏛️ CultureFrame
-    </h1>
-    <p class="text-lg text-gray-600 mt-4">
-      A Web-Based Cultural Heritage Information System for Mansalay
-    </p>
-    <p class="mt-6 text-gray-500">Powered by XianFire 🔥</p>
-  </div>
-{{> footer}}
+{{>head}}
+<body>
+  {{>nav}}
+
+  <main>
+    <section class="cf-home-hero">
+      <div class="cf-shell cf-hero-layout">
+        <div>
+          <span class="cf-hero-kicker"><span class="cf-live-dot"></span> Mansalay, Oriental Mindoro</span>
+          <h1 class="cf-hero-title">Culture lives when it is <em>shared.</em></h1>
+          <p class="cf-hero-copy">
+            One connected platform for discovering living heritage, supporting local makers,
+            managing cultural commerce, and understanding community impact.
+          </p>
+          <div class="cf-hero-actions">
+            <a href="/discover" class="cf-button cf-button-primary">Start exploring <i class="fas fa-arrow-right"></i></a>
+            <a href="/shop" class="cf-button cf-button-glass"><i class="fas fa-store"></i> Visit marketplace</a>
+          </div>
+          <div class="cf-hero-proof" aria-label="Connected community platform">
+            <span class="cf-proof-stack" aria-hidden="true"><span>V</span><span>S</span><span>P</span><span>M</span></span>
+            <span>Four specialized systems. One CultureFrame experience.</span>
+          </div>
+        </div>
+
+        <div class="cf-ecosystem-board" aria-label="CultureFrame connected systems">
+          <div class="cf-board-top">
+            <strong>Connected ecosystem</strong>
+            <span>Unified by CultureFrame</span>
+          </div>
+          <div class="cf-system-stack">
+            <a href="/discover" class="cf-system-row">
+              <span class="cf-system-icon"><i class="fas fa-compass"></i></span>
+              <span class="cf-system-copy"><strong>Visitor Information</strong><span>Stories, places, traditions and events</span></span>
+              <span class="cf-system-state">Live</span>
+            </a>
+            <a href="/shop" class="cf-system-row">
+              <span class="cf-system-icon gold"><i class="fas fa-basket-shopping"></i></span>
+              <span class="cf-system-copy"><strong>Seller Marketplace</strong><span>Products from local cultural makers</span></span>
+              <span class="cf-system-state">Live</span>
+            </a>
+            <a href="/login" class="cf-system-row">
+              <span class="cf-system-icon coral"><i class="fas fa-shield-halved"></i></span>
+              <span class="cf-system-copy"><strong>Secure Payments</strong><span>Order and payment operations</span></span>
+              <span class="cf-system-state">Linked</span>
+            </a>
+            <a href="/login" class="cf-system-row">
+              <span class="cf-system-icon blue"><i class="fas fa-chart-line"></i></span>
+              <span class="cf-system-copy"><strong>CultureMetrics</strong><span>Impact and performance intelligence</span></span>
+              <span class="cf-system-state">Linked</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="cf-shell cf-overlap" aria-label="Platform principles">
+      <div class="cf-metric-strip">
+        <div class="cf-metric"><strong>One portal</strong><span>Simple access for every role</span></div>
+        <div class="cf-metric"><strong>Local first</strong><span>Built around Mansalay culture</span></div>
+        <div class="cf-metric"><strong>Connected</strong><span>Shared data, clear ownership</span></div>
+        <div class="cf-metric"><strong>Living archive</strong><span>Culture that keeps growing</span></div>
+      </div>
+    </section>
+
+    <section class="cf-section">
+      <div class="cf-shell">
+        <div class="cf-section-heading">
+          <div>
+            <span class="cf-eyebrow">Choose your journey</span>
+            <h2>Everything begins from one clear place.</h2>
+          </div>
+          <p>
+            The main portal now focuses on access, identity, commerce and orchestration.
+            Specialized teams manage their own modules without duplicate pages or conflicting records.
+          </p>
+        </div>
+
+        <div class="cf-journey-grid">
+          <a href="/discover" class="cf-journey-card">
+            <span class="cf-journey-art cf-art-discover"><i class="fas fa-compass"></i></span>
+            <small>Explore</small>
+            <h3>Discover living culture</h3>
+            <p>Browse verified heritage, attractions, traditions, festivals and community stories.</p>
+            <span class="cf-card-arrow"><i class="fas fa-arrow-right"></i></span>
+          </a>
+          <a href="/shop" class="cf-journey-card">
+            <span class="cf-journey-art cf-art-market"><i class="fas fa-basket-shopping"></i></span>
+            <small>Support</small>
+            <h3>Shop from local makers</h3>
+            <p>Find authentic cultural products while supporting sellers and artisan communities.</p>
+            <span class="cf-card-arrow"><i class="fas fa-arrow-right"></i></span>
+          </a>
+          <a href="/register" class="cf-journey-card">
+            <span class="cf-journey-art cf-art-community"><i class="fas fa-people-group"></i></span>
+            <small>Participate</small>
+            <h3>Join the community</h3>
+            <p>Create an account to manage orders, save products and take part in the CultureFrame ecosystem.</p>
+            <span class="cf-card-arrow"><i class="fas fa-arrow-right"></i></span>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <section class="cf-shell pb-16">
+      <div class="cf-platform-band">
+        <div class="cf-platform-grid">
+          <div>
+            <span class="cf-eyebrow" style="color:#cbed9b">A coordinated platform</span>
+            <h2>Specialized systems, without a fragmented experience.</h2>
+            <p>
+              Visitor Information publishes cultural content. Sellers manage products. Payments protects
+              financial workflows. CultureMetrics measures impact. CultureFrame connects them all.
+            </p>
+          </div>
+          <a href="/register" class="cf-button cf-button-primary">Create your account <i class="fas fa-arrow-right"></i></a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  {{>footer}}
+</body>
+</html>

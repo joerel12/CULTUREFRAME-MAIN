@@ -1,43 +1,44 @@
-/*
-  CultureFrame — Database Connection (Sequelize + MySQL)
-  Credentials are loaded from .env — never hardcoded here.
+﻿/*
+    MIT License
+    Copyright (c) 2025 Christian I. Cabrera || XianFire Framework
+    Mindoro State University - Philippines
 */
 
-import "dotenv/config";
 import { Sequelize } from "sequelize";
+import { createRequire } from 'module';
+const _require = createRequire(import.meta.url);
+try { _require('dotenv').config(); } catch(e) {}
 
-const {
-  DB_NAME = "cultureframe",
-  DB_USER = "root",
-  DB_PASS = "",
-  DB_HOST = "localhost",
-  DB_PORT = "3306"
-} = process.env;
+const DATABASE_URL = process.env.DATABASE_URL;
 
-export const sequelize = new Sequelize(DB_NAME, DB_USER, DB_PASS, {
-  host:    DB_HOST,
-  port:    Number(DB_PORT),
-  dialect: "mysql",
-  logging: false,          // set to console.log to see SQL queries during dev
+if (!DATABASE_URL) {
+  console.error('❌ DATABASE_URL environment variable is not set!');
+  process.exit(1);
+}
+
+const requiresSsl = process.env.DATABASE_SSL === 'true' ||
+  process.env.NODE_ENV === 'production' ||
+  /[?&]sslmode=(?:require|verify-ca|verify-full)(?:&|$)/i.test(DATABASE_URL);
+
+export const sequelize = new Sequelize(DATABASE_URL, {
+  dialect: "postgres",
+  logging: false,
+  dialectOptions: requiresSsl ? {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false
+    }
+  } : {},
   pool: {
-    max:     5,
-    min:     0,
-    acquire: 30000,
-    idle:    10000
+    max: 5,
+    min: 0,
+    acquire: 60000,
+    idle: 10000
   }
 });
 
-/**
- * testConnection()
- * Calls sequelize.authenticate() — the correct Sequelize v6 method for
- * verifying that the credentials and host are reachable.
- * Returns { ok: true } on success, { ok: false, error } on failure.
- */
-export async function testConnection() {
-  try {
-    await sequelize.authenticate();
-    return { ok: true };
-  } catch (error) {
-    return { ok: false, error };
-  }
+if (process.env.SKIP_DATABASE_AUTHENTICATION !== 'true') {
+  sequelize.authenticate()
+    .then(() => console.log('✅ Database connected successfully'))
+    .catch(err => console.error('⚠️ DB connection warning:', err.message));
 }

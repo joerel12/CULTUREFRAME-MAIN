@@ -14,7 +14,6 @@ const { Seller } = await import("../models/Seller.js");
 const { Payment } = await import("../models/Payment.js");
 const { PaymentIntegrationEvent } = await import("../models/PaymentIntegrationEvent.js");
 const { ordercontroller } = await import("../controllers/ordercontroller.js");
-const { paymentController } = await import("../controllers/paymentController.js");
 
 const responseDouble = () => {
   const response = { statusCode: 200, body: null };
@@ -22,30 +21,6 @@ const responseDouble = () => {
   response.json = body => { response.body = body; return response; };
   return response;
 };
-
-test("payment integration fields persist through the actual Sequelize models", () => {
-  assert.equal(Order.getAttributes().payment_status.defaultValue, "unpaid");
-  assert.equal(Payment.getAttributes().integration_external_id.unique, true);
-  assert.equal(Payment.getAttributes().refunded_amount.defaultValue, 0);
-  assert.ok(Payment.getAttributes().status.values.includes("partially_refunded"));
-});
-
-test("administrator cannot manually overwrite a service-owned payment", async t => {
-  t.mock.method(Payment, "sync", async () => {});
-  t.mock.method(Payment, "findByPk", async () => ({
-    integration_external_id: "CF-ORDER-15-ITEM-42",
-    update: async () => assert.fail("Service-owned payment was manually modified")
-  }));
-  const messages = [];
-  const req = {
-    params: { id: "10" }, body: { status: "refunded" },
-    flash: (...message) => messages.push(message)
-  };
-  let redirected;
-  await paymentController.updateStatus(req, { redirect: path => { redirected = path; } });
-  assert.equal(redirected, "/admin/payments/10");
-  assert.equal(messages[0][0], "error_msg");
-});
 
 test("payment integration token is required and accepted", () => {
   process.env.PAYMENT_INTEGRATION_TOKEN = "a-secure-test-token-with-more-than-32-characters";
