@@ -1,0 +1,13 @@
+<header class="cf-topbar" role="banner">
+  <div class="cf-topbar-left">
+    <!-- Hamburger — visible on mobile only -->
+    <button class="cf-menu-btn" id="cfMenuBtn" aria-label="Toggle navigation" aria-expanded="false" aria-controls="cfSidebar">
+      ☰
+    </button>
+    <span class="cf-topbar-title">{{pageTitle}} <span>/ CultureFrame</span></span>
+  </div>
+  <div class="cf-topbar-right">
+    <span class="cf-topbar-badge">Seller</span>
+    <div class="cf-topbar-avatar" aria-label="Seller account" title="Seller account">S</div>
+  </div>
+</header>

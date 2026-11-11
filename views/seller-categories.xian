@@ -1,0 +1,177 @@
+{{> seller-head}}
+<body>
+  <div class="cf-shell">
+    {{> seller-sidebar}}
+    <div class="cf-main">
+      {{> seller-topbar}}
+      <main class="cf-page">
+
+        <!-- Page header -->
+        <div class="cf-page-header">
+          <div class="cf-page-header-inner">
+            <div>
+              <p class="cf-page-eyebrow">Product Management</p>
+              <h1 class="cf-page-title">Categories</h1>
+              <p class="cf-page-sub">Organise your products by cultural heritage type</p>
+            </div>
+          </div>
+          <div class="cf-weave-divider" aria-hidden="true"></div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start;">
+
+          <!-- Add category form -->
+          <div style="background:var(--white);border-radius:var(--radius-lg);box-shadow:var(--shadow-sm);border:1px solid var(--cream-dark);padding:28px;">
+            <h2 style="font-size:16px;font-weight:700;color:var(--text-dark);margin:0 0 18px;display:flex;align-items:center;gap:8px;">
+              <span style="display:inline-block;width:4px;height:18px;background:var(--terra);border-radius:2px;" aria-hidden="true"></span>
+              Add New Category
+            </h2>
+
+            {{#if error_msg}}
+              <div style="background:#FFF3E0;border:1px solid #FFCC80;border-radius:8px;padding:12px 16px;margin-bottom:16px;color:#E65100;font-size:13px;">
+                ⚠️ {{error_msg}}
+              </div>
+            {{/if}}
+            {{#if success_msg}}
+              <div style="background:var(--green-pale);border:1px solid #A5C5A5;border-radius:8px;padding:12px 16px;margin-bottom:16px;color:var(--green);font-size:13px;">
+                ✅ {{success_msg}}
+              </div>
+            {{/if}}
+
+            <form action="/seller/categories/add" method="POST" novalidate>
+              <div style="margin-bottom:16px;">
+                <label for="catName" style="display:block;font-size:13px;font-weight:600;color:var(--text-mid);margin-bottom:6px;">
+                  Category Name <span style="color:var(--terra);">*</span>
+                </label>
+                <input
+                  type="text" id="catName" name="name"
+                  placeholder="e.g. Woven Crafts"
+                  required
+                  style="width:100%;padding:10px 14px;border:1px solid var(--cream-dark);border-radius:8px;font-size:14px;color:var(--text-dark);background:var(--cream);outline:none;transition:border-color 0.18s;"
+                  onfocus="this.style.borderColor='var(--terra)'"
+                  onblur="this.style.borderColor='var(--cream-dark)'"
+                />
+              </div>
+              <div style="margin-bottom:20px;">
+                <label for="catDesc" style="display:block;font-size:13px;font-weight:600;color:var(--text-mid);margin-bottom:6px;">
+                  Description
+                </label>
+                <textarea
+                  id="catDesc" name="description" rows="3"
+                  placeholder="Brief description of this category..."
+                  style="width:100%;padding:10px 14px;border:1px solid var(--cream-dark);border-radius:8px;font-size:14px;color:var(--text-dark);background:var(--cream);outline:none;resize:vertical;transition:border-color 0.18s;"
+                  onfocus="this.style.borderColor='var(--terra)'"
+                  onblur="this.style.borderColor='var(--cream-dark)'"
+                ></textarea>
+              </div>
+              <button
+                type="submit"
+                style="background:var(--terra);color:#fff;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:700;cursor:pointer;width:100%;transition:background 0.18s;"
+                onmouseover="this.style.background='var(--terra-light)'"
+                onmouseout="this.style.background='var(--terra)'"
+              >
+                Save Category
+              </button>
+            </form>
+          </div>
+
+          <!-- Category list -->
+          <div>
+            <div class="cf-section-header" style="margin-bottom:12px;">
+              <span class="cf-section-title">Existing Categories</span>
+            </div>
+            <div class="cf-table-card">
+              <div class="cf-table-wrap">
+                <table class="cf-table" role="table" aria-label="Categories">
+                  <thead>
+                    <tr>
+                      <th scope="col">Name</th>
+                      <th scope="col">Description</th>
+                      <th scope="col">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {{#if categories.length}}
+                      {{#each categories}}
+                      <tr>
+                        <td style="font-weight:600;">{{this.name}}</td>
+                        <td style="color:var(--text-muted);font-size:13px;">
+                          {{#if this.description}}{{this.description}}{{else}}<em>—</em>{{/if}}
+                        </td>
+                        <td>
+                          <div class="cf-action-group">
+                            <button
+                              type="button"
+                              class="cf-action-btn"
+                              aria-label="Delete {{this.name}}"
+                              title="Delete"
+                              onclick="cfConfirmCatDelete({{this.id}}, '{{this.name}}')"
+                              style="background:none;border:1px solid var(--cream-dark);cursor:pointer;"
+                            >🗑️</button>
+                          </div>
+                        </td>
+                      </tr>
+                      {{/each}}
+                    {{else}}
+                      <tr>
+                        <td colspan="3">
+                          <div class="cf-table-empty">
+                            <div class="cf-table-empty-icon" aria-hidden="true">🗂️</div>
+                            <p class="cf-table-empty-msg">No categories yet</p>
+                            <p class="cf-table-empty-hint">Add your first category using the form.</p>
+                          </div>
+                        </td>
+                      </tr>
+                    {{/if}}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- ── Delete confirmation modal ──────────────────────────── -->
+        <div
+          id="cfCatDeleteModal"
+          role="dialog" aria-modal="true" aria-labelledby="cfCatDeleteTitle"
+          style="display:none;position:fixed;inset:0;z-index:500;align-items:center;justify-content:center;"
+        >
+          <div style="position:absolute;inset:0;background:rgba(10,46,10,0.55);" onclick="cfCloseCatDelete()"></div>
+          <div style="position:relative;z-index:501;background:#fff;border-radius:16px;padding:32px 28px;max-width:420px;width:90%;box-shadow:0 20px 60px rgba(10,46,10,0.25);">
+            <div style="width:52px;height:52px;background:#E8F5E9;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;margin:0 auto 16px;">🗂️</div>
+            <h2 id="cfCatDeleteTitle" style="font-size:18px;font-weight:800;color:#0A2E0A;text-align:center;margin:0 0 8px;">Delete Category?</h2>
+            <p style="font-size:13px;color:#558B2F;text-align:center;margin:0 0 6px;">You are about to delete:</p>
+            <p id="cfCatDeleteName" style="font-size:14px;font-weight:700;color:#1B5E20;text-align:center;margin:0 0 12px;padding:8px 12px;background:#E8F5E9;border-radius:8px;"></p>
+            <p style="font-size:12px;color:#558B2F;text-align:center;margin:0 0 24px;">Categories with assigned products cannot be deleted.</p>
+            <form id="cfCatDeleteForm" method="POST" action="">
+              <div style="display:flex;gap:12px;justify-content:center;">
+                <button type="submit" id="cfCatDeleteConfirmBtn"
+                  style="background:#C62828;color:#fff;border:none;border-radius:8px;padding:10px 28px;font-size:14px;font-weight:700;cursor:pointer;min-width:120px;">
+                  Yes, Delete
+                </button>
+                <button type="button" onclick="cfCloseCatDelete()"
+                  style="background:#E8F5E9;color:#1B5E20;border:none;border-radius:8px;padding:10px 24px;font-size:14px;font-weight:600;cursor:pointer;">
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <script>
+        function cfConfirmCatDelete(id, name) {
+          document.getElementById('cfCatDeleteName').textContent = name;
+          document.getElementById('cfCatDeleteForm').action = '/seller/categories/delete/' + id;
+          var m = document.getElementById('cfCatDeleteModal');
+          m.style.display = 'flex';
+          setTimeout(function(){ document.getElementById('cfCatDeleteConfirmBtn').focus(); }, 50);
+        }
+        function cfCloseCatDelete() {
+          document.getElementById('cfCatDeleteModal').style.display = 'none';
+          document.getElementById('cfCatDeleteForm').action = '';
+        }
+        document.addEventListener('keydown', function(e){ if(e.key==='Escape') cfCloseCatDelete(); });
+        </script>
+
+{{> seller-footer}}

@@ -1,247 +1,124 @@
 /*
-    MIT License
-    
-    Copyright (c) 2025 Christian I. Cabrera || XianFire Framework
-    Mindoro State University - Philippines
+  MIT License
+  Copyright (c) 2025 Christian I. Cabrera || XianFire Framework
+  Mindoro State University - Philippines
+*/
 
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-    */
-    
+import "dotenv/config";
 import express from "express";
 import path from "path";
 import session from "express-session";
 import flash from "connect-flash";
 import router from "./routes/index.js";
-import fs from 'fs';
+import { testConnection } from "./models/db.js";
+import fs from "fs";
 import hbs from "hbs";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
-import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
-try { require('dotenv').config(); } catch(e) {}
-
-// Prevent unhandled DB errors from crashing the server
-process.on('unhandledRejection', (reason) => {
-  console.error('⚠️ Unhandled rejection (caught):', reason?.message || reason);
-});
-process.on('uncaughtException', (err) => {
-  console.error('⚠️ Uncaught exception (caught):', err?.message || err);
-});
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(process.cwd(), "public")));
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || "xianfire-secret-key",
+  secret: process.env.SESSION_SECRET || "cultureframe-xianfire-fallback",
   resave: false,
-  saveUninitialized: false,
-  cookie: {
-    secure: process.env.NODE_ENV === 'production', // true on Railway (HTTPS), false local
-    httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
-  },
-  name: 'sessionId'
+  saveUninitialized: false
 }));
-// Trust Railway/Render/Heroku reverse proxy so secure cookies work
-app.set('trust proxy', 1);
 app.use(flash());
 
 app.engine("xian", async (filePath, options, callback) => {
   try {
-    // Re-register partials fresh on every render to ensure user context is correct
-    const partialsPath = path.join(__dirname, 'views/partials');
-    try {
-      const partialFiles = fs.readdirSync(partialsPath).filter(f => f.endsWith('.xian'));
-      for (const file of partialFiles) {
-        const name = file.replace('.xian', '');
-        const content = fs.readFileSync(path.join(partialsPath, file), 'utf8');
-        hbs.registerPartial(name, content);
-      }
-    } catch(e) {}
-
-    // Merge res.locals into options so partials can access isLoggedIn etc.
-    const locals = app.locals._currentLocals || {};
-    const mergedOptions = Object.assign({}, locals, options);
+    const originalPartialsDir = hbs.partialsDir;
+    hbs.partialsDir = path.join(__dirname, "views");
 
     const result = await new Promise((resolve, reject) => {
-      hbs.__express(filePath, mergedOptions, (err, html) => {
+      hbs.__express(filePath, options, (err, html) => {
         if (err) return reject(err);
         resolve(html);
       });
     });
 
+    hbs.partialsDir = originalPartialsDir;
     callback(null, result);
   } catch (err) {
     callback(err);
   }
 });
-// Register small helpers used by templates
-hbs.registerHelper('eq', (a, b) => a == b);
-hbs.registerHelper('neq', (a, b) => a != b);
-// Helper: create an inline array in templates — {{#each (array 'a' 'b' 'c')}}
-hbs.registerHelper('array', (...args) => args.slice(0, -1));
-// Helper: less-than-or-equal for star ratings
-hbs.registerHelper('lte', (a, b) => Number(a) <= Number(b));
-// Backwards-compatible helper used in templates
-hbs.registerHelper('ifEquals', function(a, b, options) {
-  if (a == b) return options.fn(this);
-  return options.inverse(this);
-});
+
 app.use((req, res, next) => {
   res.locals.success_msg = req.flash("success_msg");
   res.locals.error_msg = req.flash("error_msg");
   next();
 });
 
-// Make session user and counts available to all templates
-app.use((req, res, next) => {
-  // Ensure session exists and cart/wishlist arrays exist on session
-  if (!req.session) req.session = {};
-  if (!Array.isArray(req.session.cart)) req.session.cart = [];
-  if (!Array.isArray(req.session.wishlist)) req.session.wishlist = [];
-
-  // Handle authentication status properly - ensure it's always a boolean
-  const isAuthenticated = !!(req.session && req.session.isAuthenticated);
-  
-  const sessionUser = req.session.user || {};
-  res.locals.user = Object.assign({
-    isAuthenticated: isAuthenticated,
-    name: req.session.userName || '',
-    id: req.session.userId || null,
-    email: req.session.userEmail || '',
-    role: req.session.userRole || 'customer'
-  }, sessionUser, {
-    cart: req.session.cart,
-    wishlist: req.session.wishlist,
-    isAuthenticated: isAuthenticated  // always override with session value
-  });
-
-  // Top-level auth flag that cannot be overridden by controllers
-  res.locals.isLoggedIn = isAuthenticated;
-  res.locals.sessionUserName = req.session.userName || '';
-  res.locals.sessionUserRole = req.session.userRole || 'customer';
-  const paymentSystemUrl = process.env.PAYMENT_SYSTEM_URL || '';
-  res.locals.paymentSystemUrl = /^https?:\/\//i.test(paymentSystemUrl) ? paymentSystemUrl : null;
-  const cultureMetricsSystemUrl = process.env.CULTUREMETRICS_SYSTEM_URL || '';
-  res.locals.cultureMetricsSystemUrl = /^https?:\/\//i.test(cultureMetricsSystemUrl) ? cultureMetricsSystemUrl : null;
-
-  // Use cached counts from session (updated by cart/wishlist controllers)
-  // This is MUCH faster than querying DB on every request
-  res.locals.cartCount = req.session.cartCount || req.session.cart.length;
-  res.locals.wishlistCount = req.session.wishlistCount || req.session.wishlist.length;
-
-  // Use session flash-like fields if set (controllers sometimes set these on session)
-  res.locals.error_msg = req.session.error_msg || req.flash('error_msg') || res.locals.error_msg;
-  res.locals.success_msg = req.session.success_msg || req.flash('success_msg') || res.locals.success_msg;
-
-  // Store locals reference so engine can access them
-  if (!app.locals._req) app.locals._req = {};
-  app.locals._currentLocals = res.locals;
-
-  // Debug logging
-  console.log('🔍 Middleware - Session exists:', !!req.session);
-  console.log('🔍 Middleware - isAuthenticated:', isAuthenticated);
-  console.log('🔍 Middleware - User object:', {
-    isAuthenticated: res.locals.user.isAuthenticated,
-    name: res.locals.user.name,
-    role: res.locals.user.role
-  });
-
-  next();
-});
-
-// Clear session flash-like messages after they are exposed to templates
-app.use((req, res, next) => {
-  if (req.session) {
-    req.session.error_msg = null;
-    req.session.success_msg = null;
-  }
-  next();
-});
-
-
 app.set("views", path.join(__dirname, "views"));
 app.set("view engine", "xian");
-app.set("view cache", false);
-const partialsDir = path.join(__dirname, "views/partials");
 
-// Re-register partials on every request so changes are picked up
-app.use((req, res, next) => {
-  try {
-    const files = fs.readdirSync(partialsDir);
-    files
-      .filter(file => file.endsWith('.xian'))
-      .forEach(file => {
-        const partialName = file.replace('.xian', '');
-        const fullPath = path.join(partialsDir, file);
-        try {
-          const content = fs.readFileSync(fullPath, 'utf8');
-          hbs.registerPartial(partialName, content);
-        } catch (err) {
-          console.error(`❌ Failed to read partial: ${file}`, err);
-        }
-      });
-  } catch (err) {
+const partialsDir = path.join(__dirname, "views/partials");
+fs.readdir(partialsDir, (err, files) => {
+  if (err) {
     console.error("❌ Could not read partials directory:", err);
+    return;
   }
-  next();
+  files
+    .filter(file => file.endsWith(".xian"))
+    .forEach(file => {
+      const partialName = file.replace(".xian", "");
+      const fullPath = path.join(partialsDir, file);
+      fs.readFile(fullPath, "utf8", (err, content) => {
+        if (err) {
+          console.error(`❌ Failed to read partial: ${file}`, err);
+          return;
+        }
+        hbs.registerPartial(partialName, content);
+      });
+    });
 });
+
+// ── Handlebars helpers ──────────────────────────────────────────────────
+// formatPrice: formats a DECIMAL value as "₱1,234.00"
+hbs.registerHelper("formatPrice", (value) => {
+  const n = parseFloat(value);
+  if (isNaN(n)) return "₱0.00";
+  return "₱" + n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+});
+
+// formatDate: formats a JS Date / ISO string as "Jan 15, 2025"
+hbs.registerHelper("formatDate", (value) => {
+  if (!value) return "—";
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-PH", { year: "numeric", month: "short", day: "numeric" });
+});
+
+// eq: equality check for use in {{#if (eq a b)}}
+hbs.registerHelper("eq", (a, b) => a === b);
+
+// inc: increment a number (used for display row numbers)
+hbs.registerHelper("inc", (n) => Number(n) + 1);
 
 app.use("/", router);
 
-// Global error handler - shows actual error message
-app.use((err, req, res, next) => {
-  console.error('❌ Global error:', err);
-  const isDev = process.env.NODE_ENV !== 'production';
-  try {
-    res.status(500).render('error', {
-      title: 'Server Error',
-      message: isDev ? err.message : 'Something went wrong. Please try again.',
-      stack: isDev ? err.stack : null
-    });
-  } catch (renderErr) {
-    res.status(500).send(`
-      <h2>Internal Server Error</h2>
-      <pre>${isDev ? err.stack : err.message}</pre>
-    `);
-  }
-});
-
 export default app;
-// CommonJS export for Vercel
-if (typeof module !== 'undefined') module.exports = app;
 
 if (!process.env.ELECTRON) {
-  const server = app.listen(PORT, () => console.log(`🔥 XianFire running at http://localhost:${PORT}`));
-  server.on('error', (err) => {
-    if (err.code === 'EADDRINUSE') {
-      console.log(`⚠️ Port ${PORT} is in use. Trying port ${PORT + 1}...`);
-      app.listen(PORT + 1, () => console.log(`🔥 XianFire running at http://localhost:${PORT + 1}`));
+  app.listen(PORT, async () => {
+    console.log(`🔥 XianFire running at http://localhost:${PORT}`);
+
+    // ── Database connection test ────────────────────────────────────
+    const db = await testConnection();
+    if (db.ok) {
+      console.log("✅ MySQL connected  →  database:", process.env.DB_NAME || "cultureframe");
     } else {
-      console.error('❌ Server error:', err);
+      console.error("❌ MySQL connection failed:", db.error.message);
+      console.error("   Check that Laragon MySQL is running and .env credentials are correct.");
     }
   });
 }

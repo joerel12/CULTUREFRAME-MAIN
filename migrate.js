@@ -1,76 +1,69 @@
+/*
+  CultureFrame — Database Migration
+  • Creates the database if it does not exist
+  • Imports all models so Sequelize knows about every table
+  • Runs sequelize.sync({ alter: true }) — safe: adds columns, never drops data
+*/
 
-    /*
-    MIT License
-    
-    Copyright (c) 2025 Christian I. Cabrera || XianFire Framework
-    Mindoro State University - Philippines
-
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
-
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
-
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-    */
-    
+import "dotenv/config";
 import { Sequelize } from "sequelize";
-import { sequelize } from "./models/db.js";
-import { User } from "./models/userModel.js";
-import { Heritage } from "./models/Heritage.js";
-import { Product } from "./models/Product.js";
-import { ProductCategory } from "./models/ProductCategory.js";
-import { Order } from "./models/Order.js";
-import { OrderItem } from "./models/Orderitem.js";
-import { Event } from "./models/Event.js";
-import { Admin } from "./models/Admin.js";
-import { Moment } from "./models/Moment.js";
-import { CartItem } from "./models/CartItem.js";
-import { WishlistItem } from "./models/WishlistItem.js";
-import { EventRegistration } from "./models/EventRegistration.js";
-import { Feedback } from "./models/Feedback.js";
-import { Scenic } from "./models/Scenic.js";
-import { Craft } from "./models/Craft.js";
-import { Seller } from "./models/Seller.js";
-import { Payment } from "./models/Payment.js";
-import { PaymentIntegrationEvent } from "./models/PaymentIntegrationEvent.js";
 import inquirer from "inquirer";
 
-// Server-level connection (no database selected)
-const rootSequelize = new Sequelize("mysql://root:@localhost:3306/");
+const DB_NAME = process.env.DB_NAME || "cultureframe";
+const DB_USER = process.env.DB_USER || "root";
+const DB_PASS = process.env.DB_PASS || "";
+const DB_HOST = process.env.DB_HOST || "localhost";
+const DB_PORT = process.env.DB_PORT || "3306";
 
-const { createDb } = await inquirer.prompt([
-  {
-    type: "confirm",
-    name: "createDb",
-    message: "Database 'darling' may not exist. Create it?",
-    default: true,
-  },
-]);
+// ── Step 1: ensure the database itself exists ───────────────────────────
+const rootSequelize = new Sequelize("", DB_USER, DB_PASS, {
+  host:    DB_HOST,
+  port:    Number(DB_PORT),
+  dialect: "mysql",
+  logging: false
+});
 
-if (createDb) {
-  await rootSequelize.query("CREATE DATABASE IF NOT EXISTS darling;");
-  console.log("✅ Database created (if it did not exist)");
-}
+const { proceed } = await inquirer.prompt([{
+  type:    "confirm",
+  name:    "proceed",
+  message: `Sync schema for '${DB_NAME}'? (safe — no data will be dropped)`,
+  default: true
+}]);
+
+if (!proceed) { console.log("Migration cancelled."); process.exit(0); }
 
 try {
-  await sequelize.authenticate();
-  console.log("✅ Connected to MySQL database!");
-  await sequelize.sync({ force: true }); // Drops and recreates tables
-  console.log("✅ Tables created for all models!");
+  await rootSequelize.query(`CREATE DATABASE IF NOT EXISTS \`${DB_NAME}\`;`);
+  console.log(`✅ Database '${DB_NAME}' is ready.`);
 } catch (err) {
-  console.error("❌ Migration failed:", err);
+  console.error("❌ Could not create database:", err.message);
+  process.exit(1);
 } finally {
-  process.exit();
+  await rootSequelize.close();
 }
 
+// ── Step 2: import all models (registers them with the sequelize instance)
+//    Must happen AFTER dotenv/config so DB_* env vars are available.
+const { sequelize } = await import("./models/index.js");
+
+// ── Step 3: authenticate ────────────────────────────────────────────────
+try {
+  await sequelize.authenticate();
+  console.log("✅ Connected to MySQL.");
+} catch (err) {
+  console.error("❌ Connection failed:", err.message);
+  process.exit(1);
+}
+
+// ── Step 4: sync all registered models ─────────────────────────────────
+//    alter: true  → adds missing columns / indexes, never drops data.
+try {
+  await sequelize.sync({ alter: true });
+  console.log("✅ Schema synced (alter mode — no data dropped).");
+} catch (err) {
+  console.error("❌ Sync failed:", err.message);
+  process.exit(1);
+} finally {
+  await sequelize.close();
+  process.exit(0);
+}
