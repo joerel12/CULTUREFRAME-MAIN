@@ -16,15 +16,19 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
+const requiresSsl = process.env.DATABASE_SSL === 'true' ||
+  process.env.NODE_ENV === 'production' ||
+  /[?&]sslmode=(?:require|verify-ca|verify-full)(?:&|$)/i.test(DATABASE_URL);
+
 export const sequelize = new Sequelize(DATABASE_URL, {
   dialect: "postgres",
   logging: false,
-  dialectOptions: {
+  dialectOptions: requiresSsl ? {
     ssl: {
       require: true,
       rejectUnauthorized: false
     }
-  },
+  } : {},
   pool: {
     max: 5,
     min: 0,
@@ -33,6 +37,8 @@ export const sequelize = new Sequelize(DATABASE_URL, {
   }
 });
 
-sequelize.authenticate()
-  .then(() => console.log('✅ Database connected successfully'))
-  .catch(err => console.error('⚠️ DB connection warning:', err.message));
+if (process.env.SKIP_DATABASE_AUTHENTICATION !== 'true') {
+  sequelize.authenticate()
+    .then(() => console.log('✅ Database connected successfully'))
+    .catch(err => console.error('⚠️ DB connection warning:', err.message));
+}
