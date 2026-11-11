@@ -10,6 +10,15 @@ const syncPageSchema = z.object({
 });
 const syncKeys = ['_integrationUpdatedAfter', '_integrationLastSyncedAt'];
 let syncInProgress = false;
+
+function cultureFrameUrl(pathname) {
+  const url = new URL(pathname, `${process.env.CULTUREFRAME_API_URL.replace(/\/$/, '')}/`);
+  const loopback = ['localhost', '127.0.0.1', '::1'].includes(url.hostname);
+  const secure = url.protocol === 'https:' || (!config.production && loopback && url.protocol === 'http:');
+  fail(!secure, 400, 'Live integration must use HTTPS except for loopback local development.');
+  return url;
+}
+
 export const importSchema = z.object({
   externalId: external,
   product: z.string().trim().min(2).max(200),
@@ -66,8 +75,7 @@ export async function syncOrders(actor) {
     const seenCursors = new Set();
     do {
       fail(pages >= 100, 502, 'CultureFrame returned too many synchronization pages.');
-      const url = new URL('orders', `${process.env.CULTUREFRAME_API_URL.replace(/\/$/, '')}/`);
-      fail(url.protocol !== 'https:', 400, 'Live integration must use HTTPS.');
+      const url = cultureFrameUrl('orders');
       if (updatedAfter) url.searchParams.set('updatedAfter', updatedAfter);
       if (cursor) url.searchParams.set('cursor', cursor);
       const response = await fetch(url, { headers: { authorization: `Bearer ${process.env.CULTUREFRAME_API_TOKEN}`, accept: 'application/json' }, signal: AbortSignal.timeout(15000), redirect: 'error' });
@@ -105,8 +113,7 @@ export async function retrySync(id, actor) {
   const claimed = await db.integrationLog.updateMany({ where: { id, status: { in: ['PENDING', 'FAILED'] } }, data: { status: 'PROCESSING', attempts: { increment: 1 } } });
   fail(!claimed.count, 409, 'Another worker is processing this event.');
   try {
-    const url = new URL(`orders/${encodeURIComponent(log.externalId)}/payment-events`, `${process.env.CULTUREFRAME_API_URL.replace(/\/$/, '')}/`);
-    fail(url.protocol !== 'https:', 400, 'Live integration must use HTTPS.');
+    const url = cultureFrameUrl(`orders/${encodeURIComponent(log.externalId)}/payment-events`);
     const response = await fetch(url, { method: 'POST', headers: { authorization: `Bearer ${process.env.CULTUREFRAME_API_TOKEN}`, 'content-type': 'application/json', 'idempotency-key': log.id }, body: log.payload, signal: AbortSignal.timeout(15000), redirect: 'error' });
     fail(!response.ok, 502, `CultureFrame returned HTTP ${response.status}.`);
     await db.integrationLog.update({ where: { id }, data: { status: 'COMPLETED', error: '', nextRetryAt: null } });

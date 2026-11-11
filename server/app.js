@@ -309,7 +309,10 @@ api.post('/integration/logs/:id/retry', async (req, res) => res.json(await retry
 
 app.use('/api', (req, res) => res.status(404).json({ error: 'API endpoint not found.' }));
 const dist = path.resolve('dist');
-if (fs.existsSync(dist)) { app.use(express.static(dist)); app.get('/{*path}', (req, res) => res.sendFile(path.join(dist, 'index.html'))); }
+if (fs.existsSync(dist)) {
+  app.use(express.static(dist));
+  app.get('/{*path}', (_req, res) => res.sendFile('index.html', { root: dist }));
+}
 app.use((error, req, res, next) => {
   if (res.headersSent) return next(error);
   if (error instanceof ZodError) return res.status(400).json({ error: error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join('; ') });
