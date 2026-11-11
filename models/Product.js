@@ -1,56 +1,123 @@
 /*
-    MIT License
-    
-    Copyright (c) 2025 Christian I. Cabrera || XianFire Framework
-    Mindoro State University - Philippines
+  CultureFrame — Product Model
+  Table: products
 
-    Permission is hereby granted, free of charge, to any person obtaining a copy
-    of this software and associated documentation files (the "Software"), to deal
-    in the Software without restriction, including without limitation the rights
-    to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-    copies of the Software, and to permit persons to whom the Software is
-    furnished to do so, subject to the following conditions:
+  ┌─────────────────────────────────────────────────────────────────────┐
+  │  DEVELOPMENT NOTE — seller_id                                       │
+  │                                                                     │
+  │  Full seller authentication (login / session / users table) has     │
+  │  NOT been implemented yet.  Until it is:                            │
+  │                                                                     │
+  │    • seller_id is a plain UNSIGNED INT, nullable.                   │
+  │    • The seed and all dev inserts use seller_id = 1 as a            │
+  │      placeholder ("dev seller").                                    │
+  │    • When real auth is added, this column will be made NOT NULL     │
+  │      and a FK to a future `users` table will be added via           │
+  │      migration.                                                     │
+  │    • DO NOT treat seller_id = 1 as a real authenticated user.       │
+  └─────────────────────────────────────────────────────────────────────┘
+*/
 
-    The above copyright notice and this permission notice shall be included in all
-    copies or substantial portions of the Software.
+import { DataTypes } from "sequelize";
+import { sequelize }  from "./db.js";
 
-    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-    IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-    FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-    AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-    LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-    OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-    SOFTWARE.
-    */
-  // Firebase doesn't require predefined models.
-  // Use Firestore directly in controllers or create helper functions here.
-  // Collection name: "product"
+const Product = sequelize.define(
+  "Product",
+  {
+    id: {
+      type:          DataTypes.INTEGER.UNSIGNED,
+      autoIncrement: true,
+      primaryKey:    true
+    },
 
-  import { DataTypes } from "sequelize";
-import { sequelize } from "./db.js";
+    /*
+     * seller_id — development placeholder (see note above).
+     * Nullable so the app works before auth is built.
+     * Index added for future query performance when filtering by seller.
+     */
+    seller_id: {
+      type:      DataTypes.INTEGER.UNSIGNED,
+      allowNull: true,
+      defaultValue: 1,
+      comment:   "DEV PLACEHOLDER — replace with FK to users.id when auth is ready"
+    },
 
-export const Product = sequelize.define("products", {
-  seller_id: {
-    type: DataTypes.INTEGER,
-    allowNull: true,
-    references: { model: "sellers", key: "id" },
-    onUpdate: "CASCADE",
-    onDelete: "RESTRICT"
+    category_id: {
+      type:       DataTypes.INTEGER.UNSIGNED,
+      allowNull:  false,
+      references: {
+        model: "product_categories",
+        key:   "id"
+      },
+      onUpdate: "CASCADE",
+      onDelete: "RESTRICT"       // prevent orphaned products if category removed
+    },
+
+    name: {
+      type:      DataTypes.STRING(200),
+      allowNull: false,
+      comment:   "Product display name"
+    },
+
+    description: {
+      type:         DataTypes.TEXT,
+      allowNull:    true,
+      defaultValue: null
+    },
+
+    /*
+     * price — stored as DECIMAL(10,2) for exact PHP peso arithmetic.
+     * Never use FLOAT for currency — binary floating-point is imprecise.
+     */
+    price: {
+      type:      DataTypes.DECIMAL(10, 2),
+      allowNull: false,
+      comment:   "Price in Philippine Pesos (PHP)"
+    },
+
+    stock_quantity: {
+      type:         DataTypes.INTEGER.UNSIGNED,
+      allowNull:    false,
+      defaultValue: 0
+    },
+
+    /*
+     * image_path — relative path from the project public/ directory,
+     * e.g. "uploads/products/basket-001.jpg".
+     * Null means no image uploaded yet.
+     */
+    image_path: {
+      type:         DataTypes.STRING(500),
+      allowNull:    true,
+      defaultValue: null
+    },
+
+    /*
+     * status — lifecycle of a listing:
+     *   active   → visible on the storefront
+     *   inactive → hidden by seller
+     *   pending  → awaiting admin approval (future feature)
+     */
+    status: {
+      type:         DataTypes.ENUM("active", "inactive", "pending"),
+      allowNull:    false,
+      defaultValue: "active"
+    }
   },
-  name: { type: DataTypes.STRING, allowNull: false },
-  description: { type: DataTypes.TEXT, allowNull: false },
-  price: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
-  category: { type: DataTypes.STRING, allowNull: false }, // handicraft, food, souvenir
-  stocks: { type: DataTypes.INTEGER, allowNull: false },
-  image_url: { type: DataTypes.TEXT, allowNull: true },
-  status: {
-    type: DataTypes.ENUM("active", "inactive", "pending"),
-    allowNull: false,
-    defaultValue: "active"
-  },
-  is_featured: { type: DataTypes.BOOLEAN, defaultValue: false },
-  heritage_id: { type: DataTypes.INTEGER, allowNull: true },
-  free_shipping: { type: DataTypes.BOOLEAN, defaultValue: false }
-});
+  {
+    tableName:   "products",
+    timestamps:  true,            // Sequelize manages created_at / updated_at
+    underscored: true,            // snake_case column names in DB
+    indexes: [
+      { fields: ["seller_id"]   },   // fast filter by seller
+      { fields: ["category_id"] },   // fast filter by category
+      { fields: ["status"]      },   // fast filter by listing status
+      {
+        fields: ["name"],
+        type:   "FULLTEXT"           // enables FULLTEXT search on product names
+      }
+    ]
+  }
+);
 
-export { sequelize };
+export default Product;
