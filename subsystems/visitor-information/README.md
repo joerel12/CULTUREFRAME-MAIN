@@ -38,7 +38,7 @@ npm run db:migrate
 npm run db:seed
 ```
 
-`npm run db:migrate` runs Prisma's development migration workflow. For production, create and review migrations in development, then use `npx prisma migrate deploy --schema backend/prisma/schema.prisma` from the backend directory.
+`npm run db:migrate` runs Prisma's development migration workflow. For production, create and review migrations in development, then use `npx prisma migrate deploy` from the backend directory.
 
 ## Features implemented
 

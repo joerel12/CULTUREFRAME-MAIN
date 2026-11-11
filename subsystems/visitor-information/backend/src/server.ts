@@ -1,6 +1,6 @@
 import { app, prisma } from "./app.js";
 
-const port = Number(process.env.PORT ?? 4000);
+const port = Number(process.env.PORT ?? 4001);
 const server = app.listen(port, () => console.info(`CultureFrame API listening on http://localhost:${port}`));
 
 async function shutdown() {
