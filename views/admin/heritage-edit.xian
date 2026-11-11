@@ -74,13 +74,20 @@
               <span>Location</span>
               <span class="text-red-500">*</span>
             </label>
-            <input 
-              type="text" 
-              name="location" 
-              required 
-              class="w-full p-4 bg-white/80 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100 transition-all duration-300 placeholder-emerald-400/60 font-medium shadow-sm"
-              placeholder="Enter location in Oriental Mindoro (e.g., 'Calapan City', 'Puerto Galera')"
-            >
+            <div class="relative">
+              <input 
+                type="text" 
+                name="location"
+                id="locationInput"
+                autocomplete="off"
+                required 
+                class="w-full p-4 bg-white/80 border-2 border-emerald-100 rounded-xl focus:outline-none focus:border-emerald-400 focus:bg-white focus:ring-4 focus:ring-emerald-100 transition-all duration-300 placeholder-emerald-400/60 font-medium shadow-sm pr-10"
+                placeholder="e.g. Barangay Poblacion, Sitio Panaytayan, Mansalay River..."
+              />
+              <i class="fas fa-map-marker-alt absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 text-sm pointer-events-none"></i>
+              <ul id="locationDropdown" class="absolute z-50 w-full bg-white border border-emerald-200 rounded-xl shadow-lg mt-1 hidden max-h-56 overflow-y-auto"></ul>
+            </div>
+            <p class="text-xs text-gray-400 mt-1">Type to detect Mansalay barangay, sitio, or landmark.</p>
           </div>
 
           <!-- Image URL -->
@@ -434,5 +441,38 @@
       color: #6b7280 !important;
     }
   </style>
+
+  <script src="/mansalay-locations.js"></script>
+  <script>
+  (function(){
+    const input    = document.getElementById('locationInput');
+    const dropdown = document.getElementById('locationDropdown');
+    if (!input || !dropdown) return;
+    const BADGE = { 'Barangay':'bg-emerald-100 text-emerald-700', 'Sitio':'bg-blue-100 text-blue-700', 'Landmark':'bg-amber-100 text-amber-700' };
+    function render(results) {
+      if (!results.length) { dropdown.classList.add('hidden'); return; }
+      dropdown.innerHTML = results.map(loc =>
+        `<li class="flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-emerald-50 transition-colors border-b border-gray-50 last:border-0" data-name="${loc.name}">
+           <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${BADGE[loc.type]||'bg-gray-100 text-gray-600'} flex-shrink-0">${loc.type}</span>
+           <span class="text-sm text-gray-800">${loc.name}</span>
+         </li>`).join('');
+      dropdown.classList.remove('hidden');
+      dropdown.querySelectorAll('li').forEach(li => {
+        li.addEventListener('mousedown', e => { e.preventDefault(); input.value = li.dataset.name; dropdown.classList.add('hidden'); });
+      });
+    }
+    input.addEventListener('input',  () => render(searchMansalayLocations(input.value)));
+    input.addEventListener('focus',  () => { if (input.value) render(searchMansalayLocations(input.value)); });
+    document.addEventListener('click', e => { if (!input.contains(e.target) && !dropdown.contains(e.target)) dropdown.classList.add('hidden'); });
+    input.addEventListener('keydown', e => {
+      const items = dropdown.querySelectorAll('li');
+      const active = dropdown.querySelector('li.bg-emerald-100');
+      if (e.key==='ArrowDown') { e.preventDefault(); const n=active?active.nextElementSibling:items[0]; if(active)active.classList.remove('bg-emerald-100'); if(n)n.classList.add('bg-emerald-100'); }
+      else if (e.key==='ArrowUp') { e.preventDefault(); const p=active?active.previousElementSibling:items[items.length-1]; if(active)active.classList.remove('bg-emerald-100'); if(p)p.classList.add('bg-emerald-100'); }
+      else if (e.key==='Enter' && active) { e.preventDefault(); input.value=active.dataset.name; dropdown.classList.add('hidden'); }
+      else if (e.key==='Escape') dropdown.classList.add('hidden');
+    });
+  })();
+  </script>
 </body>
 </html>

@@ -379,6 +379,19 @@ router.get('/orders', requireAuth, (req, res) => {
   res.redirect('/customer/orders');
 });
 
+// ==================== COMMUNITY / FOLLOW SYSTEM ====================
+import { followController } from "../controllers/followController.js";
+
+// Community feed (public)
+router.get('/community', followController.community);
+
+// User public profile
+router.get('/community/user/:userId', followController.userProfile);
+
+// Follow / Unfollow (requires login)
+router.post('/follow/:userId', requireAuth, followController.follow);
+router.delete('/follow/:userId', requireAuth, followController.unfollow);
+
 // ==================== ADMIN ROUTES ====================
 
 // ⭐⭐⭐ ADD THIS MISSING ROUTE ⭐⭐⭐
