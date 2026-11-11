@@ -9,7 +9,11 @@
     "migrate": "node migrate.js",
     "create:model": "node create.js model",
     "create:controller": "node create.js controller",
-    "seed": "node seed.js"
+    "seed": "node seed.js",
+    "visitor:install": "npm ci --prefix subsystems/visitor-information && npm ci --prefix subsystems/visitor-information/backend && npm ci --prefix subsystems/visitor-information/frontend && npm run db:generate --prefix subsystems/visitor-information",
+    "visitor:dev": "npm run dev --prefix subsystems/visitor-information",
+    "visitor:build": "npm run build --prefix subsystems/visitor-information",
+    "visitor:test": "npm test --prefix subsystems/visitor-information"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",

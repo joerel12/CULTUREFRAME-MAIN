@@ -58,8 +58,16 @@ application's `/api/integrations/payments` path. See
 
 ## Visitor Information Integration
 
-The integration branch adds a read-only `/discover` area powered by the separate
-Visitor Information service. Set `VISITOR_INFORMATION_URL` to the public root URL
+The read-only `/discover` area is powered by the Visitor Information service,
+whose source is included under `subsystems/visitor-information`. From this
+repository's root, use `npm run visitor:install` to install its locked packages
+and generate its Prisma client, then configure its dedicated backend `.env`
+and database as described in the integration guide. Use `npm run visitor:dev`
+to start its API and public portal; `npm run visitor:build` and
+`npm run visitor:test` validate both packages. Start the main application
+separately using its existing commands.
+
+Set `VISITOR_INFORMATION_URL` to the public root URL
 of that service (for example, `http://localhost:5173` during local development).
 Only records published by the Visitor Information team are displayed. See
 `docs/integration/VISITOR_INFORMATION_INTEGRATION.md` for ownership rules,
