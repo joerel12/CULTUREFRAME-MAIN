@@ -1,0 +1,280 @@
+{{>head}}
+<body class="bg-gray-50 flex">
+  {{> admin-sidebar activePage="scenic"}}
+
+    <main class="flex-1 p-8">
+      <div class="max-w-4xl mx-auto bg-white rounded-2xl shadow p-8">
+        <div class="flex justify-between items-center mb-6">
+          <h1 class="text-2xl font-bold">Add Scenic Spot</h1>
+          <a href="/admin/scenic" class="text-sm px-3 py-2 bg-gray-200 rounded">Back</a>
+        </div>
+
+        <form action="/admin/scenic/add" method="POST" enctype="multipart/form-data" class="space-y-6">
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Title</label>
+            <input name="title" required class="mt-1 block w-full border border-gray-300 rounded px-4 py-2" />
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Location
+              <span class="text-xs text-emerald-600 font-normal ml-1">(type to detect Mansalay barangay or sitio)</span>
+            </label>
+            <div class="relative">
+              <input name="location" id="locationInput" required autocomplete="off"
+                     class="mt-1 block w-full border border-gray-300 rounded px-4 py-2 pr-10"
+                     placeholder="e.g. Barangay Poblacion, Sitio Panaytayan..." />
+              <i class="fas fa-map-marker-alt absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 text-sm pointer-events-none"></i>
+              <!-- Autocomplete dropdown -->
+              <ul id="locationDropdown"
+                  class="absolute z-50 w-full bg-white border border-emerald-200 rounded-xl shadow-lg mt-1 hidden max-h-56 overflow-y-auto">
+              </ul>
+            </div>
+            <p class="text-xs text-gray-400 mt-1">Start typing a barangay, sitio, or landmark name in Mansalay.</p>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Description</label>
+            <textarea name="description" rows="4" class="mt-1 block w-full border border-gray-300 rounded px-4 py-2"></textarea>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700">Image</label>
+            <div class="flex gap-3 items-center">
+              <input id="image_file" name="image_file" type="file" accept="image/*" class="mt-1" />
+              <input id="image_url" name="image_url" placeholder="Or paste image URL (https://...)" class="mt-1 block w-full border border-gray-300 rounded px-4 py-2" />
+            </div>
+            <div class="mt-3">
+              <div class="text-xs text-gray-500 mb-2">Preview</div>
+              <div class="w-full h-56 bg-gray-100 rounded overflow-hidden border border-gray-200 flex items-center justify-center">
+                <img id="image-preview" src="" alt="Image preview" class="w-full h-full object-contain" />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">Select Location on Map (Mansalay)</label>
+            <div class="flex items-center gap-2 mb-2">
+              <input id="loc-search" type="text" placeholder="Enter address or place (e.g. Barangay name)" class="flex-1 border border-gray-300 rounded px-3 py-2" />
+              <button id="loc-search-btn" type="button" class="px-4 py-2 bg-emerald-600 text-white rounded">Search</button>
+            </div>
+            <div id="map" style="height:360px; border-radius:12px; border:1px solid #e5e7eb;"></div>
+            <!-- confirmation bar -->
+            <div id="loc-confirm" class="fixed bottom-6 right-6 bg-white shadow-lg rounded-lg p-4 hidden z-50 border">
+              <div class="mb-2 text-sm text-gray-700">Use this location?</div>
+              <div class="flex gap-2">
+                <button id="confirm-loc" type="button" class="px-4 py-2 bg-emerald-600 text-white rounded">Confirm</button>
+                <button id="cancel-loc" type="button" class="px-4 py-2 bg-gray-200 rounded">Cancel</button>
+              </div>
+            </div>
+            <div class="mt-3 grid grid-cols-2 gap-2">
+              <input type="text" id="latitude" name="latitude" placeholder="Latitude" class="border border-gray-300 rounded px-3 py-2" />
+              <input type="text" id="longitude" name="longitude" placeholder="Longitude" class="border border-gray-300 rounded px-3 py-2" />
+            </div>
+            <p class="text-xs text-gray-500 mt-1">Click on the map to pick coordinates. Map language is English.</p>
+          </div>
+
+          <div class="flex gap-4">
+            <a href="/admin/scenic" class="px-6 py-3 rounded bg-gray-200">Cancel</a>
+            <button class="px-6 py-3 rounded bg-emerald-600 text-white">Add Scenic</button>
+          </div>
+        </form>
+      </div>
+    </main>
+  </div>
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    (function(){
+      // Mansalay center (approx)
+      const defaultCenter = [12.5833, 121.4500];
+      var map = L.map('map').setView(defaultCenter, 12);
+
+      // Use standard OSM tiles (labels in English where available)
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19,
+        attribution: '&copy; OpenStreetMap contributors'
+      }).addTo(map);
+
+      var marker;
+      var pendingMarker; // marker for search preview before confirm
+
+      function setMarker(lat, lng){
+        if(marker) map.removeLayer(marker);
+        marker = L.marker([lat, lng]).addTo(map);
+      }
+      function setPendingMarker(lat, lng){
+        if(pendingMarker) map.removeLayer(pendingMarker);
+        pendingMarker = L.marker([lat, lng], {opacity:0.8}).addTo(map);
+      }
+      function clearPending(){ if(pendingMarker){ map.removeLayer(pendingMarker); pendingMarker = null; } document.getElementById('loc-confirm').classList.add('hidden'); }
+
+      // click to pick (immediate pick without search)
+      map.on('click', function(e){
+        const lat = e.latlng.lat.toFixed(6);
+        const lng = e.latlng.lng.toFixed(6);
+        // show pending preview and ask confirm
+        setPendingMarker(lat, lng);
+        document.getElementById('loc-confirm').classList.remove('hidden');
+        // store temp values on confirm button dataset
+        document.getElementById('confirm-loc').dataset.lat = lat;
+        document.getElementById('confirm-loc').dataset.lng = lng;
+      });
+
+      // search flow using Nominatim
+      async function geocode(query){
+        if(!query) return null;
+        const url = 'https://nominatim.openstreetmap.org/search?format=json&q=' + encodeURIComponent(query);
+        try{
+          const resp = await fetch(url, { headers: { 'Accept-Language': 'en' } });
+          const json = await resp.json();
+          return json && json.length ? json[0] : null;
+        }catch(e){ console.warn('geocode error', e); return null; }
+      }
+
+      document.getElementById('loc-search-btn').addEventListener('click', async function(){
+        const q = document.getElementById('loc-search').value.trim();
+        if(!q) return;
+        const res = await geocode(q + ' Mansalay');
+        if(res){
+          const lat = parseFloat(res.lat).toFixed(6);
+          const lng = parseFloat(res.lon).toFixed(6);
+          map.setView([lat, lng], 14);
+          setPendingMarker(lat, lng);
+          document.getElementById('loc-confirm').classList.remove('hidden');
+          document.getElementById('confirm-loc').dataset.lat = lat;
+          document.getElementById('confirm-loc').dataset.lng = lng;
+        } else {
+          alert('Location not found. Try a different query.');
+        }
+      });
+
+      document.getElementById('confirm-loc').addEventListener('click', function(){
+        const lat = this.dataset.lat;
+        const lng = this.dataset.lng;
+        if(lat && lng){
+          document.getElementById('latitude').value = lat;
+          document.getElementById('longitude').value = lng;
+          setMarker(lat, lng);
+          clearPending();
+        }
+      });
+      document.getElementById('cancel-loc').addEventListener('click', function(){ clearPending(); });
+
+      // allow manual lat/lng editing
+      document.getElementById('latitude').addEventListener('change', function(){
+        const lat = parseFloat(this.value);
+        const lng = parseFloat(document.getElementById('longitude').value);
+        if(!isNaN(lat) && !isNaN(lng)){
+          setMarker(lat, lng);
+          map.setView([lat, lng], 14);
+        }
+      });
+      document.getElementById('longitude').addEventListener('change', function(){
+        const lng = parseFloat(this.value);
+        const lat = parseFloat(document.getElementById('latitude').value);
+        if(!isNaN(lat) && !isNaN(lng)){
+          setMarker(lat, lng);
+          map.setView([lat, lng], 14);
+        }
+      });
+    })();
+  </script>
+
+  <script src="/mansalay-locations.js"></script>
+  <script>
+    // ── Location autocomplete ─────────────────────────────
+    (function(){
+      const input    = document.getElementById('locationInput');
+      const dropdown = document.getElementById('locationDropdown');
+      if (!input || !dropdown) return;
+
+      const BADGE_COLORS = {
+        'Barangay': 'bg-emerald-100 text-emerald-700',
+        'Sitio':    'bg-blue-100 text-blue-700',
+        'Landmark': 'bg-amber-100 text-amber-700'
+      };
+
+      function renderDropdown(results) {
+        if (!results.length) { dropdown.classList.add('hidden'); return; }
+        dropdown.innerHTML = results.map(loc => `
+          <li class="flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-emerald-50 transition-colors border-b border-gray-50 last:border-0"
+              data-name="${loc.name}">
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${BADGE_COLORS[loc.type] || 'bg-gray-100 text-gray-600'} flex-shrink-0">
+              ${loc.type}
+            </span>
+            <span class="text-sm text-gray-800">${loc.name}</span>
+          </li>
+        `).join('');
+        dropdown.classList.remove('hidden');
+
+        dropdown.querySelectorAll('li').forEach(li => {
+          li.addEventListener('mousedown', e => {
+            e.preventDefault();
+            input.value = li.dataset.name;
+            dropdown.classList.add('hidden');
+            // Also pre-fill the map search
+            const searchBox = document.getElementById('loc-search');
+            if (searchBox) searchBox.value = li.dataset.name;
+          });
+        });
+      }
+
+      input.addEventListener('input', () => {
+        renderDropdown(searchMansalayLocations(input.value));
+      });
+      input.addEventListener('focus', () => {
+        if (input.value) renderDropdown(searchMansalayLocations(input.value));
+      });
+      document.addEventListener('click', e => {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+          dropdown.classList.add('hidden');
+        }
+      });
+      input.addEventListener('keydown', e => {
+        const items = dropdown.querySelectorAll('li');
+        const active = dropdown.querySelector('li.bg-emerald-100');
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          const next = active ? active.nextElementSibling : items[0];
+          if (active) active.classList.remove('bg-emerald-100');
+          if (next) next.classList.add('bg-emerald-100');
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          const prev = active ? active.previousElementSibling : items[items.length - 1];
+          if (active) active.classList.remove('bg-emerald-100');
+          if (prev) prev.classList.add('bg-emerald-100');
+        } else if (e.key === 'Enter' && active) {
+          e.preventDefault();
+          input.value = active.dataset.name;
+          dropdown.classList.add('hidden');
+        } else if (e.key === 'Escape') {
+          dropdown.classList.add('hidden');
+        }
+      });
+    })();
+  </script>
+        const fileInput = document.getElementById('image_file');
+        const urlInput = document.getElementById('image_url');
+        const preview = document.getElementById('image-preview');
+        function showPreviewFromUrl(url){
+          if(!url) { preview.src = ''; return; }
+          preview.src = url;
+        }
+        fileInput && fileInput.addEventListener('change', function(e){
+          const f = e.target.files && e.target.files[0];
+          if(!f) return;
+          const reader = new FileReader();
+          reader.onload = function(ev){ preview.src = ev.target.result; };
+          reader.readAsDataURL(f);
+        });
+        urlInput && urlInput.addEventListener('input', function(e){
+          const v = e.target.value.trim();
+          if(v) showPreviewFromUrl(v);
+        });
+      })();
+    </script>
+</body>
+</html>
+

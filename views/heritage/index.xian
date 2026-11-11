@@ -1,0 +1,130 @@
+{{>head}}
+<body class="bg-gray-50">
+  {{>nav}}
+
+  <!-- Page header -->
+  <div class="max-w-7xl mx-auto px-4 pt-8 pb-0">
+    <div class="cf-page-header cf-fade-up">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 mb-2">
+            <i class="fas fa-landmark text-emerald-200"></i>
+            <span class="text-emerald-200 text-sm font-medium">Cultural Heritage</span>
+          </div>
+          <h1 class="text-3xl font-extrabold text-white">Mansalay Heritage Sites</h1>
+          <p class="text-emerald-100 mt-1 text-sm">Discover the historical landmarks and traditions of Mansalay</p>
+        </div>
+        <div class="flex gap-2 flex-shrink-0">
+          <a href="/events" class="cf-btn bg-white/15 text-white border border-white/30 hover:bg-white/25 text-sm" style="border-radius:10px">
+            <i class="fas fa-calendar"></i> Events
+          </a>
+          <a href="/shop" class="cf-btn bg-white text-emerald-700 hover:bg-emerald-50 text-sm" style="border-radius:10px">
+            <i class="fas fa-shopping-bag"></i> Shop Crafts
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto px-4 py-8">
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-8">
+
+      <!-- Sidebar -->
+      <aside class="lg:col-span-1 order-2 lg:order-1">
+        <div class="cf-card-green p-5 sticky top-20 cf-fade-up">
+          <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <i class="fas fa-lightbulb text-emerald-600"></i> Why Preserve?
+          </h3>
+          <div class="space-y-3">
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                <i class="fas fa-book text-emerald-600 text-xs"></i>
+              </div>
+              <div>
+                <p class="font-semibold text-gray-800 text-sm">Historical Value</p>
+                <p class="text-xs text-gray-500">Preserving our collective history</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                <i class="fas fa-users text-blue-600 text-xs"></i>
+              </div>
+              <div>
+                <p class="font-semibold text-gray-800 text-sm">Community Identity</p>
+                <p class="text-xs text-gray-500">Strengthening cultural bonds</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                <i class="fas fa-graduation-cap text-amber-600 text-xs"></i>
+              </div>
+              <div>
+                <p class="font-semibold text-gray-800 text-sm">Education</p>
+                <p class="text-xs text-gray-500">Learning from our ancestors</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <div class="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                <i class="fas fa-globe text-purple-600 text-xs"></i>
+              </div>
+              <div>
+                <p class="font-semibold text-gray-800 text-sm">Tourism</p>
+                <p class="text-xs text-gray-500">Sharing culture with the world</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- CTA -->
+          <div class="mt-5 pt-5 border-t border-emerald-100 space-y-2">
+            <a href="/events" class="cf-btn cf-btn-primary w-full justify-center text-sm">
+              <i class="fas fa-calendar"></i> Attend Events
+            </a>
+            <a href="/shop" class="cf-btn cf-btn-outline w-full justify-center text-sm">
+              <i class="fas fa-shopping-bag"></i> Support Crafts
+            </a>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Heritage grid -->
+      <div class="lg:col-span-3 order-1 lg:order-2">
+        {{#if heritages.length}}
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+          {{#each heritages}}
+          <article class="cf-card overflow-hidden hover:shadow-lg transition-all duration-200 group cf-fade-up">
+            <div class="relative h-48 overflow-hidden bg-emerald-100">
+              <img src="{{this.image_url}}" alt="{{this.title}}"
+                   class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                   onerror="this.src='/images/logo.png'" />
+              <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+              <span class="absolute top-3 left-3 cf-badge cf-badge-green capitalize">{{this.category}}</span>
+              <div class="absolute bottom-3 left-3 flex items-center gap-1 text-white text-xs bg-black/40 px-2 py-1 rounded-lg">
+                <i class="fas fa-map-marker-alt"></i>
+                <span class="truncate max-w-[120px]">{{this.location}}</span>
+              </div>
+            </div>
+            <div class="p-4">
+              <h3 class="font-bold text-gray-800 mb-2 group-hover:text-emerald-600 transition-colors line-clamp-2">{{this.title}}</h3>
+              <p class="text-gray-500 text-sm mb-3 line-clamp-2">{{this.description}}</p>
+              <a href="/heritage/{{this.id}}"
+                 class="inline-flex items-center gap-1.5 text-emerald-600 text-sm font-semibold hover:text-emerald-700 transition-colors">
+                Explore <i class="fas fa-arrow-right text-xs group-hover:translate-x-1 transition-transform"></i>
+              </a>
+            </div>
+          </article>
+          {{/each}}
+        </div>
+        {{else}}
+        <div class="cf-card p-16 text-center">
+          <i class="fas fa-landmark text-5xl text-gray-200 mb-4"></i>
+          <h3 class="text-xl font-bold text-gray-500 mb-2">No Heritage Sites Yet</h3>
+          <p class="text-gray-400 text-sm">Heritage content will appear here once added.</p>
+        </div>
+        {{/if}}
+      </div>
+    </div>
+  </div>
+
+  {{>footer}}
+</body>
+</html>

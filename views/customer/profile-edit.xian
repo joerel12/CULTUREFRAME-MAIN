@@ -1,0 +1,95 @@
+{{>head}}
+<body class="bg-gray-50">
+  {{>nav}}
+  {{>messages}}
+
+  <div class="max-w-xl mx-auto px-4 py-8">
+    <div class="flex items-center gap-3 mb-6 cf-fade-up">
+      <a href="/customer/dashboard" class="text-emerald-600 hover:text-emerald-700 transition-colors">
+        <i class="fas fa-arrow-left"></i>
+      </a>
+      <div>
+        <h1 class="text-2xl font-extrabold text-gray-800 leading-none">Edit Profile</h1>
+        <p class="text-gray-400 text-sm mt-0.5">Update your account information</p>
+      </div>
+    </div>
+
+    <div class="cf-card p-7 cf-fade-up cf-delay-1">
+      <form method="POST" action="/customer/profile/edit" enctype="multipart/form-data" class="space-y-5">
+
+        <!-- Profile picture -->
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+            <i class="fas fa-camera text-emerald-500 mr-1"></i> Profile Picture
+          </label>
+          <input type="file" name="profileImage" accept="image/*"
+                 class="cf-input text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-emerald-50 file:text-emerald-700 hover:file:bg-emerald-100" />
+          {{#if user.profileImage}}
+          <div class="mt-2 flex items-center gap-2">
+            <img src="/uploads/{{user.profileImage}}" alt="Current photo"
+                 class="w-10 h-10 rounded-full object-cover border-2 border-emerald-200" />
+            <span class="text-gray-400 text-xs">Current photo</span>
+          </div>
+          {{/if}}
+        </div>
+
+        <!-- Name -->
+        <div>
+          <label for="name" class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Full Name</label>
+          <div class="relative">
+            <i class="fas fa-user absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+            <input type="text" id="name" name="name" value="{{user.name}}" required
+                   class="cf-input pl-9" placeholder="Your full name" />
+          </div>
+        </div>
+
+        <!-- Email -->
+        <div>
+          <label for="email" class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Email Address</label>
+          <div class="relative">
+            <i class="fas fa-envelope absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+            <input type="email" id="email" name="email" value="{{user.email}}" required
+                   class="cf-input pl-9" placeholder="your@email.com" />
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div>
+          <label for="password" class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">
+            New Password
+            <span class="text-gray-400 font-normal normal-case ml-1">(leave blank to keep current)</span>
+          </label>
+          <div class="relative">
+            <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
+            <input type="password" id="password" name="password"
+                   class="cf-input pl-9 pr-10" placeholder="New password (optional)" />
+            <button type="button" onclick="togglePwd()" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
+              <i id="pwdIcon" class="fas fa-eye text-xs"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="flex gap-3 pt-2">
+          <button type="submit" class="cf-btn cf-btn-primary flex-1 justify-center py-3">
+            <i class="fas fa-save"></i> Save Changes
+          </button>
+          <a href="/customer/dashboard" class="cf-btn cf-btn-ghost flex-1 justify-center py-3">
+            <i class="fas fa-arrow-left"></i> Cancel
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {{>footer}}
+
+  <script>
+  function togglePwd() {
+    const inp = document.getElementById('password');
+    const ico = document.getElementById('pwdIcon');
+    if (inp.type === 'password') { inp.type = 'text'; ico.className = 'fas fa-eye-slash text-xs'; }
+    else { inp.type = 'password'; ico.className = 'fas fa-eye text-xs'; }
+  }
+  </script>
+</body>
+</html>

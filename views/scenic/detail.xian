@@ -1,0 +1,275 @@
+{{>head}}
+<body class="bg-gray-50">
+  {{>nav}}
+
+  <div class="max-w-5xl mx-auto px-4 py-8">
+    <a href="/scenic" class="inline-flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-semibold text-sm mb-6 cf-fade-up transition-colors">
+      <i class="fas fa-arrow-left"></i> Back to Scenic Spots
+    </a>
+
+    <div class="cf-card overflow-hidden cf-fade-up">
+      <!-- Hero -->
+      <div class="relative h-72 md:h-96 overflow-hidden bg-teal-100">
+        {{#if scenic.image_url}}
+        <img src="{{scenic.image_url}}" alt="{{scenic.title}}"
+             class="w-full h-full object-cover"
+             onerror="this.src='/images/logo.png'" />
+        {{else}}
+        <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-teal-400 to-emerald-500">
+          <i class="fas fa-mountain text-white text-6xl opacity-30"></i>
+        </div>
+        {{/if}}
+        <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent"></div>
+        <div class="absolute bottom-5 left-6 right-6 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <span class="cf-badge cf-badge-green mb-2 block w-fit">
+              <i class="fas fa-mountain mr-1"></i> Scenic Spot
+            </span>
+            <h1 class="text-2xl md:text-3xl font-extrabold text-white leading-tight">{{scenic.title}}</h1>
+          </div>
+          <div class="flex items-center gap-1.5 text-white text-sm bg-black/40 px-3 py-1.5 rounded-lg backdrop-blur-sm flex-shrink-0">
+            <i class="fas fa-map-marker-alt text-emerald-400"></i>
+            <span>{{scenic.location}}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Content -->
+      <div class="p-6 md:p-8">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+          <!-- Main content -->
+          <div class="md:col-span-2 space-y-6">
+            <div>
+              <h2 class="cf-section-title mb-3 text-base">About this Location</h2>
+              <p class="text-gray-700 leading-relaxed">{{scenic.description}}</p>
+            </div>
+
+            <!-- ── 3D MAP SECTION ───────────────────────────── -->
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <h2 class="cf-section-title text-base">Location Map</h2>
+                <div class="flex gap-2">
+                  <button id="btn2d" onclick="switchTo2D()"
+                    class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 text-gray-600 hover:bg-emerald-100 transition-colors">
+                    <i class="fas fa-map"></i> 2D
+                  </button>
+                  <button id="btn3d" onclick="switchTo3D()"
+                    class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white transition-colors">
+                    <i class="fas fa-cube"></i> 3D
+                  </button>
+                </div>
+              </div>
+
+              <!-- 2D map (hidden by default) -->
+              <div id="map2d" class="rounded-xl overflow-hidden border border-emerald-100 hidden" style="height:340px;"></div>
+
+              <!-- 3D map (shown by default) -->
+              <div id="map3d" class="rounded-xl overflow-hidden border border-emerald-100" style="height:340px;">
+                <iframe id="map3dFrame"
+                  width="100%" height="100%"
+                  style="border:0; border-radius:12px;"
+                  loading="lazy"
+                  allowfullscreen
+                  referrerpolicy="no-referrer-when-downgrade"
+                  src="https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d15671!2d121.4267!3d12.5213!2m3!1f0!2f45!3f0!3m2!1i1024!2i768!4f13.1!5e1!3m2!1sen!2sph!4v1699999999999!5m2!1sen!2sph">
+                </iframe>
+              </div>
+
+              <!-- Barangay detection -->
+              <div id="barangay-info" class="mt-3"></div>
+
+              <p class="text-xs text-gray-400 mt-2 flex items-center gap-1">
+                <i class="fas fa-info-circle text-emerald-400"></i>
+                Switch to <strong>3D</strong> for an immersive terrain flyover of this location.
+              </p>
+            </div>
+
+            <!-- GPS Coordinates -->
+            {{#if scenic.latitude}}
+            <div class="cf-card-green p-4">
+              <h3 class="font-bold text-gray-700 text-sm mb-3 flex items-center gap-2">
+                <i class="fas fa-crosshairs text-emerald-600"></i> GPS Coordinates
+              </h3>
+              <div class="grid grid-cols-2 gap-3 mb-3">
+                <div class="bg-white rounded-lg p-2.5 shadow-sm">
+                  <p class="text-xs text-gray-400 mb-0.5">Latitude</p>
+                  <p class="font-mono text-sm font-bold text-emerald-700">{{scenic.latitude}}</p>
+                </div>
+                <div class="bg-white rounded-lg p-2.5 shadow-sm">
+                  <p class="text-xs text-gray-400 mb-0.5">Longitude</p>
+                  <p class="font-mono text-sm font-bold text-emerald-700">{{scenic.longitude}}</p>
+                </div>
+              </div>
+              <a href="https://www.google.com/maps?q={{scenic.latitude}},{{scenic.longitude}}" target="_blank"
+                 class="cf-btn cf-btn-outline text-xs py-1.5">
+                <i class="fas fa-external-link-alt"></i> Open in Google Maps
+              </a>
+            </div>
+            {{/if}}
+          </div>
+
+          <!-- Sidebar -->
+          <div class="space-y-4">
+            <div class="cf-card-green p-5">
+              <h3 class="font-bold text-gray-800 mb-3 text-sm">Site Details</h3>
+              <div class="space-y-3">
+                <div class="flex items-start gap-2.5">
+                  <i class="fas fa-map-marker-alt text-emerald-600 mt-0.5 text-xs w-4"></i>
+                  <div>
+                    <p class="text-xs text-gray-400">Location</p>
+                    <p class="text-sm font-semibold text-gray-700">{{scenic.location}}</p>
+                  </div>
+                </div>
+                {{#if scenic.latitude}}
+                <div class="flex items-start gap-2.5">
+                  <i class="fas fa-globe text-emerald-600 mt-0.5 text-xs w-4"></i>
+                  <div>
+                    <p class="text-xs text-gray-400">Coordinates</p>
+                    <p class="text-xs font-mono text-gray-600">{{scenic.latitude}}, {{scenic.longitude}}</p>
+                  </div>
+                </div>
+                {{/if}}
+              </div>
+            </div>
+
+            <!-- Upcoming events -->
+            {{#if upcomingEvents.length}}
+            <div class="cf-card p-5">
+              <h3 class="font-bold text-gray-800 mb-3 text-sm flex items-center gap-2">
+                <i class="fas fa-calendar-alt text-emerald-500 text-xs"></i> Events at this Spot
+              </h3>
+              <div class="space-y-3">
+                {{#each upcomingEvents}}
+                <a href="/events/{{this.id}}" class="block p-3 bg-emerald-50 rounded-xl hover:bg-emerald-100 transition-colors group">
+                  <p class="font-semibold text-gray-800 text-sm group-hover:text-emerald-600 transition-colors line-clamp-1">{{this.title}}</p>
+                  <p class="text-xs text-gray-400 mt-0.5 flex items-center gap-1">
+                    <i class="fas fa-calendar"></i> {{this.event_date}}
+                  </p>
+                </a>
+                {{/each}}
+              </div>
+            </div>
+            {{/if}}
+
+            <div class="cf-page-header p-5 text-center" style="border-radius:12px;padding:1.25rem;">
+              <i class="fas fa-mountain text-2xl text-white mb-2"></i>
+              <p class="text-white font-bold text-sm mb-3">Explore More</p>
+              <a href="/scenic" class="cf-btn bg-white text-emerald-700 hover:bg-emerald-50 w-full justify-center text-xs">
+                All Scenic Spots
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{>footer}}
+
+  <!-- Leaflet (2D) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <script>
+    const SCENIC_LAT  = parseFloat('{{scenic.latitude}}')  || null;
+    const SCENIC_LNG  = parseFloat('{{scenic.longitude}}') || null;
+    const MANSALAY    = [12.5833, 121.4500];
+    let   cesiumLoaded = false;
+    let   leafletMap   = null;
+
+    // ── 2D Leaflet ────────────────────────────────────────────
+    function init2DMap() {
+      const center = (SCENIC_LAT && SCENIC_LNG) ? [SCENIC_LAT, SCENIC_LNG] : MANSALAY;
+      const zoom   = (SCENIC_LAT && SCENIC_LNG) ? 16 : 12;
+
+      leafletMap = L.map('map2d').setView(center, zoom);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19, attribution: '© OpenStreetMap contributors'
+      }).addTo(leafletMap);
+
+      if (SCENIC_LAT && SCENIC_LNG) {
+        const icon = L.divIcon({
+          className: '',
+          html: `<div style="background:linear-gradient(135deg,#0d9488,#059669);width:40px;height:40px;border-radius:50% 50% 50% 0;transform:rotate(-45deg);border:3px solid white;box-shadow:0 4px 12px rgba(0,0,0,.3);display:flex;align-items:center;justify-content:center;">
+                   <i class="fas fa-mountain" style="transform:rotate(45deg);color:white;font-size:16px;"></i>
+                 </div>`,
+          iconSize:   [40,40],
+          iconAnchor: [20,40],
+          popupAnchor:[0,-44]
+        });
+        L.marker([SCENIC_LAT, SCENIC_LNG], { icon }).addTo(leafletMap)
+          .bindPopup(`<b style="color:#059669">{{scenic.title}}</b><br><span style="color:#64748b;font-size:12px;">{{scenic.location}}</span>`)
+          .openPopup();
+
+        // Reverse geocode for barangay detection
+        fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${SCENIC_LAT}&lon=${SCENIC_LNG}&zoom=18&addressdetails=1`, {
+          headers: { 'Accept-Language': 'en' }
+        })
+        .then(r => r.json())
+        .then(data => {
+          const a         = data.address || {};
+          const sitio     = a.hamlet || a.isolated_dwelling || a.locality || '';
+          const barangay  = a.village || a.suburb || a.neighbourhood || a.quarter || '';
+          const municipality = a.municipality || a.city || a.town || 'Mansalay';
+          const province  = a.state || 'Oriental Mindoro';
+          if (!barangay && !sitio) return;
+          const el = document.getElementById('barangay-info');
+          if (el) el.innerHTML = `
+            <div class="bg-emerald-50 border border-emerald-200 rounded-xl p-4 text-sm">
+              <p class="font-bold text-emerald-800 mb-2 flex items-center gap-1.5">
+                <i class="fas fa-map-pin text-emerald-600 text-xs"></i> Detected Location
+              </p>
+              <div class="space-y-1 text-gray-700">
+                ${sitio    ? `<p><span class="font-semibold">Sitio:</span> ${sitio}</p>` : ''}
+                ${barangay ? `<p><span class="font-semibold">Barangay:</span> ${barangay}</p>` : ''}
+                <p><span class="font-semibold">Municipality:</span> ${municipality}</p>
+                <p><span class="font-semibold">Province:</span> ${province}</p>
+              </div>
+            </div>`;
+        }).catch(() => {});
+      }
+
+      L.control.scale({ imperial: false, metric: true, position: 'bottomright' }).addTo(leafletMap);
+    }
+
+    // ── 3D Google Maps satellite tilt view ───────────────────
+    function load3DMap() {
+      if (cesiumLoaded) return;
+      cesiumLoaded = true;
+
+      const lat = SCENIC_LAT || MANSALAY[0];
+      const lng = SCENIC_LNG || MANSALAY[1];
+
+      // Google Maps Embed — satellite with 45° 3D tilt, centered on exact coordinates
+      // pb params: !2d=lng !3d=lat !2m3!1f0!2f45(tilt)!3f0(heading) !5e1=satellite
+      const embedUrl = `https://www.google.com/maps/embed?pb=!1m14!1m12!1m3!1d3000!2d${lng}!3d${lat}!2m3!1f0!2f45!3f0!3m2!1i1024!2i768!4f13.1!5e1!3m2!1sen!2sph!4v1699999999999!5m2!1sen!2sph`;
+
+      const frame = document.getElementById('map3dFrame');
+      if (frame) frame.src = embedUrl;
+    }
+
+    // ── Toggle ────────────────────────────────────────────────
+    function switchTo2D() {
+      document.getElementById('map2d').classList.remove('hidden');
+      document.getElementById('map3d').classList.add('hidden');
+      document.getElementById('btn2d').className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white transition-colors';
+      document.getElementById('btn3d').className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 text-gray-600 hover:bg-emerald-100 transition-colors';
+      if (leafletMap) leafletMap.invalidateSize();
+    }
+
+    function switchTo3D() {
+      document.getElementById('map2d').classList.add('hidden');
+      document.getElementById('map3d').classList.remove('hidden');
+      document.getElementById('btn3d').className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-emerald-600 text-white transition-colors';
+      document.getElementById('btn2d').className = 'px-3 py-1.5 text-xs font-semibold rounded-lg bg-gray-100 text-gray-600 hover:bg-emerald-100 transition-colors';
+      load3DMap();
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      init2DMap();   // init 2D in background (hidden)
+      load3DMap();   // start 3D immediately
+    });
+  </script>
+</body>
+</html>

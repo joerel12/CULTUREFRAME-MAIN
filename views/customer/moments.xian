@@ -1,0 +1,176 @@
+{{>head}}
+<body class="bg-gray-50">
+  {{>nav}}
+  {{>messages}}
+
+  <div class="max-w-7xl mx-auto px-4 pt-8">
+    <div class="cf-page-header cf-fade-up">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <div class="flex items-center gap-2 mb-1">
+            <i class="fas fa-camera text-emerald-200 text-sm"></i>
+            <span class="text-emerald-200 text-sm font-medium">My Account</span>
+          </div>
+          <h1 class="text-2xl font-extrabold text-white">My Moments</h1>
+          <p class="text-emerald-100 text-sm mt-0.5">Your captured memories and experiences</p>
+        </div>
+        <div class="flex gap-2 flex-shrink-0">
+          <a href="/customer/dashboard" class="cf-btn bg-white/15 text-white border border-white/30 hover:bg-white/25 text-sm" style="border-radius:10px">
+            <i class="fas fa-arrow-left"></i> Dashboard
+          </a>
+          <a href="/customer/moment/new" class="cf-btn bg-white text-emerald-700 hover:bg-emerald-50 text-sm" style="border-radius:10px">
+            <i class="fas fa-plus"></i> Post Moment
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto px-4 py-8">
+    {{#if photos.length}}
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+      {{#each photos}}
+      <div class="cf-card overflow-hidden group cf-fade-up" data-moment-id="{{this.id}}">
+        <div class="relative overflow-hidden bg-emerald-100" style="aspect-ratio:1">
+          {{#if this.url}}
+          <img src="{{this.url}}" alt="Moment"
+               class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 cursor-pointer"
+               onclick="viewImage('{{this.url}}')"
+               onerror="this.src='/images/logo.png'" />
+          {{else}}
+          <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-emerald-100 to-green-100">
+            <i class="fas fa-comment text-emerald-300 text-4xl"></i>
+          </div>
+          {{/if}}
+          <!-- Hover overlay actions -->
+          <div class="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex items-center justify-center gap-2">
+            {{#if this.url}}
+            <button onclick="viewImage('{{this.url}}')"
+                    class="bg-white text-emerald-700 px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-emerald-50 transition-colors shadow"
+                    aria-label="View full image">
+              <i class="fas fa-expand mr-1"></i> View
+            </button>
+            {{/if}}
+            <button onclick="confirmDelete('{{this.id}}')"
+                    class="bg-red-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-600 transition-colors shadow"
+                    aria-label="Delete moment">
+              <i class="fas fa-trash-alt mr-1"></i> Delete
+            </button>
+          </div>
+        </div>
+        {{#if this.caption}}
+        <div class="px-3 py-2.5 border-t border-gray-100">
+          <p class="text-gray-700 text-xs line-clamp-2">{{this.caption}}</p>
+          <p class="text-gray-400 text-[10px] mt-1">{{this.createdAt}}</p>
+        </div>
+        {{/if}}
+      </div>
+      {{/each}}
+    </div>
+    {{else}}
+    <div class="cf-card p-16 text-center cf-fade-up">
+      <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="fas fa-camera text-emerald-400 text-3xl"></i>
+      </div>
+      <h3 class="text-xl font-extrabold text-gray-700 mb-2">No Moments Yet</h3>
+      <p class="text-gray-400 text-sm mb-6">Start capturing and sharing your cultural experiences!</p>
+      <a href="/customer/moment/new" class="cf-btn cf-btn-primary">
+        <i class="fas fa-plus"></i> Post Your First Moment
+      </a>
+    </div>
+    {{/if}}
+  </div>
+
+  {{>footer}}
+
+  <!-- Lightbox -->
+  <div id="lightbox" role="dialog" aria-modal="true" aria-label="Image viewer"
+       class="hidden fixed inset-0 z-50 bg-black/90 items-center justify-center p-4">
+    <button onclick="closeLightbox()"
+            class="absolute top-4 right-4 text-white bg-white/20 hover:bg-white/30 rounded-xl px-4 py-2 text-sm font-semibold transition-colors"
+            aria-label="Close image viewer">
+      <i class="fas fa-xmark mr-1"></i> Close
+    </button>
+    <img id="lightboxImg" src="" alt="Full size moment"
+         class="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl" />
+  </div>
+
+  <!-- Delete confirmation dialog -->
+  <div id="deleteDialog" role="alertdialog" aria-modal="true" aria-labelledby="deleteDialogTitle"
+       class="hidden fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full">
+      <div class="flex items-center gap-3 mb-3">
+        <div class="w-10 h-10 bg-red-100 rounded-xl flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-trash-alt text-red-500"></i>
+        </div>
+        <h3 id="deleteDialogTitle" class="font-bold text-gray-800">Delete Moment?</h3>
+      </div>
+      <p class="text-gray-500 text-sm mb-5">This action cannot be undone. Your moment will be permanently removed.</p>
+      <div class="flex gap-2">
+        <button id="confirmDeleteBtn" class="cf-btn cf-btn-primary flex-1 justify-center bg-red-500 hover:bg-red-600" style="background:rgb(239,68,68)">
+          <i class="fas fa-trash-alt"></i> Delete
+        </button>
+        <button onclick="closeDeleteDialog()" class="cf-btn cf-btn-ghost flex-1 justify-center">
+          Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+  // Lightbox
+  function viewImage(url) {
+    if (!url) return;
+    const lb = document.getElementById('lightbox');
+    document.getElementById('lightboxImg').src = url;
+    lb.classList.remove('hidden');
+    lb.classList.add('flex');
+  }
+  function closeLightbox() {
+    const lb = document.getElementById('lightbox');
+    lb.classList.add('hidden');
+    lb.classList.remove('flex');
+  }
+  document.getElementById('lightbox').addEventListener('click', e => {
+    if (e.target.id === 'lightbox') closeLightbox();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { closeLightbox(); closeDeleteDialog(); }
+  });
+
+  // Delete with proper confirmation dialog
+  let pendingDeleteId = null;
+  function confirmDelete(momentId) {
+    pendingDeleteId = momentId;
+    document.getElementById('deleteDialog').classList.remove('hidden');
+    document.getElementById('confirmDeleteBtn').focus();
+  }
+  function closeDeleteDialog() {
+    pendingDeleteId = null;
+    document.getElementById('deleteDialog').classList.add('hidden');
+  }
+  document.getElementById('confirmDeleteBtn').addEventListener('click', async () => {
+    if (!pendingDeleteId) return;
+    const id = pendingDeleteId;
+    closeDeleteDialog();
+    try {
+      const res = await fetch(`/customer/moment/${id}`, { method: 'DELETE', headers: { 'Content-Type': 'application/json' } });
+      const data = await res.json();
+      if (data.success) {
+        const card = document.querySelector(`[data-moment-id="${id}"]`);
+        if (card) {
+          card.style.transition = 'opacity .25s, transform .25s';
+          card.style.opacity = '0';
+          card.style.transform = 'scale(0.9)';
+          setTimeout(() => card.remove(), 250);
+        }
+      } else {
+        alert(data.message || 'Failed to delete moment.');
+      }
+    } catch (e) {
+      alert('Failed to delete moment. Please try again.');
+    }
+  });
+  </script>
+</body>
+</html>
