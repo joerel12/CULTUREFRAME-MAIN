@@ -1,0 +1,74 @@
+{{>head}}
+<body class="bg-gray-50">
+  {{>nav}}
+
+  <div class="max-w-7xl mx-auto px-4 pt-8">
+    <div class="cf-page-header cf-fade-up">
+      <div class="flex items-center gap-2 mb-2">
+        <i class="fas fa-calendar-alt text-emerald-200"></i>
+        <span class="text-emerald-200 text-sm font-medium">Cultural Events</span>
+      </div>
+      <h1 class="text-3xl font-extrabold text-white">Upcoming Events & Festivals</h1>
+      <p class="text-emerald-100 mt-1 text-sm">Immerse yourself in the vibrant cultural celebrations of Mansalay</p>
+    </div>
+  </div>
+
+  <div class="max-w-7xl mx-auto px-4 py-8">
+    {{#if events.length}}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 mb-10">
+      {{#each events}}
+      <article class="cf-card overflow-hidden hover:shadow-lg transition-all duration-200 group cf-fade-up">
+        <!-- Image -->
+        <div class="relative h-48 overflow-hidden bg-blue-100">
+          {{#if this.image_url}}
+          <img src="{{this.image_url}}" alt="{{this.title}}"
+               class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+               onerror="this.parentElement.innerHTML='<div class=\'w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400 to-indigo-500\'><i class=\'fas fa-calendar-alt text-white text-5xl opacity-40\'></i></div>'" />
+          {{else}}
+          <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400 to-indigo-500">
+            <i class="fas fa-calendar-alt text-white text-5xl opacity-40"></i>
+          </div>
+          {{/if}}
+          <div class="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
+          {{#if this.category}}
+          <span class="absolute top-3 left-3 cf-badge cf-badge-blue capitalize">{{this.category}}</span>
+          {{/if}}
+        </div>
+
+        <!-- Content -->
+        <div class="p-5">
+          <h3 class="font-bold text-gray-800 mb-3 group-hover:text-emerald-600 transition-colors line-clamp-2 text-base">{{this.title}}</h3>
+          <div class="space-y-1.5 mb-3">
+            <div class="flex items-center gap-2 text-xs text-gray-500">
+              <i class="fas fa-calendar text-emerald-500 w-3 flex-shrink-0"></i>
+              <span>{{this.event_date}}</span>
+            </div>
+            <div class="flex items-center gap-2 text-xs text-gray-500">
+              <i class="fas fa-map-marker-alt text-emerald-500 w-3 flex-shrink-0"></i>
+              <span class="truncate">{{this.location}}</span>
+            </div>
+          </div>
+          <p class="text-gray-500 text-sm mb-4 line-clamp-2">{{this.description}}</p>
+          <a href="/events/{{this.id}}"
+             class="cf-btn cf-btn-primary w-full justify-center text-sm py-2.5">
+            <i class="fas fa-calendar-check"></i> View & Register
+          </a>
+        </div>
+      </article>
+      {{/each}}
+    </div>
+    {{else}}
+    <div class="cf-card p-16 text-center cf-fade-up">
+      <div class="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <i class="fas fa-calendar-times text-blue-400 text-3xl"></i>
+      </div>
+      <h3 class="text-xl font-extrabold text-gray-700 mb-2">No Upcoming Events</h3>
+      <p class="text-gray-400 text-sm mb-6">Check back soon for upcoming cultural events and festivals in Mansalay.</p>
+      <a href="/" class="cf-btn cf-btn-primary"><i class="fas fa-home"></i> Back to Home</a>
+    </div>
+    {{/if}}
+  </div>
+
+  {{>footer}}
+</body>
+</html>

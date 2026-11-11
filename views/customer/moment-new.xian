@@ -1,0 +1,126 @@
+{{>head}}
+<body class="bg-gray-50">
+  {{>nav}}
+  {{>messages}}
+
+  <div class="max-w-xl mx-auto px-4 py-8">
+    <div class="flex items-center gap-3 mb-6 cf-fade-up">
+      <a href="/customer/dashboard" class="text-emerald-600 hover:text-emerald-700 transition-colors" aria-label="Back to dashboard">
+        <i class="fas fa-arrow-left"></i>
+      </a>
+      <div>
+        <h1 class="text-2xl font-extrabold text-gray-800 leading-none">Post a Moment</h1>
+        <p class="text-gray-400 text-sm mt-0.5">Share your experience and memories</p>
+      </div>
+    </div>
+
+    <div class="cf-card p-6 cf-fade-up cf-delay-1">
+      <form id="momentForm" enctype="multipart/form-data" class="space-y-5">
+
+        <!-- Photo upload -->
+        <div>
+          <label class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+            <i class="fas fa-image text-emerald-500 mr-1"></i> Photo (Optional)
+          </label>
+          <input type="file" id="photoInput" name="photo" accept="image/*" class="hidden" aria-label="Upload photo" />
+          <button type="button" onclick="document.getElementById('photoInput').click()"
+                  class="w-full border-2 border-dashed border-emerald-200 hover:border-emerald-400 rounded-xl p-6 bg-emerald-50/50 hover:bg-emerald-50 transition-all text-center">
+            <div id="uploadPlaceholder">
+              <i class="fas fa-cloud-upload-alt text-emerald-400 text-3xl mb-2"></i>
+              <p class="text-gray-600 text-sm font-medium">Click to upload a photo</p>
+              <p class="text-gray-400 text-xs mt-1">PNG, JPG, GIF up to 10 MB</p>
+            </div>
+            <div id="imagePreview" class="hidden">
+              <img id="previewImg" src="" alt="Preview" class="max-h-48 mx-auto rounded-lg object-contain mb-2" />
+              <p class="text-emerald-600 text-sm font-medium">Click to change photo</p>
+            </div>
+          </button>
+        </div>
+
+        <!-- Caption -->
+        <div>
+          <label for="caption" class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-2">
+            <i class="fas fa-comment-alt text-emerald-500 mr-1"></i> Caption
+          </label>
+          <textarea id="caption" name="caption" rows="4"
+                    placeholder="Share your thoughts, experience, or story…"
+                    class="cf-input resize-none"></textarea>
+        </div>
+
+        <!-- Success / Error -->
+        <div id="successMessage" class="hidden flex items-start gap-2 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm">
+          <i class="fas fa-circle-check mt-0.5 flex-shrink-0"></i>
+          <span>Moment posted successfully! Redirecting…</span>
+        </div>
+        <div id="errorMessage" class="hidden flex items-start gap-2 p-3 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm">
+          <i class="fas fa-circle-exclamation mt-0.5 flex-shrink-0"></i>
+          <span id="errorText">Something went wrong. Please try again.</span>
+        </div>
+
+        <!-- Actions -->
+        <div class="flex gap-3 pt-1">
+          <button type="submit" id="submitBtn" class="cf-btn cf-btn-primary flex-1 justify-center py-3">
+            <i class="fas fa-paper-plane"></i> Post Moment
+          </button>
+          <a href="/customer/dashboard" class="cf-btn cf-btn-ghost flex-1 justify-center py-3">
+            Cancel
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {{>footer}}
+
+  <script>
+  // Image preview
+  document.getElementById('photoInput').addEventListener('change', function() {
+    const file = this.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('previewImg').src = e.target.result;
+      document.getElementById('uploadPlaceholder').classList.add('hidden');
+      document.getElementById('imagePreview').classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // Form submit
+  document.getElementById('momentForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn      = document.getElementById('submitBtn');
+    const successEl = document.getElementById('successMessage');
+    const errorEl   = document.getElementById('errorMessage');
+    successEl.classList.add('hidden');
+    errorEl.classList.add('hidden');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Posting…';
+    try {
+      const fd = new FormData();
+      const file    = document.getElementById('photoInput').files[0];
+      const caption = document.getElementById('caption').value;
+      if (file)    fd.append('photo',   file);
+      if (caption) fd.append('caption', caption);
+      const res  = await fetch('/customer/moment', { method: 'POST', body: fd });
+      const data = await res.json();
+      if (data.success) {
+        successEl.classList.remove('hidden');
+        this.reset();
+        document.getElementById('uploadPlaceholder').classList.remove('hidden');
+        document.getElementById('imagePreview').classList.add('hidden');
+        setTimeout(() => { window.location.href = '/customer/dashboard'; }, 1800);
+      } else {
+        throw new Error(data.message || 'Failed to post moment');
+      }
+    } catch (err) {
+      document.getElementById('errorText').textContent = err.message;
+      errorEl.classList.remove('hidden');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="fas fa-paper-plane"></i> Post Moment';
+    }
+  });
+  </script>
+</body>
+</html>

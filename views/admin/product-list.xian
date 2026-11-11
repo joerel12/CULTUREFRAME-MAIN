@@ -1,0 +1,284 @@
+{{>head}}
+<body class="bg-gray-50 flex">
+  {{> admin-sidebar activePage="products"}}
+    <main class="flex-1 p-8">
+      <!-- Header with Animation -->
+      <div class="flex justify-between items-center mb-8 animate-fade-in-down">
+        <div>
+          <h1 class="text-4xl font-bold text-gray-800">Products Management</h1>
+          <p class="text-gray-500 text-base">Manage your cultural product inventory and listings</p>
+        </div>
+        <a href="/admin/products/add" class="bg-gradient-to-r from-emerald-500 to-green-500 text-white px-6 py-3 rounded-xl transform transition-all duration-300 hover:scale-105 hover:shadow-lg active:scale-95 flex items-center space-x-2 group border border-white/20 backdrop-blur-sm">
+          <svg class="w-5 h-5 text-white group-hover:animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+          </svg>
+          <span>Add Product</span>
+        </a>
+      </div>
+
+      <!-- Products Table with Hanunuo Mangyan Crafts Background -->
+      <div class="rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-500 hover:shadow-2xl border border-white/20 backdrop-blur-md animate-fade-in-up"
+           style="background-image: linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.92)), url('https://lookaside.instagram.com/seo/google_widget/crawler/?media_id=3735824116805131729'); background-size: cover; background-position: center; background-repeat: no-repeat;">
+        <div class="bg-white/70 p-6">
+          <!-- Table Header -->
+          <div class="mb-6">
+            <h3 class="text-2xl font-bold text-emerald-800">Cultural Products</h3>
+            <p class="text-emerald-600">Traditional crafts and heritage items from Oriental Mindoro</p>
+          </div>
+
+          <table class="min-w-full divide-y divide-emerald-100">
+            <thead>
+              <tr class="bg-gradient-to-r from-emerald-50 to-green-50">
+                <th class="px-6 py-4 text-left text-xs font-semibold text-emerald-800 uppercase tracking-wider">Product</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-emerald-800 uppercase tracking-wider">Description</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-emerald-800 uppercase tracking-wider">Price</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-emerald-800 uppercase tracking-wider">Stock</th>
+                <th class="px-6 py-4 text-left text-xs font-semibold text-emerald-800 uppercase tracking-wider">Actions</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-emerald-50">
+              {{#each products}}
+              <tr class="hover:bg-gradient-to-r from-emerald-50 to-green-50 transform transition-all duration-300 ease-in-out hover:scale-[1.002] border-b border-emerald-100 animate-fade-in delay-{{@index}}00">
+                <td class="px-6 py-4 whitespace-nowrap">
+                  <div class="flex items-center">
+                    <div class="h-12 w-12 flex-shrink-0 transform transition-all duration-300 hover:scale-110">
+                      <img class="h-12 w-12 rounded-lg object-cover border-2 border-emerald-200 transition-all duration-300 hover:border-emerald-400 hover:shadow-lg" src="{{this.image_url}}" alt="{{this.name}}">
+                    </div>
+                    <div class="ml-4">
+                      <div class="text-sm font-medium text-gray-900 transition-colors duration-300 hover:text-emerald-700 transform hover:translate-x-1">{{this.name}}</div>
+                      <div class="text-sm text-gray-500 transition-colors duration-300 hover:text-emerald-600">{{this.category}}</div>
+                    </div>
+                  </div>
+                </td>
+                <td class="px-6 py-4">
+                  <div class="text-sm text-gray-500 transition-colors duration-300 hover:text-gray-700 max-w-xs">
+                    <div class="line-clamp-2">{{this.description}}</div>
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-emerald-700 transition-colors duration-300 hover:text-emerald-800 transform hover:scale-105">
+                  ₱{{this.price}}
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  <div class="space-y-1">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-emerald-100 to-green-100 text-emerald-800 transform transition-all duration-300 hover:scale-105 hover:shadow-md">
+                      {{this.stocks}} in stock
+                    </span>
+                    {{#if this.free_shipping}}
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      🚚 Free Ship
+                    </span>
+                    {{/if}}
+                  </div>
+                </td>
+                <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                  <a href="/admin/products/edit/{{this.id}}" class="text-blue-600 hover:text-blue-800 mr-4 transform transition-all duration-200 hover:scale-110 inline-flex items-center space-x-1 group">
+                    <svg class="w-4 h-4 group-hover:animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                    </svg>
+                    <span>Edit</span>
+                  </a>
+                  <form action="/admin/products/delete" method="POST" style="display:inline;" onsubmit="return confirm('Are you sure you want to delete this product?');">
+                    <input type="hidden" name="id" value="{{this.id}}">
+                    <button type="submit" class="text-red-600 hover:text-red-800 transform transition-all duration-200 hover:scale-110 inline-flex items-center space-x-1 group bg-transparent border-none p-0 m-0">
+                      <svg class="w-4 h-4 group-hover:animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                      </svg>
+                      <span>Delete</span>
+                    </button>
+                  </form>
+                </td>
+              </tr>
+              {{/each}}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Empty State with Animation -->
+      {{#unless products.length}}
+      <div class="bg-white/90 backdrop-blur-sm rounded-2xl shadow-2xl p-12 text-center border border-white/20 animate-fade-in-up"
+           style="background-image: linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.92)), url('https://lookaside.instagram.com/seo/google_widget/crawler/?media_id=3735824116805131729'); background-size: cover; background-position: center; background-repeat: no-repeat;">
+        <div class="w-24 h-24 bg-gradient-to-r from-emerald-100 to-green-100 rounded-full flex items-center justify-center mx-auto mb-6 transform transition-all duration-500 hover:scale-110">
+          <svg class="w-12 h-12 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+          </svg>
+        </div>
+        <h3 class="text-2xl font-bold text-gray-800 mb-2">No products yet</h3>
+        <p class="text-gray-600 mb-6">Get started by adding your first cultural product to the store</p>
+        <a href="/admin/products/add" class="bg-gradient-to-r from-emerald-500 to-green-500 text-white px-8 py-3 rounded-xl transform transition-all duration-300 hover:scale-105 hover:shadow-lg inline-flex items-center space-x-2 group border border-white/20">
+          <svg class="w-5 h-5 text-white group-hover:animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+          </svg>
+          <span>Add Your First Product</span>
+        </a>
+      </div>
+      {{/unless}}
+    </main>
+  </div>
+
+  <style>
+    /* Custom Animations */
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes slideInLeft {
+      from {
+        opacity: 0;
+        transform: translateX(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+
+    @keyframes bounceSlow {
+      0%, 100% {
+        transform: translateY(0);
+      }
+      50% {
+        transform: translateY(-5px);
+      }
+    }
+
+    @keyframes pulseSlow {
+      0%, 100% {
+        opacity: 1;
+      }
+      50% {
+        opacity: 0.8;
+      }
+    }
+
+    /* Animation Classes */
+    .animate-fade-in {
+      animation: fadeIn 0.6s ease-out forwards;
+    }
+
+    .animate-fade-in-down {
+      animation: fadeInDown 0.8s ease-out forwards;
+    }
+
+    .animate-fade-in-up {
+      animation: fadeInUp 0.8s ease-out forwards;
+    }
+
+    .animate-slide-in-left {
+      animation: slideInLeft 0.6s ease-out forwards;
+    }
+
+    .animate-bounce-slow {
+      animation: bounceSlow 3s ease-in-out infinite;
+    }
+
+    .animate-pulse-slow {
+      animation: pulseSlow 4s ease-in-out infinite;
+    }
+
+    /* Delay Utilities */
+    .delay-100 {
+      animation-delay: 0.1s;
+    }
+
+    .delay-200 {
+      animation-delay: 0.2s;
+    }
+
+    .delay-300 {
+      animation-delay: 0.3s;
+    }
+
+    .delay-400 {
+      animation-delay: 0.4s;
+    }
+
+    .delay-500 {
+      animation-delay: 0.5s;
+    }
+
+    .delay-600 {
+      animation-delay: 0.6s;
+    }
+
+    /* Text truncation for description */
+    .line-clamp-2 {
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    /* Smooth scrolling */
+    html {
+      scroll-behavior: smooth;
+    }
+
+    /* Custom scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(to bottom, #10b981, #059669);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: linear-gradient(to bottom, #059669, #047857);
+    }
+
+    /* Enhanced backdrop blur effects */
+    .backdrop-blur-sm {
+      backdrop-filter: blur(4px);
+    }
+
+    .backdrop-blur-md {
+      backdrop-filter: blur(8px);
+    }
+
+    /* Text shadow for better readability on background */
+    .drop-shadow {
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    /* Enhanced hover effects */
+    .hover-scale-105:hover {
+      transform: scale(1.05);
+    }
+  </style>
+</body>
+</html>

@@ -1,0 +1,220 @@
+{{>head}}
+<body class="bg-gray-50">
+  {{>nav}}
+  {{>messages}}
+
+  <div class="max-w-7xl mx-auto px-4 py-8">
+
+    <!-- Welcome banner -->
+    <div class="cf-page-header mb-8 cf-fade-up">
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div class="flex items-center gap-4">
+          <div class="w-14 h-14 rounded-xl overflow-hidden bg-white/20 flex-shrink-0 border-2 border-white/30">
+            {{#if user.profileImage}}
+            <img src="/uploads/{{user.profileImage}}" alt="Profile" class="w-full h-full object-cover" />
+            {{else}}
+            <div class="w-full h-full flex items-center justify-center text-white font-black text-2xl">
+              {{#if user.name}}{{user.name.[0]}}{{else}}U{{/if}}
+            </div>
+            {{/if}}
+          </div>
+          <div>
+            <p class="text-emerald-200 text-sm font-medium">Welcome back</p>
+            <h1 class="text-2xl font-extrabold text-white">{{user.name}} 👋</h1>
+            <p class="text-emerald-200 text-xs mt-0.5 flex items-center gap-1">
+              <i class="fas fa-map-marker-alt"></i> Mansalay, Oriental Mindoro
+            </p>
+          </div>
+        </div>
+        <div class="flex gap-2 flex-wrap">
+          <a href="/customer/profile/edit" class="cf-btn bg-white/15 text-white border border-white/25 hover:bg-white/25 text-sm" style="border-radius:10px">
+            <i class="fas fa-user-edit"></i> Edit Profile
+          </a>
+          <a href="/logout" class="cf-btn bg-red-500/25 text-white border border-red-400/30 hover:bg-red-500/40 text-sm" style="border-radius:10px">
+            <i class="fas fa-sign-out-alt"></i> Logout
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats row -->
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+      <div class="cf-card-green p-5 flex items-center gap-4 cf-fade-up">
+        <div class="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-shopping-cart text-emerald-600 text-lg"></i>
+        </div>
+        <div>
+          <p class="text-2xl font-extrabold text-emerald-700" data-dashboard-cart-count>{{cartCount}}</p>
+          <p class="text-sm text-gray-500">Cart Items</p>
+        </div>
+        <a href="/cart" class="ml-auto cf-btn cf-btn-primary text-xs px-3 py-1.5">View</a>
+      </div>
+      <div class="cf-card-green p-5 flex items-center gap-4 cf-fade-up cf-delay-1">
+        <div class="w-12 h-12 bg-pink-100 rounded-xl flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-heart text-pink-500 text-lg"></i>
+        </div>
+        <div>
+          <p class="text-2xl font-extrabold text-pink-600" data-dashboard-wishlist-count>{{wishlistCount}}</p>
+          <p class="text-sm text-gray-500">Wishlist</p>
+        </div>
+        <a href="/wishlist" class="ml-auto cf-btn bg-pink-100 text-pink-700 hover:bg-pink-200 text-xs px-3 py-1.5" style="border-radius:8px">View</a>
+      </div>
+      <div class="cf-card-green p-5 flex items-center gap-4 cf-fade-up cf-delay-2">
+        <div class="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center flex-shrink-0">
+          <i class="fas fa-box text-blue-600 text-lg"></i>
+        </div>
+        <div>
+          <p class="text-2xl font-extrabold text-blue-600" data-dashboard-order-count>{{orderCount}}</p>
+          <p class="text-sm text-gray-500">Orders</p>
+        </div>
+        <a href="/customer/orders" class="ml-auto cf-btn bg-blue-100 text-blue-700 hover:bg-blue-200 text-xs px-3 py-1.5" style="border-radius:8px">View</a>
+      </div>
+    </div>
+
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6">
+
+      <!-- Quick actions -->
+      <div class="xl:col-span-1 space-y-4 cf-fade-up">
+        <div class="cf-card p-5">
+          <h2 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+            <i class="fas fa-bolt text-amber-500 text-sm"></i> Quick Actions
+          </h2>
+          <div class="space-y-2">
+            <a href="/shop" class="flex items-center gap-3 p-3 rounded-xl hover:bg-emerald-50 transition-colors group">
+              <div class="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-shopping-bag text-emerald-600 text-sm"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold text-gray-800 text-sm">Browse Shop</p>
+                <p class="text-xs text-gray-400">Discover local products</p>
+              </div>
+              <i class="fas fa-chevron-right text-gray-300 text-xs group-hover:text-emerald-500 transition-colors"></i>
+            </a>
+            <a href="/customer/orders" class="flex items-center gap-3 p-3 rounded-xl hover:bg-emerald-50 transition-colors group">
+              <div class="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-box text-blue-600 text-sm"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold text-gray-800 text-sm">My Orders</p>
+                <p class="text-xs text-gray-400">Track your purchases</p>
+              </div>
+              <i class="fas fa-chevron-right text-gray-300 text-xs group-hover:text-emerald-500 transition-colors"></i>
+            </a>
+            <a href="/customer/events" class="flex items-center gap-3 p-3 rounded-xl hover:bg-emerald-50 transition-colors group">
+              <div class="w-9 h-9 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-calendar-check text-purple-600 text-sm"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold text-gray-800 text-sm">My Events</p>
+                <p class="text-xs text-gray-400">Your event registrations</p>
+              </div>
+              <i class="fas fa-chevron-right text-gray-300 text-xs group-hover:text-emerald-500 transition-colors"></i>
+            </a>
+            <a href="/customer/moment/new" class="flex items-center gap-3 p-3 rounded-xl hover:bg-emerald-50 transition-colors group">
+              <div class="w-9 h-9 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-camera text-amber-600 text-sm"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold text-gray-800 text-sm">Post Moment</p>
+                <p class="text-xs text-gray-400">Share your experience</p>
+              </div>
+              <i class="fas fa-chevron-right text-gray-300 text-xs group-hover:text-emerald-500 transition-colors"></i>
+            </a>
+            <a href="/community" class="flex items-center gap-3 p-3 rounded-xl hover:bg-emerald-50 transition-colors group">
+              <div class="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-users text-blue-600 text-sm"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold text-gray-800 text-sm">Community</p>
+                <p class="text-xs text-gray-400">Follow & discover moments</p>
+              </div>
+              <i class="fas fa-chevron-right text-gray-300 text-xs group-hover:text-emerald-500 transition-colors"></i>
+            </a>
+            <a href="/heritage" class="flex items-center gap-3 p-3 rounded-xl hover:bg-emerald-50 transition-colors group">
+              <div class="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-landmark text-emerald-600 text-sm"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold text-gray-800 text-sm">Explore Heritage</p>
+                <p class="text-xs text-gray-400">Cultural sites & history</p>
+              </div>
+              <i class="fas fa-chevron-right text-gray-300 text-xs group-hover:text-emerald-500 transition-colors"></i>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Moments + Recent activity -->
+      <div class="xl:col-span-2 space-y-6 cf-fade-up cf-delay-1">
+        <!-- My Moments -->
+        <div class="cf-card p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-bold text-gray-800 flex items-center gap-2">
+              <i class="fas fa-camera text-emerald-600 text-sm"></i> My Moments
+            </h2>
+            <a href="/customer/moment/new" class="cf-btn cf-btn-primary text-xs px-3 py-1.5">
+              <i class="fas fa-plus"></i> Post
+            </a>
+          </div>
+          <div id="myMoments" class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="col-span-full text-center py-8 text-gray-400">
+              <i class="fas fa-spinner fa-spin text-2xl mb-2 text-emerald-400"></i>
+              <p class="text-sm">Loading moments…</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="cf-card p-5">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="font-bold text-gray-800 flex items-center gap-2">
+              <i class="fas fa-history text-emerald-600 text-sm"></i> Recent Activity
+            </h2>
+            <button id="refreshActivityBtn" class="cf-btn cf-btn-ghost text-xs px-3 py-1.5">
+              <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+          </div>
+          <div id="recentActivityList" class="space-y-3">
+            <div class="text-center py-8 text-gray-400">
+              <i class="fas fa-spinner fa-spin text-2xl mb-2 text-emerald-400"></i>
+              <p class="text-sm">Loading activity…</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {{>footer}}
+
+  <script src="/dashboard-realtime.js"></script>
+  <script>
+  async function loadMoments() {
+    try {
+      const res = await fetch('/customer/photos');
+      const data = await res.json();
+      const el = document.getElementById('myMoments');
+      if (!data.success || !data.photos || data.photos.length === 0) {
+        el.innerHTML = `<div class="col-span-full text-center py-8">
+          <i class="fas fa-camera text-gray-200 text-4xl mb-3"></i>
+          <p class="text-gray-400 text-sm mb-3">No moments yet</p>
+          <a href="/customer/moment/new" class="cf-btn cf-btn-primary text-xs">
+            <i class="fas fa-plus"></i> Post Your First Moment
+          </a></div>`;
+        return;
+      }
+      el.innerHTML = data.photos.slice(0, 8).map(p => `
+        <div class="relative group rounded-xl overflow-hidden border border-emerald-100 hover:border-emerald-300 transition-all aspect-square bg-gray-100">
+          ${p.url ? `<img src="${p.url}" alt="moment" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />` :
+            `<div class="w-full h-full flex items-center justify-center bg-emerald-50"><i class="fas fa-comment text-emerald-300 text-2xl"></i></div>`}
+          ${p.caption ? `<div class="absolute bottom-0 left-0 right-0 bg-black/60 text-white p-1.5 text-xs text-center truncate">${p.caption}</div>` : ''}
+        </div>`).join('');
+    } catch(e) {
+      document.getElementById('myMoments').innerHTML =
+        '<div class="col-span-full text-center py-8 text-gray-400 text-sm">Could not load moments.</div>';
+    }
+  }
+  document.addEventListener('DOMContentLoaded', loadMoments);
+  </script>
+</body>
+</html>
