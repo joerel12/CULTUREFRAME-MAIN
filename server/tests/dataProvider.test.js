@@ -1,18 +1,21 @@
 'use strict';
 
 jest.mock('../src/services/cultureframe/cultureframeAdapter', () => ({
-  cultureFrameAdapter: { getOrders: jest.fn() },
+  cultureFrameAdapter: { getOrders: jest.fn(), getOverview: jest.fn() },
 }));
 
 const { env } = require('../src/config/environment');
 const { cultureFrameAdapter } = require('../src/services/cultureframe/cultureframeAdapter');
-const { fetchOrders } = require('../src/services/analytics/dataProvider');
+const { fetchOrders, fetchOverview } = require('../src/services/analytics/dataProvider');
 
 describe('analytics data mode isolation', () => {
   const originalMode = env.DATA_MODE;
   const originalIntegrationEnabled = env.CULTUREFRAME_INTEGRATION_ENABLED;
 
-  beforeEach(() => cultureFrameAdapter.getOrders.mockReset());
+  beforeEach(() => {
+    cultureFrameAdapter.getOrders.mockReset();
+    cultureFrameAdapter.getOverview.mockReset();
+  });
   afterAll(() => {
     env.DATA_MODE = originalMode;
     env.CULTUREFRAME_INTEGRATION_ENABLED = originalIntegrationEnabled;
@@ -38,5 +41,21 @@ describe('analytics data mode isolation', () => {
       status: 503,
     });
     expect(cultureFrameAdapter.getOrders).not.toHaveBeenCalled();
+  });
+
+  it('unwraps the live overview contract for dashboard consumers', async () => {
+    env.DATA_MODE = 'live';
+    env.CULTUREFRAME_INTEGRATION_ENABLED = true;
+    cultureFrameAdapter.getOverview.mockResolvedValue({
+      data: { totalRevenue: '150.00', totalOrders: 3, completedOrders: 1 },
+    });
+
+    const result = await fetchOverview({ startDate: '2026-11-01' });
+
+    expect(result).toEqual({
+      overview: { totalRevenue: '150.00', totalOrders: 3, completedOrders: 1 },
+      _dataMode: 'live',
+    });
+    expect(cultureFrameAdapter.getOverview).toHaveBeenCalledWith({ startDate: '2026-11-01' });
   });
 });

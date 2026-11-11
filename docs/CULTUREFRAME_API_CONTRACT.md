@@ -2,13 +2,15 @@
 
 **Document version:** 1.0  
 **CultureMetrics version:** 1.0  
-**Status:** PROPOSED — endpoints do not yet exist in CultureFrame production.
+**Status:** IMPLEMENTED on CultureFrame branch `integration/unified-cultureframe`; production deployment is still required.
 
 ---
 
 ## Overview
 
-CultureMetrics requires CultureFrame to expose a set of read-only analytics endpoints. These endpoints must be implemented by the CultureFrame team before live integration can work.
+CultureMetrics uses a set of read-only analytics endpoints now implemented on
+CultureFrame's integration branch. The branch must be reviewed, merged, and
+deployed before production live mode can work.
 
 **CultureFrame base URL:** `https://jennycultureframe-1.onrender.com`
 

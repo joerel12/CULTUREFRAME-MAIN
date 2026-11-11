@@ -217,7 +217,7 @@ Invoke-WebRequest -Method POST -Uri http://localhost:5000/api/v1/auth/login -Bod
 
 ## Connecting to CultureFrame (Live Integration)
 
-1. CultureFrame team must implement the endpoints in `docs/CULTUREFRAME_API_CONTRACT.md`
+1. Deploy the CultureFrame `integration/unified-cultureframe` branch, which implements the endpoints in `docs/CULTUREFRAME_API_CONTRACT.md`
 2. They issue an integration token
 3. Update your backend `.env`:
    ```
@@ -230,7 +230,7 @@ Invoke-WebRequest -Method POST -Uri http://localhost:5000/api/v1/auth/login -Bod
 6. Click **Test required analytics endpoint**. This checks the contract's overview route, not just whether the CultureFrame website responds.
 7. If the required endpoints are implemented, run a data check to record aggregate snapshots and diagnostics.
 
-The analytics pages request live data directly; the recorded normalized provider snapshots are an audit/diagnostic archive and do **not** populate or replace analytics. The documented CultureFrame routes are currently **proposed**. Until CultureFrame implements them, the endpoint test and live analytics will fail with a visible, actionable error. Use demo mode for presentations and development.
+The analytics pages request live data directly; the recorded normalized provider snapshots are an audit/diagnostic archive and do **not** populate or replace analytics. The documented CultureFrame routes are implemented on its integration branch but are not active until that branch is reviewed and deployed. Until then, the endpoint test and live analytics will fail with a visible, actionable error. Use demo mode for presentations and development.
 
 ---
 
@@ -257,12 +257,12 @@ See `docs/DEPLOYMENT.md` for complete Render deployment instructions.
 
 Before live integration is possible, CultureFrame must:
 
-- [ ] Implement 7 analytics endpoints (see `docs/CULTUREFRAME_API_CONTRACT.md`)
+- [x] Implement 7 analytics endpoints on `integration/unified-cultureframe` (see `docs/CULTUREFRAME_API_CONTRACT.md`)
 - [ ] Issue a read-only integration token
-- [ ] Validate Bearer token on each analytics endpoint
-- [ ] Return monetary values as decimal strings
-- [ ] Provide `paymentStatus` explicitly on order records
-- [ ] Keep customer personal data out of analytics endpoints
+- [x] Validate Bearer token on each analytics endpoint
+- [x] Return monetary values as decimal strings
+- [x] Provide `paymentStatus` explicitly on order records
+- [x] Keep customer personal data out of analytics endpoints
 
 Until then, use `CULTUREMETRICS_DATA_MODE=mock`.
 

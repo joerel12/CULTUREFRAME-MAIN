@@ -98,14 +98,19 @@ async function fetchScenicDestinations(params = {}) {
   return { ...normalizeScenicDestinations(raw), _dataMode: 'live' };
 }
 
-async function fetchOverview() {
+async function fetchOverview(params = {}) {
   if (isMockMode()) {
     const raw = await mockCultureFrameProvider.getOverview();
     return { overview: raw, _dataMode: 'mock' };
   }
   assertLiveIntegrationEnabled();
-  const raw = await cultureFrameAdapter.getOverview();
-  return { overview: raw, _dataMode: 'live' };
+  const raw = await cultureFrameAdapter.getOverview(params);
+  // CultureFrame follows the shared contract and wraps overview fields in
+  // { data: { ... } }. Keep accepting an unwrapped object for compatibility.
+  const overview = raw?.data && typeof raw.data === 'object' && !Array.isArray(raw.data)
+    ? raw.data
+    : raw;
+  return { overview, _dataMode: 'live' };
 }
 
 module.exports = {
