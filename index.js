@@ -147,6 +147,8 @@ app.use((req, res, next) => {
   res.locals.paymentSystemUrl = /^https?:\/\//i.test(paymentSystemUrl) ? paymentSystemUrl : null;
   const cultureMetricsSystemUrl = process.env.CULTUREMETRICS_SYSTEM_URL || '';
   res.locals.cultureMetricsSystemUrl = /^https?:\/\//i.test(cultureMetricsSystemUrl) ? cultureMetricsSystemUrl : null;
+  const visitorInformationUrl = process.env.VISITOR_INFORMATION_URL || '';
+  res.locals.visitorInformationUrl = /^https?:\/\//i.test(visitorInformationUrl) ? visitorInformationUrl : null;
 
   // Use cached counts from session (updated by cart/wishlist controllers)
   // This is MUCH faster than querying DB on every request
@@ -160,15 +162,6 @@ app.use((req, res, next) => {
   // Store locals reference so engine can access them
   if (!app.locals._req) app.locals._req = {};
   app.locals._currentLocals = res.locals;
-
-  // Debug logging
-  console.log('🔍 Middleware - Session exists:', !!req.session);
-  console.log('🔍 Middleware - isAuthenticated:', isAuthenticated);
-  console.log('🔍 Middleware - User object:', {
-    isAuthenticated: res.locals.user.isAuthenticated,
-    name: res.locals.user.name,
-    role: res.locals.user.role
-  });
 
   next();
 });

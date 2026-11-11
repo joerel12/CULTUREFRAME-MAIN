@@ -24,23 +24,18 @@
     SOFTWARE.
     */
     export const homePage = (req, res) => {
-  console.log('🏠 Home page accessed');
-  console.log('🔐 Is authenticated:', req.session.isAuthenticated);
-  console.log('👤 User role:', req.session.userRole);
-  
   // If user is authenticated, redirect to their dashboard
   if (req.session.isAuthenticated) {
     if (req.session.userRole === 'admin') {
-      console.log('📍 Redirecting authenticated admin to admin dashboard');
       return res.redirect('/admin/dashboard');
+    } else if (req.session.userRole === 'seller') {
+      return res.redirect('/seller/dashboard');
     } else {
-      console.log('📍 Redirecting authenticated customer to customer dashboard');
       return res.redirect('/customer/dashboard');
     }
   }
   
   // If user is not authenticated, show the home page
-  console.log('📄 Rendering home page for unauthenticated user');
   res.render('home', {
     title: 'CultureFrame - Mansalay Heritage Platform',
     user: {

@@ -357,55 +357,49 @@ export const adminDashboard = async (req, res) => {
   if (!req.session.isAuthenticated || req.session.userRole !== 'admin') {
     return res.redirect('/login');
   }
-  
+
   try {
-    let heritageCount = 0, productCount = 0, orderCount = 0, eventCount = 0;
-    
-    try {
-      const { Heritage } = await import('../models/Heritage.js');
-      heritageCount = await Heritage.count();
-    } catch (error) {
-      console.log('ℹ️  Heritage model not available');
-    }
-    
-    try {
-      const { Product } = await import('../models/Product.js');
-      productCount = await Product.count();
-    } catch (error) {
-      console.log('ℹ️  Product model not available');
-    }
-    
-    try {
-      const { Order } = await import('../models/Order.js');
-      orderCount = await Order.count();
-    } catch (error) {
-      console.log('ℹ️  Order model not available');
-    }
-    
-    try {
-      const { Event } = await import('../models/Event.js');
-      eventCount = await Event.count();
-    } catch (error) {
-      console.log('ℹ️  Event model not available');
-    }
-    
+    const [
+      { Order },
+      { User },
+      { Seller },
+      { Feedback }
+    ] = await Promise.all([
+      import('../models/Order.js'),
+      import('../models/userModel.js'),
+      import('../models/Seller.js'),
+      import('../models/Feedback.js')
+    ]);
+
+    const [orderCount, openOrderCount, customerCount, sellerCount, feedbackCount] = await Promise.all([
+      Order.count(),
+      Order.count({ where: { status: ['pending', 'processing', 'shipped'] } }),
+      User.count({ where: { role: 'customer' } }),
+      Seller.count(),
+      Feedback.count()
+    ]);
+
     res.render("admin/dashboard", {
       title: "Admin Dashboard - CultureFrame",
       user: req.session,
-      heritageCount,
-      productCount, 
+      activePage: "dashboard",
       orderCount,
-      eventCount
+      openOrderCount,
+      customerCount,
+      sellerCount,
+      feedbackCount
     });
   } catch (error) {
-    console.error('💥 Admin dashboard error:', error);
+    console.error('Admin dashboard error:', error);
     res.render("admin/dashboard", {
       title: "Admin Dashboard - CultureFrame",
       user: req.session,
-      heritageCount: 0,
-      productCount: 0,
+      activePage: "dashboard",
       orderCount: 0,
-      eventCount: 0
+      openOrderCount: 0,
+      customerCount: 0,
+      sellerCount: 0,
+      feedbackCount: 0
     });
   }
 };

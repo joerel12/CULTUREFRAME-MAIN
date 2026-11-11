@@ -23,34 +23,24 @@ if (!cookie) throw new Error("Administrator login did not create a session cooki
 
 const paths = [
   "/admin/dashboard",
-  "/admin/heritage",
-  "/admin/heritage/add",
-  "/admin/heritage/edit/1",
-  "/admin/products",
-  "/admin/products/add",
-  "/admin/products/edit/1",
   "/admin/orders",
   "/admin/orders/1",
   "/admin/orders/edit/1",
-  "/admin/events",
-  "/admin/events/add",
-  "/admin/events/edit/1",
-  "/admin/scenic",
-  "/admin/scenic/add",
-  "/admin/scenic/edit/1",
-  "/admin/crafts",
-  "/admin/crafts/add",
-  "/admin/crafts/edit/1",
   "/admin/feedbacks",
   "/admin/sellers",
   "/admin/sellers/add",
   "/admin/sellers/edit/1",
   "/admin/customers",
-  "/admin/customers/2",
+  "/admin/customers/2"
+];
+
+const retiredPaths = [
+  "/admin/heritage",
+  "/admin/events",
+  "/admin/scenic",
+  "/admin/crafts",
+  "/admin/products",
   "/admin/payments",
-  "/admin/payments/add",
-  "/admin/payments/1",
-  "/admin/analytics/sales",
   "/admin/analytics/business"
 ];
 
@@ -63,6 +53,14 @@ for (const path of paths) {
   const body = await response.text();
   const renderedError = body.includes("Internal Server Error") || body.includes("<h1>Server Error</h1>");
   results.push({ path, status: response.status, ok: response.status === 200 && !renderedError });
+}
+
+for (const path of retiredPaths) {
+  const response = await fetch(`${baseUrl}${path}`, {
+    headers: { cookie },
+    redirect: "manual"
+  });
+  results.push({ path, status: response.status, ok: [301, 302].includes(response.status) });
 }
 
 const failed = results.filter((result) => !result.ok);

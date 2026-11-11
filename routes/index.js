@@ -50,13 +50,9 @@ import {
 } from "../controllers/authController.js";
 
 // Import CultureFrame Controllers
-import { heritagecontroller } from "../controllers/heritagecontroller.js";
 import { productcontroller } from "../controllers/productcontroller.js";
 import { ordercontroller } from "../controllers/ordercontroller.js";
-import { eventcontroller } from "../controllers/eventcontroller.js";
 import { cartController } from "../controllers/cartController.js";
-import { sceniccontroller } from "../controllers/sceniccontroller.js";
-import { craftcontroller } from "../controllers/craftcontroller.js";
 
 // ⭐⭐⭐ IMPORT MODELS FOR DASHBOARD COUNTS ⭐⭐⭐
 import { Heritage } from "../models/Heritage.js";
@@ -65,6 +61,23 @@ import { Order } from "../models/Order.js";
 import { Event } from "../models/Event.js";
 
 const router = express.Router();
+
+const configuredSystemUrl = (name) => {
+  const value = process.env[name] || "";
+  return /^https?:\/\//i.test(value) ? value : null;
+};
+
+const redirectToSystem = (environmentName, fallback, systemName) => (req, res) => {
+  const destination = configuredSystemUrl(environmentName);
+  if (destination) return res.redirect(destination);
+  req.flash("error_msg", `${systemName} is not configured. Ask an administrator to check the integration settings.`);
+  return res.redirect(fallback);
+};
+
+const retiredWriteRoute = (owner) => (_req, res) => res.status(410).json({
+  success: false,
+  message: `This page has moved. Manage this record in ${owner}.`
+});
 
 // Seller workspace integrated from Kyla's CultureFrame seller module.
 router.use("/seller", sellerPortalRouter);
@@ -149,9 +162,10 @@ router.get("/terms", (req, res) => {
 // Main dashboard route - redirects based on role
 router.get("/dashboard", dashboardPage);
 
-// Heritage Routes (Public)
-router.get("/heritage", heritagecontroller.index);
-router.get("/heritage/:id", heritagecontroller.detail);
+// Visitor content is published by the Visitor Information system.
+// Compatibility redirects keep saved links working without duplicate pages.
+router.get("/heritage", (_req, res) => res.redirect(301, "/discover/heritage"));
+router.get("/heritage/:id", (_req, res) => res.redirect(301, "/discover/heritage"));
 
 // Shop Routes (Public)
 router.get("/shop", productcontroller.shop);
@@ -168,24 +182,18 @@ router.get("/checkout", ordercontroller.checkout);
 router.post("/checkout", ordercontroller.checkout);
 router.post("/order/create", ordercontroller.create);
 
-// Events Routes (Public)
-router.get("/events", eventcontroller.index);
-router.get("/events/:id", eventcontroller.detail);
-// Event registration
-router.get('/events/:id/register', eventcontroller.registerPage);
-router.post('/events/:id/register', eventcontroller.register);
-
-// Scenic & Crafts public routes
-router.get('/scenic', sceniccontroller.index);
-router.get('/scenic/:id', sceniccontroller.detail);
-
-router.get('/crafts', craftcontroller.index);
-router.get('/crafts/:id', craftcontroller.detail);
+router.get("/events", (_req, res) => res.redirect(301, "/discover/events"));
+router.get("/events/:id", (_req, res) => res.redirect(301, "/discover/events"));
+router.get("/events/:id/register", (_req, res) => res.redirect(301, "/discover/events"));
+router.post("/events/:id/register", retiredWriteRoute("Visitor Information"));
+router.get("/scenic", (_req, res) => res.redirect(301, "/discover/attractions"));
+router.get("/scenic/:id", (_req, res) => res.redirect(301, "/discover/attractions"));
+router.get("/crafts", (_req, res) => res.redirect(301, "/discover/traditions"));
+router.get("/crafts/:id", (_req, res) => res.redirect(301, "/discover/traditions"));
 
 // ==================== CUSTOMER DASHBOARD ROUTES ====================
 router.get("/customer/dashboard", requireAuth, customerDashboard);
-import { customerEvents } from "../controllers/customerEventsController.js";
-router.get("/customer/events", requireAuth, customerEvents);
+router.get("/customer/events", requireAuth, (_req, res) => res.redirect(301, "/discover/events"));
 // Customer profile edit
 router.get("/customer/profile/edit", requireAuth, renderCustomerProfileEdit);
 router.post("/customer/profile/edit", requireAuth, upload.single('profileImage'), handleCustomerProfileEdit);
@@ -399,21 +407,17 @@ router.get("/admin", requireAdmin, async (req, res) => {
   res.redirect("/admin/dashboard");
 });
 
-// Admin - Heritage Management
-router.get("/admin/heritage", requireAdmin, heritagecontroller.adminIndex);
-router.get("/admin/heritage/add", requireAdmin, heritagecontroller.addNew);
-router.post("/admin/heritage/add", requireAdmin, upload.single('image_file'), heritagecontroller.add);
-router.get("/admin/heritage/edit/:id", requireAdmin, heritagecontroller.edit);
-router.post("/admin/heritage/update/:id", requireAdmin, heritagecontroller.update);
-router.post("/admin/heritage/delete", requireAdmin, heritagecontroller.delete);
+// Duplicate management pages are retired. Records remain available to the
+// integration APIs, but edits happen only in the system that owns the module.
+const visitorAdminRedirect = redirectToSystem("VISITOR_INFORMATION_URL", "/admin/dashboard", "Visitor Information");
+router.get(["/admin/heritage", "/admin/heritage/add", "/admin/heritage/edit/:id"], requireAdmin, visitorAdminRedirect);
+router.post(["/admin/heritage/add", "/admin/heritage/update/:id", "/admin/heritage/delete"], requireAdmin, retiredWriteRoute("Visitor Information"));
 
-// Admin - Product Management
-router.get("/admin/products", requireAdmin, productcontroller.adminIndex);
-router.get("/admin/products/add", requireAdmin, productcontroller.addNew);
-router.post("/admin/products/add", requireAdmin, upload.single('image_file'), productcontroller.add);
-router.get("/admin/products/edit/:id", requireAdmin, productcontroller.edit);
-router.post("/admin/products/update/:id", requireAdmin, upload.single('image_file'), productcontroller.update);
-router.post("/admin/products/delete", requireAdmin, productcontroller.delete);
+router.get(["/admin/products", "/admin/products/add", "/admin/products/edit/:id"], requireAdmin, (req, res) => {
+  req.flash("success_msg", "Product catalog management belongs to seller accounts in the Seller Workspace.");
+  return res.redirect("/admin/dashboard");
+});
+router.post(["/admin/products/add", "/admin/products/update/:id", "/admin/products/delete"], requireAdmin, retiredWriteRoute("the Seller Workspace"));
 
 // Admin - Order Management
 router.get("/admin/orders", requireAdmin, ordercontroller.adminIndex);
@@ -421,29 +425,12 @@ router.get("/admin/orders/:id", requireAdmin, ordercontroller.adminDetail);
 router.get("/admin/orders/edit/:id", requireAdmin, ordercontroller.adminEdit);
 router.post("/admin/orders/update-status/:id", requireAdmin, ordercontroller.updateStatus);
 
-// Admin - Event Management
-router.get("/admin/events", requireAdmin, eventcontroller.adminIndex);
-router.get("/admin/events/add", requireAdmin, eventcontroller.addNew);
-router.post("/admin/events/add", requireAdmin, upload.single('image_file'), eventcontroller.add);
-router.get("/admin/events/edit/:id", requireAdmin, eventcontroller.edit);
-router.post("/admin/events/update/:id", requireAdmin, upload.single('image_file'), eventcontroller.update);
-router.post("/admin/events/delete", requireAdmin, eventcontroller.delete);
-
-// Admin - Scenic Management
-router.get('/admin/scenic', requireAdmin, sceniccontroller.adminIndex);
-router.get('/admin/scenic/add', requireAdmin, sceniccontroller.addNew);
-router.post('/admin/scenic/add', requireAdmin, upload.single('image_file'), sceniccontroller.add);
-router.get('/admin/scenic/edit/:id', requireAdmin, sceniccontroller.edit);
-router.post('/admin/scenic/update/:id', requireAdmin, upload.single('image_file'), sceniccontroller.update);
-router.post('/admin/scenic/delete', requireAdmin, sceniccontroller.delete);
-
-// Admin - Crafts Management
-router.get('/admin/crafts', requireAdmin, craftcontroller.adminIndex);
-router.get('/admin/crafts/add', requireAdmin, craftcontroller.addNew);
-router.post('/admin/crafts/add', requireAdmin, upload.single('image_file'), craftcontroller.add);
-router.get('/admin/crafts/edit/:id', requireAdmin, craftcontroller.edit);
-router.post('/admin/crafts/update/:id', requireAdmin, upload.single('image_file'), craftcontroller.update);
-router.post('/admin/crafts/delete', requireAdmin, craftcontroller.delete);
+router.get(["/admin/events", "/admin/events/add", "/admin/events/edit/:id"], requireAdmin, visitorAdminRedirect);
+router.post(["/admin/events/add", "/admin/events/update/:id", "/admin/events/delete"], requireAdmin, retiredWriteRoute("Visitor Information"));
+router.get(["/admin/scenic", "/admin/scenic/add", "/admin/scenic/edit/:id"], requireAdmin, visitorAdminRedirect);
+router.post(["/admin/scenic/add", "/admin/scenic/update/:id", "/admin/scenic/delete"], requireAdmin, retiredWriteRoute("Visitor Information"));
+router.get(["/admin/crafts", "/admin/crafts/add", "/admin/crafts/edit/:id"], requireAdmin, visitorAdminRedirect);
+router.post(["/admin/crafts/add", "/admin/crafts/update/:id", "/admin/crafts/delete"], requireAdmin, retiredWriteRoute("Visitor Information"));
 
 // Admin - Feedbacks
 router.get('/admin/feedbacks', requireAdmin, ordercontroller.adminFeedbackList);
@@ -464,17 +451,13 @@ router.get('/admin/customers/:id', requireAdmin, customerMgmtController.detail);
 router.post('/admin/customers/toggle-status/:id', requireAdmin, customerMgmtController.toggleStatus);
 
 // ==================== ADMIN – PAYMENTS ====================
-import { paymentController } from "../controllers/paymentController.js";
-router.get('/admin/payments', requireAdmin, paymentController.index);
-router.get('/admin/payments/add', requireAdmin, paymentController.addForm);
-router.post('/admin/payments/add', requireAdmin, paymentController.add);
-router.get('/admin/payments/:id', requireAdmin, paymentController.detail);
-router.post('/admin/payments/update-status/:id', requireAdmin, paymentController.updateStatus);
+const paymentAdminRedirect = redirectToSystem("PAYMENT_SYSTEM_URL", "/admin/dashboard", "CultureFrame Payments");
+router.get(["/admin/payments", "/admin/payments/add", "/admin/payments/:id"], requireAdmin, paymentAdminRedirect);
+router.post(["/admin/payments/add", "/admin/payments/update-status/:id"], requireAdmin, retiredWriteRoute("CultureFrame Payments"));
 
 // ==================== ADMIN – ANALYTICS ====================
-import { analyticsController } from "../controllers/analyticsController.js";
-router.get('/admin/analytics/sales', requireAdmin, analyticsController.sales);
-router.get('/admin/analytics/business', requireAdmin, analyticsController.business);
+const analyticsRedirect = redirectToSystem("CULTUREMETRICS_SYSTEM_URL", "/admin/dashboard", "CultureMetrics");
+router.get(["/admin/analytics/sales", "/admin/analytics/business"], requireAdmin, analyticsRedirect);
 
 // API: Get live dashboard stats
 router.get('/api/customer/dashboard-stats', requireAuth, async (req, res) => {

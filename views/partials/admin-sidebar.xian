@@ -1,109 +1,57 @@
-<aside class="w-64 bg-gradient-to-b from-emerald-900 via-emerald-800 to-emerald-900 text-white min-h-screen flex flex-col shadow-xl flex-shrink-0">
-  <!-- Logo -->
-  <div class="p-5 border-b border-white/10">
-    <a href="/admin" class="flex items-center gap-2.5">
-      <div class="w-9 h-9 bg-white rounded-lg flex items-center justify-center shadow-md">
-        <img src="/images/logo.png" alt="CultureFrame" class="w-8 h-8 object-contain rounded-md" />
-      </div>
-      <div>
-        <p class="font-bold text-white text-sm leading-none">CultureFrame</p>
-        <p class="text-emerald-400 text-xs mt-0.5">Admin Panel</p>
-      </div>
+<aside class="cf-admin-sidebar">
+  <div class="cf-admin-brand">
+    <a href="/admin/dashboard" class="cf-brand">
+      <span class="cf-brand-mark"><img src="/images/logo.png" alt="" /></span>
+      <span class="cf-brand-copy"><strong>CultureFrame</strong><span>Control center</span></span>
     </a>
   </div>
 
-  <!-- Nav -->
-  <nav class="flex-1 p-4 space-y-1 overflow-y-auto">
-
-    <a href="/admin/dashboard" class="sidebar-link {{#if (eq activePage 'dashboard')}}active{{/if}}">
-      <i class="fas fa-th-large w-4 text-center"></i> Dashboard
+  <nav class="cf-admin-nav" aria-label="Administrator navigation">
+    <p class="cf-admin-label">Overview</p>
+    <a href="/admin/dashboard" class="cf-admin-link {{#if (eq activePage 'dashboard')}}active{{/if}}">
+      <i class="fas fa-table-cells-large"></i> Control center
     </a>
 
-    <!-- Content -->
-    <div class="pt-3 pb-1">
-      <p class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest px-3">Content</p>
-    </div>
-    <a href="/admin/heritage" class="sidebar-link {{#if (eq activePage 'heritage')}}active{{/if}}">
-      <i class="fas fa-landmark w-4 text-center"></i> Heritage
+    <p class="cf-admin-label">Operations</p>
+    <a href="/admin/orders" class="cf-admin-link {{#if (eq activePage 'orders')}}active{{/if}}">
+      <i class="fas fa-box"></i> Orders
     </a>
-    <a href="/admin/events" class="sidebar-link {{#if (eq activePage 'events')}}active{{/if}}">
-      <i class="fas fa-calendar-alt w-4 text-center"></i> Events
-    </a>
-    <a href="/admin/scenic" class="sidebar-link {{#if (eq activePage 'scenic')}}active{{/if}}">
-      <i class="fas fa-mountain w-4 text-center"></i> Scenic
-    </a>
-    <a href="/admin/crafts" class="sidebar-link {{#if (eq activePage 'crafts')}}active{{/if}}">
-      <i class="fas fa-paint-brush w-4 text-center"></i> Crafts
+    <a href="/admin/feedbacks" class="cf-admin-link {{#if (eq activePage 'feedbacks')}}active{{/if}}">
+      <i class="fas fa-star"></i> Feedback
     </a>
 
-    <!-- Shop -->
-    <div class="pt-3 pb-1">
-      <p class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest px-3">Shop</p>
-    </div>
-    <a href="/admin/products" class="sidebar-link {{#if (eq activePage 'products')}}active{{/if}}">
-      <i class="fas fa-box w-4 text-center"></i> Products
+    <p class="cf-admin-label">People</p>
+    <a href="/admin/sellers" class="cf-admin-link {{#if (eq activePage 'sellers')}}active{{/if}}">
+      <i class="fas fa-store"></i> Seller accounts
     </a>
-    <a href="/admin/orders" class="sidebar-link {{#if (eq activePage 'orders')}}active{{/if}}">
-      <i class="fas fa-shopping-bag w-4 text-center"></i> Orders
-    </a>
-    <a href="/admin/feedbacks" class="sidebar-link {{#if (eq activePage 'feedbacks')}}active{{/if}}">
-      <i class="fas fa-star w-4 text-center"></i> Feedbacks
+    <a href="/admin/customers" class="cf-admin-link {{#if (eq activePage 'customers')}}active{{/if}}">
+      <i class="fas fa-users"></i> Customers
     </a>
 
-    <!-- Business -->
-    <div class="pt-3 pb-1">
-      <p class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest px-3">Business</p>
-    </div>
-    <a href="/admin/sellers" class="sidebar-link {{#if (eq activePage 'sellers')}}active{{/if}}">
-      <i class="fas fa-store w-4 text-center"></i> Sellers
-    </a>
-    <a href="/admin/customers" class="sidebar-link {{#if (eq activePage 'customers')}}active{{/if}}">
-      <i class="fas fa-users w-4 text-center"></i> Customers
-    </a>
-    <a href="/admin/payments" class="sidebar-link {{#if (eq activePage 'payments')}}active{{/if}}">
-      <i class="fas fa-credit-card w-4 text-center"></i> Payments
-    </a>
+    <p class="cf-admin-label">Connected systems</p>
+    {{#if visitorInformationUrl}}
+      <a href="{{visitorInformationUrl}}" target="_blank" rel="noopener noreferrer" class="cf-admin-link external">
+        <i class="fas fa-compass"></i> Visitor Information
+      </a>
+    {{else}}
+      <a href="/discover" class="cf-admin-link"><i class="fas fa-compass"></i> Visitor Information</a>
+    {{/if}}
     {{#if paymentSystemUrl}}
-    <a href="{{paymentSystemUrl}}" target="_blank" rel="noopener noreferrer" class="sidebar-link">
-      <i class="fas fa-arrow-up-right-from-square w-4 text-center"></i> Payment Service
-    </a>
+      <a href="{{paymentSystemUrl}}" target="_blank" rel="noopener noreferrer" class="cf-admin-link external">
+        <i class="fas fa-credit-card"></i> Payments
+      </a>
+    {{/if}}
+    {{#if cultureMetricsSystemUrl}}
+      <a href="{{cultureMetricsSystemUrl}}" target="_blank" rel="noopener noreferrer" class="cf-admin-link external">
+        <i class="fas fa-chart-line"></i> CultureMetrics
+      </a>
     {{/if}}
 
-    <!-- Analytics -->
-    <div class="pt-3 pb-1">
-      <p class="text-[10px] font-bold text-emerald-400 uppercase tracking-widest px-3">Analytics</p>
-    </div>
-    <a href="/admin/analytics/sales" class="sidebar-link {{#if (eq activePage 'analytics')}}active{{/if}}">
-      <i class="fas fa-chart-bar w-4 text-center"></i> Sales Report
-    </a>
-    <a href="/admin/analytics/business" class="sidebar-link {{#if (eq activePage 'analytics')}}active{{/if}}">
-      <i class="fas fa-chart-line w-4 text-center"></i> Business Analytics
-    </a>
-    {{#if cultureMetricsSystemUrl}}
-    <a href="{{cultureMetricsSystemUrl}}" target="_blank" rel="noopener noreferrer" class="sidebar-link">
-      <i class="fas fa-arrow-up-right-from-square w-4 text-center"></i> CultureMetrics
-    </a>
-    {{/if}}
+    <p class="cf-admin-label">Portal</p>
+    <a href="/" class="cf-admin-link"><i class="fas fa-arrow-up-right-from-square"></i> View main site</a>
   </nav>
 
-  <!-- Logout -->
-  <div class="p-4 border-t border-white/10">
-    <a href="/logout" class="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-white/80 hover:text-white hover:bg-red-500/20 transition-all text-sm font-medium">
-      <i class="fas fa-sign-out-alt text-red-400 w-4 text-center"></i> Logout
-    </a>
+  <div class="cf-admin-footer">
+    <a href="/logout" class="cf-admin-link"><i class="fas fa-arrow-right-from-bracket"></i> Sign out</a>
   </div>
 </aside>
-
-<style>
-  .sidebar-link {
-    display: flex; align-items: center; gap: 10px;
-    padding: 8px 12px;
-    border-radius: 10px;
-    color: rgba(255,255,255,.75);
-    font-size: .825rem; font-weight: 500;
-    text-decoration: none;
-    transition: all .15s;
-  }
-  .sidebar-link:hover { color: #fff; background: rgba(255,255,255,.12); }
-  .sidebar-link.active { color: #fff; background: rgba(255,255,255,.18); border-left: 3px solid #6ee7b7; padding-left: 9px; }
-</style>

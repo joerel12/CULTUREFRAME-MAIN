@@ -13,10 +13,10 @@
   <!-- Font Awesome 6 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
 
-  <!-- Google Fonts: Inter -->
+  <!-- Product typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@500;600;700;800&display=swap" rel="stylesheet" />
 
   <style>
     /* ── Base ───────────────────────────────────────────────── */
@@ -168,4 +168,5 @@
     /* ── Focus ring ─────────────────────────────────────────── */
     :focus-visible { outline: 2px solid var(--cf-green); outline-offset: 2px; }
   </style>
+  <link rel="stylesheet" href="/cultureframe.css" />
 </head>

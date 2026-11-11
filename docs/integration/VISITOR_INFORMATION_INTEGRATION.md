@@ -22,12 +22,12 @@ Visitor Information owns visitor-facing cultural documentation:
 - attractions and festivals; and
 - local-product stories that provide cultural context.
 
-Jenny's application continues to own commerce, carts, purchasable products,
-orders, sellers, payments, customer accounts, and event registrations. A local
-product in Visitor Information is informational and never supplies a checkout
-price or stock count. Existing `/heritage`, `/events`, `/scenic`, and `/crafts`
-pages remain available while the team reviews legacy local content; the new
-`/discover` area is the authoritative federated entry point.
+The main application continues to own commerce, carts, purchasable products,
+orders, sellers and customer accounts. A local product in Visitor Information
+is informational and never supplies a checkout price or stock count. The old
+`/heritage`, `/events`, `/scenic`, and `/crafts` page routes now issue permanent
+redirects to the equivalent `/discover` category. Their duplicate templates and
+administrator content-management pages were removed.
 
 ## CultureFrame routes
 

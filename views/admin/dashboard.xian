@@ -1,138 +1,105 @@
 {{>head}}
-<body class="bg-gray-50 flex">
-  {{> admin-sidebar}}
+<body class="cf-admin-body">
+  {{>admin-sidebar}}
 
-  <main class="flex-1 overflow-auto">
-    <!-- Top bar -->
-    <div class="bg-white border-b border-gray-100 px-8 py-4 flex items-center justify-between sticky top-0 z-10">
+  <main class="cf-admin-main">
+    <header class="cf-admin-topbar">
       <div>
-        <h1 class="text-xl font-extrabold text-gray-800">Dashboard Overview</h1>
-        <p class="text-xs text-gray-400 mt-0.5">Welcome back, Admin</p>
+        <h1>CultureFrame Control Center</h1>
+        <p>Shared operations and connected-system access</p>
       </div>
-      <div class="flex items-center gap-2">
-        <span class="text-xs text-gray-400"><i class="fas fa-circle text-emerald-500 text-[8px]"></i> System Online</span>
-      </div>
-    </div>
+      <span class="cf-status-pill">Main system online</span>
+    </header>
 
-    <div class="p-8">
-      <!-- Stats -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <a href="/admin/heritage" class="cf-card p-5 hover:shadow-md transition-all group cf-fade-up">
-          <div class="flex items-start justify-between">
-            <div>
-              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Heritage Sites</p>
-              <p class="text-3xl font-extrabold text-emerald-600">{{heritageCount}}</p>
-              <p class="text-xs text-gray-400 mt-1">Cultural sites</p>
-            </div>
-            <div class="w-11 h-11 bg-emerald-100 rounded-xl flex items-center justify-center group-hover:bg-emerald-200 transition-colors">
-              <i class="fas fa-landmark text-emerald-600"></i>
-            </div>
-          </div>
-        </a>
-        <a href="/admin/products" class="cf-card p-5 hover:shadow-md transition-all group cf-fade-up cf-delay-1">
-          <div class="flex items-start justify-between">
-            <div>
-              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Products</p>
-              <p class="text-3xl font-extrabold text-blue-600">{{productCount}}</p>
-              <p class="text-xs text-gray-400 mt-1">Items in shop</p>
-            </div>
-            <div class="w-11 h-11 bg-blue-100 rounded-xl flex items-center justify-center group-hover:bg-blue-200 transition-colors">
-              <i class="fas fa-box text-blue-600"></i>
-            </div>
-          </div>
-        </a>
-        <a href="/admin/orders" class="cf-card p-5 hover:shadow-md transition-all group cf-fade-up cf-delay-2">
-          <div class="flex items-start justify-between">
-            <div>
-              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Orders</p>
-              <p class="text-3xl font-extrabold text-amber-600">{{orderCount}}</p>
-              <p class="text-xs text-gray-400 mt-1">Total orders</p>
-            </div>
-            <div class="w-11 h-11 bg-amber-100 rounded-xl flex items-center justify-center group-hover:bg-amber-200 transition-colors">
-              <i class="fas fa-shopping-bag text-amber-600"></i>
-            </div>
-          </div>
-        </a>
-        <a href="/admin/events" class="cf-card p-5 hover:shadow-md transition-all group cf-fade-up cf-delay-3">
-          <div class="flex items-start justify-between">
-            <div>
-              <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1">Events</p>
-              <p class="text-3xl font-extrabold text-purple-600">{{eventCount}}</p>
-              <p class="text-xs text-gray-400 mt-1">Active events</p>
-            </div>
-            <div class="w-11 h-11 bg-purple-100 rounded-xl flex items-center justify-center group-hover:bg-purple-200 transition-colors">
-              <i class="fas fa-calendar-alt text-purple-600"></i>
-            </div>
-          </div>
-        </a>
-      </div>
+    <div class="cf-admin-content">
+      {{>messages}}
 
-      <!-- Quick actions -->
-      <div class="cf-card p-6 mb-6 cf-fade-up">
-        <h2 class="font-bold text-gray-800 mb-4 flex items-center gap-2 text-sm">
-          <i class="fas fa-bolt text-amber-500"></i> Quick Actions
-        </h2>
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
-          <a href="/admin/heritage/add" class="flex items-center gap-2.5 p-3 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 rounded-xl transition-colors group">
-            <div class="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center flex-shrink-0">
-              <i class="fas fa-plus text-white text-xs"></i>
-            </div>
-            <span class="text-sm font-semibold text-emerald-700">Add Heritage</span>
-          </a>
-          <a href="/admin/products/add" class="flex items-center gap-2.5 p-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-xl transition-colors group">
-            <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center flex-shrink-0">
-              <i class="fas fa-plus text-white text-xs"></i>
-            </div>
-            <span class="text-sm font-semibold text-blue-700">Add Product</span>
-          </a>
-          <a href="/admin/events/add" class="flex items-center gap-2.5 p-3 bg-purple-50 hover:bg-purple-100 border border-purple-200 rounded-xl transition-colors group">
-            <div class="w-8 h-8 bg-purple-500 rounded-lg flex items-center justify-center flex-shrink-0">
-              <i class="fas fa-plus text-white text-xs"></i>
-            </div>
-            <span class="text-sm font-semibold text-purple-700">Add Event</span>
-          </a>
-          <a href="/admin/orders" class="flex items-center gap-2.5 p-3 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-xl transition-colors group">
-            <div class="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center flex-shrink-0">
-              <i class="fas fa-eye text-white text-xs"></i>
-            </div>
-            <span class="text-sm font-semibold text-amber-700">View Orders</span>
-          </a>
+      <section class="cf-admin-hero">
+        <div>
+          <span class="cf-eyebrow" style="color:#cbed9b">Administrator workspace</span>
+          <h2>One control center.<br/>Clear system ownership.</h2>
+          <p>
+            Monitor core operations here, then open the specialized system responsible for
+            visitor content, seller products, payments or analytics.
+          </p>
         </div>
-      </div>
+        <div class="cf-admin-hero-mark" aria-hidden="true"><i class="fas fa-diagram-project"></i></div>
+      </section>
 
-      <!-- Management grid -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <a href="/admin/sellers" class="cf-card p-5 hover:shadow-md transition-all group cf-fade-up">
-          <div class="flex items-center gap-3 mb-2">
-            <div class="w-9 h-9 bg-teal-100 rounded-xl flex items-center justify-center">
-              <i class="fas fa-store text-teal-600 text-sm"></i>
-            </div>
-            <h3 class="font-bold text-gray-700 text-sm">Sellers</h3>
-            <i class="fas fa-arrow-right text-gray-300 text-xs ml-auto group-hover:text-emerald-500 transition-colors"></i>
-          </div>
-          <p class="text-xs text-gray-400">Manage seller accounts and commissions</p>
+      <section class="cf-stat-grid" aria-label="Operational statistics">
+        <a href="/admin/orders" class="cf-stat-card">
+          <div class="cf-stat-top"><span>All orders</span><span class="cf-stat-icon"><i class="fas fa-box"></i></span></div>
+          <strong>{{orderCount}}</strong><span>Transactions in the main system</span>
         </a>
-        <a href="/admin/customers" class="cf-card p-5 hover:shadow-md transition-all group cf-fade-up cf-delay-1">
-          <div class="flex items-center gap-3 mb-2">
-            <div class="w-9 h-9 bg-blue-100 rounded-xl flex items-center justify-center">
-              <i class="fas fa-users text-blue-600 text-sm"></i>
-            </div>
-            <h3 class="font-bold text-gray-700 text-sm">Customers</h3>
-            <i class="fas fa-arrow-right text-gray-300 text-xs ml-auto group-hover:text-emerald-500 transition-colors"></i>
-          </div>
-          <p class="text-xs text-gray-400">View customer profiles and order history</p>
+        <a href="/admin/orders" class="cf-stat-card">
+          <div class="cf-stat-top"><span>Open orders</span><span class="cf-stat-icon"><i class="fas fa-clock"></i></span></div>
+          <strong>{{openOrderCount}}</strong><span>Pending, processing or shipping</span>
         </a>
-        <a href="/admin/analytics/business" class="cf-card p-5 hover:shadow-md transition-all group cf-fade-up cf-delay-2">
-          <div class="flex items-center gap-3 mb-2">
-            <div class="w-9 h-9 bg-purple-100 rounded-xl flex items-center justify-center">
-              <i class="fas fa-chart-line text-purple-600 text-sm"></i>
-            </div>
-            <h3 class="font-bold text-gray-700 text-sm">Analytics</h3>
-            <i class="fas fa-arrow-right text-gray-300 text-xs ml-auto group-hover:text-emerald-500 transition-colors"></i>
-          </div>
-          <p class="text-xs text-gray-400">Revenue trends and business insights</p>
+        <a href="/admin/customers" class="cf-stat-card">
+          <div class="cf-stat-top"><span>Customers</span><span class="cf-stat-icon"><i class="fas fa-users"></i></span></div>
+          <strong>{{customerCount}}</strong><span>Registered customer accounts</span>
         </a>
-      </div>
+        <a href="/admin/sellers" class="cf-stat-card">
+          <div class="cf-stat-top"><span>Sellers</span><span class="cf-stat-icon"><i class="fas fa-store"></i></span></div>
+          <strong>{{sellerCount}}</strong><span>Marketplace seller profiles</span>
+        </a>
+      </section>
+
+      <section class="cf-admin-grid">
+        <div class="cf-panel">
+          <div class="cf-panel-head">
+            <div><h3>Connected systems</h3><p>Open the system that owns each module</p></div>
+            <span class="cf-status-pill">Configured</span>
+          </div>
+          <div class="cf-service-list">
+            {{#if visitorInformationUrl}}
+              <a href="{{visitorInformationUrl}}" target="_blank" rel="noopener noreferrer" class="cf-service-card">
+            {{else}}
+              <a href="/discover" class="cf-service-card">
+            {{/if}}
+                <span class="cf-system-icon"><i class="fas fa-compass"></i></span>
+                <span><strong>Visitor Information</strong><small>Heritage, traditions, events, attractions and published content</small></span>
+                <i class="fas fa-arrow-up-right-from-square"></i>
+              </a>
+
+            <a href="/admin/sellers" class="cf-service-card">
+              <span class="cf-system-icon gold"><i class="fas fa-basket-shopping"></i></span>
+              <span><strong>Seller Workspace</strong><small>Seller access and product catalog ownership</small></span>
+              <i class="fas fa-arrow-right"></i>
+            </a>
+
+            {{#if paymentSystemUrl}}
+              <a href="{{paymentSystemUrl}}" target="_blank" rel="noopener noreferrer" class="cf-service-card">
+                <span class="cf-system-icon coral"><i class="fas fa-credit-card"></i></span>
+                <span><strong>CultureFrame Payments</strong><small>Payments, verification, refunds, receipts and payouts</small></span>
+                <i class="fas fa-arrow-up-right-from-square"></i>
+              </a>
+            {{/if}}
+
+            {{#if cultureMetricsSystemUrl}}
+              <a href="{{cultureMetricsSystemUrl}}" target="_blank" rel="noopener noreferrer" class="cf-service-card">
+                <span class="cf-system-icon blue"><i class="fas fa-chart-line"></i></span>
+                <span><strong>CultureMetrics</strong><small>Revenue, customer, event and destination analytics</small></span>
+                <i class="fas fa-arrow-up-right-from-square"></i>
+              </a>
+            {{/if}}
+          </div>
+        </div>
+
+        <div class="cf-panel">
+          <div class="cf-panel-head">
+            <div><h3>Core actions</h3><p>Tasks retained by the main system</p></div>
+          </div>
+          <div class="cf-action-list">
+            <a href="/admin/orders" class="cf-action-card"><i class="fas fa-box"></i><strong>Manage orders</strong></a>
+            <a href="/admin/customers" class="cf-action-card"><i class="fas fa-users"></i><strong>Review customers</strong></a>
+            <a href="/admin/sellers" class="cf-action-card"><i class="fas fa-store"></i><strong>Manage sellers</strong></a>
+            <a href="/admin/feedbacks" class="cf-action-card"><i class="fas fa-star"></i><strong>Read feedback ({{feedbackCount}})</strong></a>
+            <a href="/shop" class="cf-action-card"><i class="fas fa-basket-shopping"></i><strong>View marketplace</strong></a>
+            <a href="/discover" class="cf-action-card"><i class="fas fa-compass"></i><strong>View Discover</strong></a>
+          </div>
+        </div>
+      </section>
     </div>
   </main>
 </body>
