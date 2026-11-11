@@ -65,9 +65,17 @@ const heritagecontroller = {
         limit: 3
       });
 
+      // Get products linked to this heritage site
+      const { Product } = await import('../models/Product.js');
+      const relatedProducts = await Product.findAll({
+        where: { heritage_id: id, stocks: { [sequelize.Sequelize.Op.gt]: 0 } },
+        limit: 6
+      });
+
       res.render("heritage/detail", { 
         heritage,
         relatedHeritage,
+        relatedProducts,
         title: `${heritage.title} - CultureFrame`
       });
     } catch (error) {

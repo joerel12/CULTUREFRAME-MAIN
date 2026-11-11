@@ -120,6 +120,16 @@
               </div>
               <i class="fas fa-chevron-right text-gray-300 text-xs group-hover:text-emerald-500 transition-colors"></i>
             </a>
+            <a href="/community" class="flex items-center gap-3 p-3 rounded-xl hover:bg-emerald-50 transition-colors group">
+              <div class="w-9 h-9 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-users text-blue-600 text-sm"></i>
+              </div>
+              <div class="flex-1 min-w-0">
+                <p class="font-semibold text-gray-800 text-sm">Community</p>
+                <p class="text-xs text-gray-400">Follow & discover moments</p>
+              </div>
+              <i class="fas fa-chevron-right text-gray-300 text-xs group-hover:text-emerald-500 transition-colors"></i>
+            </a>
             <a href="/heritage" class="flex items-center gap-3 p-3 rounded-xl hover:bg-emerald-50 transition-colors group">
               <div class="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <i class="fas fa-landmark text-emerald-600 text-sm"></i>

@@ -16,8 +16,21 @@
           </div>
 
           <div>
-            <label class="block text-sm font-medium text-gray-700">Location</label>
-            <input name="location" required class="mt-1 block w-full border border-gray-300 rounded px-4 py-2" />
+            <label class="block text-sm font-medium text-gray-700 mb-1">
+              Location
+              <span class="text-xs text-emerald-600 font-normal ml-1">(type to detect Mansalay barangay or sitio)</span>
+            </label>
+            <div class="relative">
+              <input name="location" id="locationInput" required autocomplete="off"
+                     class="mt-1 block w-full border border-gray-300 rounded px-4 py-2 pr-10"
+                     placeholder="e.g. Barangay Poblacion, Sitio Panaytayan..." />
+              <i class="fas fa-map-marker-alt absolute right-3 top-1/2 -translate-y-1/2 text-emerald-500 text-sm pointer-events-none"></i>
+              <!-- Autocomplete dropdown -->
+              <ul id="locationDropdown"
+                  class="absolute z-50 w-full bg-white border border-emerald-200 rounded-xl shadow-lg mt-1 hidden max-h-56 overflow-y-auto">
+              </ul>
+            </div>
+            <p class="text-xs text-gray-400 mt-1">Start typing a barangay, sitio, or landmark name in Mansalay.</p>
           </div>
 
           <div>
@@ -169,9 +182,79 @@
     })();
   </script>
 
-    <script>
-      // Image preview for scenic add (file or URL)
-      (function(){
+  <script src="/mansalay-locations.js"></script>
+  <script>
+    // ── Location autocomplete ─────────────────────────────
+    (function(){
+      const input    = document.getElementById('locationInput');
+      const dropdown = document.getElementById('locationDropdown');
+      if (!input || !dropdown) return;
+
+      const BADGE_COLORS = {
+        'Barangay': 'bg-emerald-100 text-emerald-700',
+        'Sitio':    'bg-blue-100 text-blue-700',
+        'Landmark': 'bg-amber-100 text-amber-700'
+      };
+
+      function renderDropdown(results) {
+        if (!results.length) { dropdown.classList.add('hidden'); return; }
+        dropdown.innerHTML = results.map(loc => `
+          <li class="flex items-center gap-2 px-4 py-2.5 cursor-pointer hover:bg-emerald-50 transition-colors border-b border-gray-50 last:border-0"
+              data-name="${loc.name}">
+            <span class="text-xs font-semibold px-2 py-0.5 rounded-full ${BADGE_COLORS[loc.type] || 'bg-gray-100 text-gray-600'} flex-shrink-0">
+              ${loc.type}
+            </span>
+            <span class="text-sm text-gray-800">${loc.name}</span>
+          </li>
+        `).join('');
+        dropdown.classList.remove('hidden');
+
+        dropdown.querySelectorAll('li').forEach(li => {
+          li.addEventListener('mousedown', e => {
+            e.preventDefault();
+            input.value = li.dataset.name;
+            dropdown.classList.add('hidden');
+            // Also pre-fill the map search
+            const searchBox = document.getElementById('loc-search');
+            if (searchBox) searchBox.value = li.dataset.name;
+          });
+        });
+      }
+
+      input.addEventListener('input', () => {
+        renderDropdown(searchMansalayLocations(input.value));
+      });
+      input.addEventListener('focus', () => {
+        if (input.value) renderDropdown(searchMansalayLocations(input.value));
+      });
+      document.addEventListener('click', e => {
+        if (!input.contains(e.target) && !dropdown.contains(e.target)) {
+          dropdown.classList.add('hidden');
+        }
+      });
+      input.addEventListener('keydown', e => {
+        const items = dropdown.querySelectorAll('li');
+        const active = dropdown.querySelector('li.bg-emerald-100');
+        if (e.key === 'ArrowDown') {
+          e.preventDefault();
+          const next = active ? active.nextElementSibling : items[0];
+          if (active) active.classList.remove('bg-emerald-100');
+          if (next) next.classList.add('bg-emerald-100');
+        } else if (e.key === 'ArrowUp') {
+          e.preventDefault();
+          const prev = active ? active.previousElementSibling : items[items.length - 1];
+          if (active) active.classList.remove('bg-emerald-100');
+          if (prev) prev.classList.add('bg-emerald-100');
+        } else if (e.key === 'Enter' && active) {
+          e.preventDefault();
+          input.value = active.dataset.name;
+          dropdown.classList.add('hidden');
+        } else if (e.key === 'Escape') {
+          dropdown.classList.add('hidden');
+        }
+      });
+    })();
+  </script>
         const fileInput = document.getElementById('image_file');
         const urlInput = document.getElementById('image_url');
         const preview = document.getElementById('image-preview');

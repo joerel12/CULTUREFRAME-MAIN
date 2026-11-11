@@ -22,6 +22,7 @@
           <a href="/scenic" class="nav-link"><i class="fas fa-mountain text-xs"></i> Scenic</a>
           <a href="/crafts" class="nav-link"><i class="fas fa-paint-brush text-xs"></i> Crafts</a>
           <a href="/shop" class="nav-link"><i class="fas fa-shopping-bag text-xs"></i> Shop</a>
+          <a href="/community" class="nav-link"><i class="fas fa-users text-xs"></i> Community</a>
         </div>
       </div>
 
@@ -83,6 +84,11 @@
         <button id="mobileMenuBtn" class="lg:hidden p-2 text-white hover:bg-white/15 rounded-lg transition-colors" aria-label="Menu">
           <i class="fas fa-bars"></i>
         </button>
+
+        <!-- Dark mode toggle -->
+        <button class="dm-toggle" id="dmToggle" aria-label="Toggle dark mode" title="Toggle dark mode">
+          <i class="fas fa-moon text-sm" id="dmIcon"></i>
+        </button>
       </div>
     </div>
   </div>
@@ -96,6 +102,7 @@
       <a href="/scenic" class="mobile-nav-link"><i class="fas fa-mountain w-4"></i> Scenic</a>
       <a href="/crafts" class="mobile-nav-link"><i class="fas fa-paint-brush w-4"></i> Crafts</a>
       <a href="/shop" class="mobile-nav-link"><i class="fas fa-shopping-bag w-4"></i> Shop</a>
+      <a href="/community" class="mobile-nav-link"><i class="fas fa-users w-4"></i> Community</a>
 
       <!-- Mobile search -->
       <form action="/shop" method="GET" class="pt-2">
@@ -157,6 +164,32 @@
         const open = !menu.classList.contains('hidden');
         menu.classList.toggle('hidden', open);
         btn.querySelector('i').className = open ? 'fas fa-bars' : 'fas fa-xmark';
+      });
+    }
+
+    // Dark mode toggle
+    const dmBtn  = document.getElementById('dmToggle');
+    const dmIcon = document.getElementById('dmIcon');
+    const html   = document.documentElement;
+
+    function applyDark(dark) {
+      if (dark) {
+        html.classList.add('dark');
+        if (dmIcon) dmIcon.className = 'fas fa-sun text-sm text-yellow-300';
+        localStorage.setItem('cf-dark', '1');
+      } else {
+        html.classList.remove('dark');
+        if (dmIcon) dmIcon.className = 'fas fa-moon text-sm';
+        localStorage.setItem('cf-dark', '0');
+      }
+    }
+
+    // Set initial icon based on saved preference
+    applyDark(localStorage.getItem('cf-dark') === '1');
+
+    if (dmBtn) {
+      dmBtn.addEventListener('click', () => {
+        applyDark(!html.classList.contains('dark'));
       });
     }
   });
