@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 700" role="img" aria-labelledby="title description">
+  <title id="title">CultureFrame image placeholder</title>
+  <desc id="description">An abstract forest-green landscape placeholder, not a photograph of Mansalay.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0" stop-color="#163d34"/>
+      <stop offset="1" stop-color="#8fa789"/>
+    </linearGradient>
+    <linearGradient id="hill" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0" stop-color="#69856b"/>
+      <stop offset="1" stop-color="#234b3b"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="700" fill="url(#sky)"/>
+  <circle cx="850" cy="170" r="95" fill="#d5a54a" opacity=".8"/>
+  <path d="M0 465 210 290l180 150 220-225 240 232 130-117 220 130v240H0Z" fill="#b9c5a1" opacity=".55"/>
+  <path d="m0 515 230-115 180 120 210-178 250 170 150-96 180 120v164H0Z" fill="url(#hill)"/>
+  <rect x="320" y="565" width="560" height="70" rx="35" fill="#102e27" opacity=".78"/>
+  <text x="600" y="594" fill="#f7f1e5" font-family="Arial, sans-serif" font-size="17" text-anchor="middle">PLACEHOLDER ART · NOT A VERIFIED LOCAL PHOTO</text>
+  <text x="600" y="619" fill="#d5a54a" font-family="Arial, sans-serif" font-size="12" text-anchor="middle">Replace only with credited, permitted imagery</text>
+</svg>
