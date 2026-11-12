@@ -1,12 +1,16 @@
-import { FormEvent, ReactNode, useEffect, useState } from "react";
+import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowDown, ArrowRight, BookOpen, CalendarDays, Camera, Check, ChevronDown, Compass, Feather, Globe2, Leaf, MapPin, Menu, Search, ShieldCheck, Sparkles, X } from "lucide-react";
-import { MapContainer, Marker, Popup, TileLayer } from "react-leaflet";
+import { ArrowDown, ArrowRight, BookOpen, Bookmark, BookmarkCheck, CalendarDays, Camera, Check, ChevronDown, Compass, Feather, Globe2, Leaf, MapPin, Menu, Search, ShieldCheck, ShoppingBag, Sparkles, UserRound, X } from "lucide-react";
+import { FullscreenControl, LngLatBounds, Map as MapLibreMap, Marker as MapLibreMarker, NavigationControl, Popup as MapLibrePopup, TerrainControl, setWorkerUrl } from "maplibre-gl";
+import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
+import "maplibre-gl/dist/maplibre-gl.css";
 import { api, apiAssetUrl, ApiError } from "./api";
 
-type User = { id: string; firstName: string; lastName: string; email: string; role: "ADMIN" };
+setWorkerUrl(maplibreWorkerUrl);
+
+type User = { id: string; firstName: string; lastName: string; email: string; role: "ADMIN" | "VISITOR" };
 type RecordItem = { id: string; kind: string; title: string; slug: string; summary: string; description: string; culturalSignificance?: string; historicalBackground?: string; payload?: Record<string, unknown>; publicationStatus?: string; featured?: boolean };
 type ListResult = { items: RecordItem[]; total?: number; pages?: number; page?: number };
 type LocationItem = { id: string; name: string; category: string; address: string; description: string; sourceUrl: string | null; latitude: number | null; longitude: number | null; verified: boolean; feedbackRadiusMeters: number };
@@ -19,6 +23,14 @@ type GeofenceResult = {
   radiusMeters?: number;
   expiresAt?: string;
   message: string;
+};
+const MAIN_SYSTEM_URL = import.meta.env.VITE_MAIN_SYSTEM_URL ?? "http://localhost:3000";
+const mainSystemUrl = (path: string) => new URL(path, MAIN_SYSTEM_URL).toString();
+const safeLocalPath = (value: string | null) => value && value.startsWith("/") && !value.startsWith("//") && !value.includes("\\") ? value : "/";
+const customerAccessUrl = (returnTo = "/") => {
+  const url = new URL("/visitor/access", MAIN_SYSTEM_URL);
+  url.searchParams.set("returnTo", safeLocalPath(returnTo));
+  return url.toString();
 };
 const menu = [
   ["Heritage", "/heritage"], ["Historical sites", "/historical-sites"], ["Traditions", "/traditions"],
@@ -33,6 +45,15 @@ const kindForPath: Record<string, string> = {
 const titleForPath: Record<string, string> = {
   heritage: "Cultural heritage", "historical-sites": "Historical sites", traditions: "Local traditions",
   events: "Cultural events", attractions: "Explore Mansalay", festivals: "Festivals", "local-products": "Local products"
+};
+const introForPath: Record<string, string> = {
+  heritage: "Meet the people, knowledge, language, and cultural institutions that shape Mansalay's living identity.",
+  "historical-sites": "Follow the places and turning points behind Mansalay's formation, civic history, and community memory.",
+  traditions: "Learn about weaving, ambahan, Surat Mangyan, indigenous games, and community practices carried across generations.",
+  events: "Plan around cultural programs, civic anniversaries, community gatherings, and respectful opportunities to participate.",
+  attractions: "Get introduced to Mansalay's beaches, eco-trails, cultural places, and community-led destinations before you visit.",
+  festivals: "Understand Pamugu-an, the official Mangyan Festival, and the different roles these celebrations hold in Mansalay.",
+  "local-products": "Discover textiles, basketry, beadwork, and educational keepsakes, then purchase through the unified CultureFrame marketplace."
 };
 const fmtKind = (kind: string) => kind.toLowerCase().replace(/_/g, " ");
 const adminSections = [
@@ -74,20 +95,123 @@ const heritagePhotos = [
     sourceUrl: "https://commons.wikimedia.org/wiki/File:Mansalay_road_and_public_market.jpg"
   }
 ];
+const buktotPhoto = heritagePhotos[0];
+type SourcedPhoto = { image: string; alt: string; credit: string; sourceUrl: string; license?: string; licenseUrl?: string };
+const destinationPhotos: Record<string, SourcedPhoto> = {
+  "buktot beach": {
+    image: "https://www.travelorientalmindoro.ph/uploads/places/184/gallery/20251211030638_a75fad4b.jpg",
+    alt: "Buktot Beach in Mansalay, Oriental Mindoro",
+    credit: "Travel Oriental Mindoro",
+    sourceUrl: "https://www.travelorientalmindoro.ph/place/buktot-beach"
+  },
+  "casabangan beach and marine protected area": {
+    image: "https://www.travelorientalmindoro.ph/uploads/places/222/gallery/20251211053518_09274ecb.jpg",
+    alt: "Casabangan Beach and its forested coastline in Mansalay",
+    credit: "Travel Oriental Mindoro",
+    sourceUrl: "https://www.travelorientalmindoro.ph/place/casabangan-beach-marine-protected-areas"
+  },
+  "mangyan burial cave": {
+    image: "https://www.travelorientalmindoro.ph/uploads/places/484/gallery/20251212033035_9b8a6587.jpg",
+    alt: "The sacred coastal islet at Palaypay Cove in Mansalay",
+    credit: "Travel Oriental Mindoro",
+    sourceUrl: "https://www.travelorientalmindoro.ph/place/mangyan-burial-cave"
+  },
+  "mansalay eco park": {
+    image: "https://www.travelorientalmindoro.ph/uploads/places/491/gallery/20251212034452_dd8222a1.jpg",
+    alt: "A hillside hut surrounded by greenery at Mansalay Eco Park",
+    credit: "Travel Oriental Mindoro",
+    sourceUrl: "https://www.travelorientalmindoro.ph/place/mansalay-eco-park"
+  },
+  "mt. abenlay eco tour monkey trail": {
+    image: "https://www.travelorientalmindoro.ph/uploads/places/527/gallery/20251212060630_2235c978.jpg",
+    alt: "The forested landscape of Mt. Abenlay Eco Tour Monkey Trail",
+    credit: "Travel Oriental Mindoro",
+    sourceUrl: "https://www.travelorientalmindoro.ph/place/mt-abenlay-eco-tour-monkey-trail"
+  }
+};
+const fallbackImages: Record<string, string> = {
+  HERITAGE: "https://www.travelorientalmindoro.ph/uploads/places/571/gallery/20251213075615_1cbf3edf.png",
+  HISTORICAL_SITE: "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Mansalay_road_and_public_market.jpg/960px-Mansalay_road_and_public_market.jpg",
+  TRADITION: "https://www.travelorientalmindoro.ph/uploads/places/488/gallery/20251212033811_fa20c30b.jpg",
+  EVENT: "https://www.travelorientalmindoro.ph/uploads/events/10/gallery/20260209073544_cacbbcf1.png",
+  ATTRACTION: destinationPhotos["buktot beach"].image,
+  FESTIVAL: "https://www.travelorientalmindoro.ph/uploads/events/10/gallery/20260209073544_cacbbcf1.png",
+  LOCAL_PRODUCT: "/images/products/ramit-textile.jpg"
+};
+const recordImage = (item: RecordItem) => typeof item.payload?.imageUrl === "string" && item.payload.imageUrl
+  ? item.payload.imageUrl
+  : fallbackImages[item.kind] ?? "/images/placeholders/record-placeholder.svg";
+const categoryImages: Record<string, string> = {
+  "/heritage": fallbackImages.HERITAGE,
+  "/historical-sites": fallbackImages.HISTORICAL_SITE,
+  "/traditions": fallbackImages.TRADITION,
+  "/events": fallbackImages.EVENT,
+  "/attractions": fallbackImages.ATTRACTION,
+  "/festivals": fallbackImages.FESTIVAL,
+  "/local-products": fallbackImages.LOCAL_PRODUCT,
+  "/gallery": heritagePhotos[0].image
+};
+const culturePromotions = [
+  {
+    eyebrow: "Traditionally the third week of October",
+    title: "Pamugu-an Festival",
+    copy: "Learn about the Mangyan community reunion, Palaro ng Lahi, cultural presentations, product demonstrations, and Barakalan native-products market.",
+    image: "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Mansalay_road_and_public_market.jpg/960px-Mansalay_road_and_public_market.jpg",
+    alt: "A road in Mansalay with the public market in the background",
+    credit: "Hariboneagle927 · CC BY-SA 4.0",
+    sourceUrl: "https://commons.wikimedia.org/wiki/File:Mansalay_road_and_public_market.jpg",
+    to: "/festivals/pamugu-an-festival",
+    cta: "Read the introduction"
+  },
+  {
+    eyebrow: "Every November 25",
+    title: "Mangyan Festival",
+    copy: "Celebrate Mansalay's official festival through indigenous dances, traditional crafts, tribal rituals, and community heritage presentations.",
+    image: "https://www.travelorientalmindoro.ph/uploads/events/10/gallery/20260209073544_cacbbcf1.png",
+    alt: "Mangyan Festival float and cultural performers in Mansalay",
+    credit: "Travel Oriental Mindoro",
+    sourceUrl: "https://www.travelorientalmindoro.ph/festival/mangyan-festival",
+    to: "/festivals",
+    cta: "Explore festivals"
+  },
+  {
+    eyebrow: "Living tradition",
+    title: "Hanunuo Mangyan weaving",
+    copy: "Meet the living knowledge behind ramit textiles and support the skill, patience, and identity carried through generations of local makers.",
+    image: "https://www.travelorientalmindoro.ph/uploads/places/488/gallery/20251212033811_fa20c30b.jpg",
+    alt: "A Hanunuo Mangyan artisan weaving in Barangay Panaytayan, Mansalay",
+    credit: "Travel Oriental Mindoro",
+    sourceUrl: "https://www.travelorientalmindoro.ph/place/mangyan-villages",
+    to: "/traditions",
+    cta: "Discover traditions"
+  },
+  {
+    eyebrow: "Culture and learning",
+    title: "Heritage & Cultural Center",
+    copy: "Visit a Mansalay landmark dedicated to preserving and presenting the art, works, and cultural heritage of Mindoro's Mangyan communities.",
+    image: "https://www.travelorientalmindoro.ph/uploads/places/571/gallery/20251213075615_1cbf3edf.png",
+    alt: "Mangyan garments displayed at the Oriental Mindoro Heritage and Cultural Center in Mansalay",
+    credit: "Travel Oriental Mindoro",
+    sourceUrl: "https://www.travelorientalmindoro.ph/place/oriental-mindoro-heritage-and-cultural-center",
+    to: "/heritage",
+    cta: "Explore heritage"
+  }
+];
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const queryClient = useQueryClient();
-  useEffect(() => { api<{ user: User }>("/auth/me").then((r) => setUser(r.user)).catch(() => {}).finally(() => setReady(true)); }, []);
+  useEffect(() => { api<{ user: User | null }>("/auth/me").then((r) => setUser(r.user)).catch(() => setUser(null)).finally(() => setReady(true)); }, []);
   const logout = async () => {
     if (!window.confirm("Are you sure you want to sign out?")) return;
     try {
       await api("/auth/logout", { method: "POST" });
+      const wasCustomer = user?.role === "VISITOR";
       setUser(null);
       queryClient.clear();
-      window.location.assign("/");
+      window.location.assign(wasCustomer ? mainSystemUrl("/logout") : "/");
     } catch (issue) {
       window.alert(`Could not sign out: ${(issue as Error).message}`);
     }
@@ -100,17 +224,22 @@ function App() {
       <nav className={mobileOpen ? "nav-links open" : "nav-links"}>
         <Link to="/" onClick={() => setMobileOpen(false)}>Home</Link>
         <div className="nav-dropdown"><button>Discover <ChevronDown size={14}/></button><div className="dropdown-panel">{menu.map(([label, path]) => <Link key={path} to={path} onClick={() => setMobileOpen(false)}>{label}</Link>)}</div></div>
+        <a href={mainSystemUrl("/shop")} onClick={() => setMobileOpen(false)}>Marketplace</a>
         <Link to="/about">About</Link>
         <Link to="/search" aria-label="Search"><Search size={17}/></Link>
-        {user ? <><Link className="nav-pill" to="/admin/dashboard">Admin dashboard</Link><button className="nav-text" onClick={logout}>Sign out</button></> : <Link to="/login">Administrator login</Link>}
+        {user?.role === "ADMIN" ? <><Link className="nav-pill" to="/admin/dashboard">Admin dashboard</Link><button className="nav-text" onClick={logout}>Sign out</button></>
+          : user?.role === "VISITOR" ? <><Link className="nav-pill" to="/account"><UserRound size={15}/> My CultureFrame</Link><button className="nav-text" onClick={logout}>Sign out</button></>
+          : <a className="nav-pill" href={customerAccessUrl("/")}><UserRound size={15}/> Customer sign in</a>}
       </nav>
     </header>
     <AnimatePresence mode="wait"><Routes>
-      <Route path="/" element={<Home/>}/>
+      <Route path="/" element={<Home user={user}/>}/>
       <Route path="/about" element={<About/>}/>
-      <Route path="/login" element={<AuthPage onUser={setUser}/>}/>
-      <Route path="/forgot-password" element={<ResetPage mode="forgot"/>}/>
-      <Route path="/reset-password" element={<ResetPage mode="reset"/>}/>
+      <Route path="/login" element={<MainAdminAccess/>}/>
+      <Route path="/forgot-password" element={<MainAdminAccess/>}/>
+      <Route path="/reset-password" element={<MainAdminAccess/>}/>
+      <Route path="/account/connect" element={<ConnectAccount onUser={setUser}/>}/>
+      <Route path="/account" element={<AccountPage user={user}/>}/>
       <Route path="/search" element={<SearchPage/>}/>
       {menu.slice(0, 7).map(([_, path]) => {
         const segment = path.slice(1);
@@ -118,10 +247,10 @@ function App() {
       })}
       {menu.slice(0, 7).map(([_, path]) => <Route key={`${path}-detail`} path={`${path}/:slug`} element={<DetailPage segment={path.slice(1)}/>}/>)}
       <Route path="/gallery" element={<GalleryPage/>}/>
-      <Route path="/locations" element={<LocationsPage/>}/>
+      <Route path="/locations" element={<LocationsPage user={user}/>}/>
       <Route path="/privacy" element={<PolicyPage title="Privacy policy"/>}/>
       <Route path="/terms" element={<PolicyPage title="Terms and conditions"/>}/>
-      <Route path="/visitor/feedback" element={<FeedbackPage/>}/>
+      <Route path="/visitor/feedback" element={<FeedbackPage user={user}/>}/>
       <Route path="/admin/*" element={<Protected user={user}><AdminPage/></Protected>}/>
       <Route path="*" element={<NotFound/>}/>
     </Routes></AnimatePresence>
@@ -130,12 +259,94 @@ function App() {
 }
 
 function Protected({ user, children }: { user: User | null; children: ReactNode }) {
-  if (!user) return <Navigate to="/login" replace/>;
+  if (!user || user.role !== "ADMIN") return <Navigate to="/login" replace/>;
   return <>{children}</>;
 }
 
-function Home() {
+function useSavedLocations(user: User | null) {
+  const queryClient = useQueryClient();
+  const [savingId, setSavingId] = useState("");
+  const enabled = user?.role === "VISITOR";
+  const query = useQuery({
+    queryKey: ["saved-locations"],
+    enabled,
+    queryFn: () => api<{ items: LocationItem[]; savedLocationIds: string[] }>("/visitor/saved-locations")
+  });
+  const savedIds = new Set(query.data?.savedLocationIds ?? []);
+  const toggle = async (place: LocationItem) => {
+    if (!enabled) {
+      window.location.assign(customerAccessUrl("/locations"));
+      return;
+    }
+    setSavingId(place.id);
+    try {
+      await api(`/visitor/saved-locations/${encodeURIComponent(place.id)}`, { method: savedIds.has(place.id) ? "DELETE" : "POST" });
+      await queryClient.invalidateQueries({ queryKey: ["saved-locations"] });
+    } catch (issue) {
+      window.alert((issue as Error).message || "The destination could not be saved. Please try again.");
+    } finally {
+      setSavingId("");
+    }
+  };
+  return { ...query, savedIds, savingId, toggle };
+}
+
+function SavePlaceButton({ place, saved, busy, onToggle }: { place: LocationItem; saved: boolean; busy: boolean; onToggle: (place: LocationItem) => void }) {
+  return <button type="button" className={`save-place-button ${saved ? "is-saved" : ""}`} onClick={() => onToggle(place)} disabled={busy} aria-pressed={saved}>
+    {saved ? <BookmarkCheck size={15}/> : <Bookmark size={15}/>} {busy ? "Saving…" : saved ? "Saved for later" : "Want to visit"}
+  </button>;
+}
+
+function AccountPage({ user }: { user: User | null }) {
+  const saved = useSavedLocations(user);
+  if (!user || user.role !== "VISITOR") {
+    return <main className="page-shell account-workspace-shell"><section className="account-required glass"><span className="account-required-icon"><UserRound/></span><div className="section-kicker">One Customer and Visitor workspace</div><h1>Use one CultureFrame account for everything.</h1><p>Sign in once to explore Mansalay, shop local products, manage your cart and wishlist, track orders, share moments, and submit GPS-verified ratings.</p><div className="account-required-actions"><a className="button button-gold" href={customerAccessUrl("/account")}>Continue with CultureFrame <ArrowRight size={16}/></a><a className="button button-dark" href={mainSystemUrl("/register")}>Create one account</a></div></section></main>;
+  }
+
+  const customerLinks = [
+    { title: "Marketplace", copy: "Browse Mangyan textiles, basketry, beadwork, and cultural keepsakes.", href: mainSystemUrl("/shop"), icon: ShoppingBag, tone: "gold" },
+    { title: "Cart", copy: "Review quantities and continue to the integrated checkout.", href: mainSystemUrl("/cart"), icon: ShoppingBag, tone: "green" },
+    { title: "Wishlist", copy: "Save local products and return to them later.", href: mainSystemUrl("/wishlist"), icon: Leaf, tone: "rose" },
+    { title: "My orders", copy: "Track purchases, payment status, and fulfillment.", href: mainSystemUrl("/customer/orders"), icon: BookOpen, tone: "blue" },
+  ];
+  const visitorLinks = [
+    { title: "Explore places", copy: "Beaches, eco-trails, cultural centers, and community-led destinations.", to: "/locations", icon: Compass },
+    { title: "Events and festivals", copy: "Pamugu-an, Mangyan Festival, anniversaries, and cultural programs.", to: "/events", icon: CalendarDays },
+    { title: "Heritage and traditions", copy: "Ambahan, Surat Mangyan, weaving, history, and local knowledge.", to: "/heritage", icon: Feather },
+    { title: "Rate a visited place", copy: "Submit feedback only after GPS confirms that you are on site.", to: "/visitor/feedback", icon: ShieldCheck },
+  ];
+
+  return <main className="page-shell account-workspace-shell">
+    <section className="account-workspace-hero">
+      <div><span className="eyebrow"><span/> One account · one workspace</span><h1>Welcome, {user.firstName}.</h1><p>Buy from local makers and explore Mansalay as a visitor without changing accounts or signing in again.</p></div>
+      <div className="account-identity"><span className="account-avatar">{user.firstName.slice(0, 1).toUpperCase()}</span><div><strong>{user.firstName} {user.lastName}</strong><small>{user.email}</small></div><a href={mainSystemUrl("/customer/profile/edit")}>Edit profile</a></div>
+    </section>
+
+    <section className="account-workspace-section">
+      <div className="account-section-heading"><div><span>Shop and manage purchases</span><h2>Your marketplace</h2></div><a href={mainSystemUrl("/shop")}>Browse all products <ArrowRight size={15}/></a></div>
+      <div className="account-commerce-grid">{customerLinks.map(({ title, copy, href, icon: Icon, tone }) => <a className={`account-action-card tone-${tone}`} href={href} key={title}><span><Icon/></span><div><h3>{title}</h3><p>{copy}</p></div><ArrowRight/></a>)}</div>
+    </section>
+
+    <section className="account-workspace-section">
+      <div className="account-section-heading"><div><span>Plan, learn, and participate</span><h2>Your visitor guide</h2></div><Link to="/search">Search CultureFrame <ArrowRight size={15}/></Link></div>
+      <div className="account-visitor-grid">{visitorLinks.map(({ title, copy, to, icon: Icon }) => <Link className="account-visitor-card" to={to} key={title}><Icon/><div><h3>{title}</h3><p>{copy}</p></div><ArrowRight/></Link>)}</div>
+    </section>
+
+    <section className="account-workspace-section">
+      <div className="account-section-heading"><div><span>Your travel shortlist</span><h2>Places you want to visit</h2></div><Link to="/locations">Explore the 3D map <ArrowRight size={15}/></Link></div>
+      {saved.data?.items.length ? <div className="saved-place-grid">{saved.data.items.map((place) => {
+        const photo = destinationPhotos[place.name.toLowerCase()] ?? buktotPhoto;
+        return <article className="saved-place-card" key={place.id}><img src={photo.image} alt={photo.alt} onError={(event) => { event.currentTarget.src = "/images/placeholders/record-placeholder.svg"; }}/><div><span>{place.category}</span><h3>{place.name}</h3><p>{place.address}</p><div><Link to={`/locations?focus=${encodeURIComponent(place.id)}`}>View on map</Link><SavePlaceButton place={place} saved busy={saved.savingId === place.id} onToggle={saved.toggle}/></div></div></article>;
+      })}</div> : <div className="saved-place-empty"><Bookmark/><div><h3>No saved destinations yet</h3><p>Use “Want to visit” on a location card to build your Mansalay itinerary.</p></div><Link className="button button-dark" to="/locations">Find places</Link></div>}
+    </section>
+
+    <section className="account-community-band"><div><span>Share your experience</span><h2>Keep your Mansalay memories in the same account.</h2><p>Post a moment, review your shared photos, or continue exploring the cultural archive.</p></div><div><a className="button button-gold" href={mainSystemUrl("/customer/moment/new")}><Camera size={16}/> Post a moment</a><a className="button button-glass" href={mainSystemUrl("/customer/moments")}>My moments</a></div></section>
+  </main>;
+}
+
+function Home({ user }: { user: User | null }) {
   const { data, error } = useQuery({ queryKey: ["home"], queryFn: () => api<{ content: Record<string, string>; featured: RecordItem[]; upcoming: RecordItem[]; destinations: LocationItem[] }>("/home") });
+  const saved = useSavedLocations(user);
   return <main>
     <section className="hero">
       <div className="hero-shape shape-one"/><div className="hero-shape shape-two"/>
@@ -144,8 +355,9 @@ function Home() {
         <span className="eyebrow"><span/> A living archive of place and people</span>
         <h1>{data?.content?.heroTitle ?? "Discover the Living Heritage of Mansalay"}</h1>
         <p>{data?.content?.heroDescription ?? "Explore the traditions, stories, and places documented by the CultureFrame community."}</p>
-        <div className="button-row"><Link className="button button-gold" to="/heritage">Explore heritage <ArrowRight size={17}/></Link><Link className="button button-glass" to="/about">Discover Mansalay</Link></div>
+        <div className="button-row"><Link className="button button-gold" to="/heritage">Explore heritage <ArrowRight size={17}/></Link><a className="button button-glass" href={mainSystemUrl("/shop")}><ShoppingBag size={16}/> Shop local products</a></div>
       </motion.div>
+      <div className="hero-photo-credit">Buktot Beach photo: <a href={buktotPhoto.sourceUrl} target="_blank" rel="noreferrer">{buktotPhoto.credit}</a> <span>·</span> <a href={buktotPhoto.licenseUrl} target="_blank" rel="noreferrer">{buktotPhoto.license}</a> <span>·</span> cropped for layout</div>
       <div className="hero-bottom"><span>13°31′ N&nbsp; · &nbsp;121°26′ E</span><a href="#intro">Scroll to explore <ArrowDown size={14}/></a></div>
     </section>
     {error && <div className="home-api-error"><ErrorPanel message={(error as Error).message}/></div>}
@@ -153,6 +365,16 @@ function Home() {
       <div className="section-kicker">A place with stories</div><div className="intro-grid">
         <h2>Rooted in place.<br/><em>Shared with the world.</em></h2>
         <div><p>{data?.content?.about ?? "CultureFrame is a community-focused information portal for documenting cultural heritage in Mansalay, Oriental Mindoro. Explore records, stories, and local knowledge as they are carefully gathered and verified."}</p><Link className="text-link" to="/about">Learn about CultureFrame <ArrowRight size={16}/></Link></div>
+      </div>
+    </section>
+    <section className="section unified-platform-section">
+      <div className="unified-platform-panel">
+        <div className="unified-platform-copy"><div className="section-kicker">One CultureFrame customer account</div><h2>Explore, rate, and shop<br/><em>without another visitor login.</em></h2><p>Your main CultureFrame account now carries into the visitor experience. Use the same account for your profile, cart, orders, wishlist, and verified on-site feedback.</p><a className="button button-gold" href={customerAccessUrl("/visitor/feedback")}>Connect my account <ArrowRight size={16}/></a></div>
+        <div className="unified-platform-actions">
+          <Link to="/locations"><span><Compass/></span><div><strong>Plan a visit</strong><small>Explore verified Mansalay destinations</small></div><ArrowRight/></Link>
+          <a href={mainSystemUrl("/shop")}><span><ShoppingBag/></span><div><strong>Shop local products</strong><small>Use your main cart, wishlist, and orders</small></div><ArrowRight/></a>
+          <Link to="/account"><span><UserRound/></span><div><strong>Open my workspace</strong><small>Shopping, visits, orders, and moments together</small></div><ArrowRight/></Link>
+        </div>
       </div>
     </section>
     <section className="section categories-section"><div className="section-heading"><div><div className="section-kicker">Discover more</div><h2>Explore the many layers<br/><em>of Mansalay</em></h2></div><Link to="/search" className="text-link">Browse all records <ArrowRight size={16}/></Link></div>
@@ -167,7 +389,7 @@ function Home() {
         ["08","Photo gallery","A visual record of this place","/gallery",Camera]
       ].map(([number, title, copy, link, Icon]) => {
         const IconComponent = Icon as typeof BookOpen;
-        return <Link to={link as string} className="category-card glass" key={number as string}><span className="category-number">{number as string}</span><IconComponent className="category-icon"/><h3>{title as string}</h3><p>{copy as string}</p><span className="card-arrow"><ArrowRight size={16}/></span></Link>;
+        return <Link to={link as string} className="category-card category-card-photo glass" key={number as string}><span className="category-card-image" style={{ backgroundImage: `url(${categoryImages[link as string]})` }}/><span className="category-number">{number as string}</span><IconComponent className="category-icon"/><h3>{title as string}</h3><p>{copy as string}</p><span className="card-arrow"><ArrowRight size={16}/></span></Link>;
       })}</div>
     </section>
     <section className="section destinations-section">
@@ -177,23 +399,39 @@ function Home() {
       </div>
       <p className="destinations-intro">Plan a visit using destinations listed by the Provincial Tourism Office. GPS-ready places can be rated only after CultureFrame confirms that you are on site.</p>
       <div className="destination-grid">
-        {(data?.destinations ?? []).map((place, index) => <article className="destination-card" key={place.id}>
-          <div className={`destination-visual destination-tone-${index % 5}`}>
+        {(data?.destinations ?? []).map((place, index) => {
+          const photo = destinationPhotos[place.name.toLowerCase()] ?? buktotPhoto;
+          return <article className="destination-card" key={place.id}>
+          <div className={`destination-visual destination-tone-${index % 5} destination-visual-photo`}>
+            <img src={photo.image} alt={photo.alt} loading="eager" decoding="async" onError={(event) => { event.currentTarget.src = "/images/placeholders/record-placeholder.svg"; }}/>
             <span className="destination-category">{place.category}</span>
-            <Compass aria-hidden="true"/>
             <span className="destination-verified"><ShieldCheck size={13}/> GPS verified</span>
           </div>
           <div className="destination-copy">
             <h3>{place.name}</h3>
             <p className="destination-address"><MapPin size={14}/>{place.address}</p>
             <p>{place.description}</p>
-            <div className="destination-actions"><Link to={`/visitor/feedback?location=${encodeURIComponent(place.id)}`}>Rate on site <ArrowRight size={14}/></Link>{place.sourceUrl && <a href={place.sourceUrl} target="_blank" rel="noreferrer">Official listing</a>}</div>
+            <SavePlaceButton place={place} saved={saved.savedIds.has(place.id)} busy={saved.savingId === place.id} onToggle={saved.toggle}/>
+            <div className="destination-actions"><Link to={`/visitor/feedback?location=${encodeURIComponent(place.id)}`}>{user?.role === "VISITOR" ? "Rate on site" : "Sign in to rate"} <ArrowRight size={14}/></Link>{place.sourceUrl && <a href={place.sourceUrl} target="_blank" rel="noreferrer">Official listing</a>}</div>
+            {photo && <div className="destination-photo-credit">Image: <a href={photo.sourceUrl} target="_blank" rel="noreferrer">{photo.credit}</a>{photo.license && <> · <a href={photo.licenseUrl} target="_blank" rel="noreferrer">{photo.license}</a></>}</div>}
           </div>
-        </article>)}
+        </article>})}
       </div>
       {!data?.destinations?.length && <div className="empty-state glass"><MapPin/><h3>Destination guide coming soon</h3><p>Verified places will appear here after their coordinates and source information are reviewed.</p></div>}
     </section>
-    <section className="feature-section"><div className="feature-image"><span className="image-placeholder-label">Community-contributed image<br/>awaiting verified media</span><span className="photo-caption">Mansalay · Oriental Mindoro</span></div><div className="feature-copy"><div className="section-kicker">Explore responsibly</div><h2>Every story deserves<br/><em>its source.</em></h2><p>CultureFrame is a growing information portal. Records are shared with their sources and publication status; culturally sensitive materials are included only with appropriate permission.</p><Link className="button button-dark" to="/locations">Explore locations <ArrowRight size={16}/></Link></div></section>
+    <section className="section culture-promotion-section">
+      <div className="section-heading">
+        <div><div className="section-kicker">Celebrate living culture</div><h2>Come for the places.<br/><em>Remember the people.</em></h2></div>
+        <p className="culture-promotion-lead">Plan your visit around the stories, traditions, and celebrations that make Mansalay distinct—not only its scenery.</p>
+      </div>
+      <div className="culture-promotion-grid">
+        {culturePromotions.map((feature) => <article className="culture-promotion-card" key={feature.title}>
+          <div className="culture-promotion-image"><img src={feature.image} alt={feature.alt} loading="eager" decoding="async" onError={(event) => { event.currentTarget.src = "/images/placeholders/record-placeholder.svg"; }}/><span>{feature.eyebrow}</span></div>
+          <div className="culture-promotion-copy"><h3>{feature.title}</h3><p>{feature.copy}</p><div className="culture-promotion-actions"><Link to={feature.to}>{feature.cta} <ArrowRight size={14}/></Link><a href={feature.sourceUrl} target="_blank" rel="noreferrer">Image: {feature.credit}</a></div></div>
+        </article>)}
+      </div>
+    </section>
+    <section className="feature-section"><div className="feature-image"><img src={buktotPhoto.image} alt={buktotPhoto.alt} loading="lazy" decoding="async"/><span className="photo-caption">Buktot Beach · Photo: <a href={buktotPhoto.sourceUrl} target="_blank" rel="noreferrer">{buktotPhoto.credit}</a> · <a href={buktotPhoto.licenseUrl} target="_blank" rel="noreferrer">{buktotPhoto.license}</a></span></div><div className="feature-copy"><div className="section-kicker">Explore responsibly</div><h2>Every story deserves<br/><em>its source.</em></h2><p>CultureFrame is a growing information portal. Records are shared with their sources and publication status; culturally sensitive materials are included only with appropriate permission.</p><Link className="button button-dark" to="/locations">Explore locations <ArrowRight size={16}/></Link></div></section>
     <section className="section photo-showcase">
       <div className="section-heading">
         <div><div className="section-kicker">Mansalay, in photographs</div><h2>Places that tell<br/><em>a local story</em></h2></div>
@@ -233,7 +471,7 @@ function ListingPage({ segment }: { segment: string }) {
   const [page, setPage] = useState(1);
   const { data, isLoading, error } = useQuery({ queryKey: ["listing", segment, q, page], queryFn: () => api<ListResult>(`/${segment}?q=${encodeURIComponent(q)}&page=${page}`) });
   const updateQuery = (value: string) => { setQ(value); setPage(1); };
-  return <main className="page-shell"><div className="page-hero compact"><div className="section-kicker">CultureFrame archive</div><h1>{titleForPath[segment] ?? segment}</h1><p>Browse published records and explore the stories available in the archive.</p><label className="search-field"><Search size={18}/><input aria-label="Filter records" placeholder={`Search ${titleForPath[segment]?.toLowerCase() ?? "records"}…`} value={q} onChange={(e) => updateQuery(e.target.value)}/></label></div>{isLoading ? <Loading/> : error ? <ErrorPanel message={(error as Error).message}/> : <><RecordGrid items={data?.items ?? []} empty="No published records yet. Check back as verified records are added."/><Pagination page={data?.page ?? page} pages={data?.pages ?? 1} onPage={setPage}/></>}</main>;
+  return <main className="page-shell"><div className="page-hero compact"><div className="section-kicker">CultureFrame archive</div><h1>{titleForPath[segment] ?? segment}</h1><p>{introForPath[segment] ?? "Browse published records and explore the stories available in the archive."}</p><label className="search-field"><Search size={18}/><input aria-label="Filter records" placeholder={`Search ${titleForPath[segment]?.toLowerCase() ?? "records"}…`} value={q} onChange={(e) => updateQuery(e.target.value)}/></label></div>{isLoading ? <Loading/> : error ? <ErrorPanel message={(error as Error).message}/> : <><RecordGrid items={data?.items ?? []} empty="No published records yet. Check back as verified records are added."/><Pagination page={data?.page ?? page} pages={data?.pages ?? 1} onPage={setPage}/></>}</main>;
 }
 
 function DetailPage({ segment }: { segment: string }) {
@@ -245,12 +483,15 @@ function DetailPage({ segment }: { segment: string }) {
   if (!data?.item) return <NotFound message="This published record could not be found."/>;
   const item = data.item;
   const payload = item.payload ?? {};
-  return <main className="page-shell detail-shell"><div className="detail-meta"><Link to={`/${segment}`}>← Back to {titleForPath[segment]}</Link><span>{fmtKind(item.kind)}</span></div><article className="detail-article"><div className="section-kicker">{titleForPath[segment]}</div><h1>{item.title}</h1>{item.summary && <p className="detail-summary">{item.summary}</p>}<div className="detail-divider"/><p className="detail-body">{item.description || "Additional information for this record has not yet been added."}</p>{item.culturalSignificance && <section><h2>Cultural significance</h2><p>{item.culturalSignificance}</p></section>}{item.historicalBackground && <section><h2>Historical background</h2><p>{item.historicalBackground}</p></section>}{typeof payload.location === "string" && <section><h2>Location</h2><p>{payload.location}</p></section>}{typeof payload.sourceUrl === "string" && <section><h2>Source</h2><p><a className="text-link" href={payload.sourceUrl} target="_blank" rel="noreferrer">View the Provincial Tourism Office listing <ArrowRight size={14}/></a></p></section>}</article></main>;
+  return <main className="page-shell detail-shell"><div className="detail-meta"><Link to={`/${segment}`}>← Back to {titleForPath[segment]}</Link><span>{fmtKind(item.kind)}</span></div><article className="detail-article"><div className="section-kicker">{titleForPath[segment]}</div><h1>{item.title}</h1><div className="detail-cover"><img src={recordImage(item)} alt={item.title} loading="eager" decoding="async" onError={(event) => { event.currentTarget.src = "/images/placeholders/record-placeholder.svg"; }}/></div>{item.summary && <p className="detail-summary">{item.summary}</p>}<div className="detail-divider"/><p className="detail-body">{item.description || "Additional information for this record has not yet been added."}</p>{item.culturalSignificance && <section><h2>Cultural significance</h2><p>{item.culturalSignificance}</p></section>}{item.historicalBackground && <section><h2>Historical background</h2><p>{item.historicalBackground}</p></section>}{typeof payload.eventDate === "string" && <section><h2>When</h2><p>{payload.eventDate}</p></section>}{typeof payload.location === "string" && <section><h2>Location</h2><p>{payload.location}</p></section>}{typeof payload.marketplacePath === "string" && <section className="detail-marketplace"><h2>Available through CultureFrame</h2><p>Continue with the same customer account you use for visitor features, cart, wishlist, checkout, and orders.</p><a className="button button-gold" href={mainSystemUrl(payload.marketplacePath)}>Browse the marketplace <ShoppingBag size={15}/></a></section>}{typeof payload.sourceUrl === "string" && <section><h2>Reference</h2><p><a className="text-link" href={payload.sourceUrl} target="_blank" rel="noreferrer">Open the reference source <ArrowRight size={14}/></a></p></section>}</article></main>;
 }
 
 function RecordGrid({ items, empty }: { items: RecordItem[]; empty: string }) {
   if (!items.length) return <div className="empty-state glass"><BookOpen/><h3>The archive is taking shape</h3><p>{empty}</p><Link className="text-link" to="/about">About this project <ArrowRight size={15}/></Link></div>;
-  return <div className="record-grid">{items.map((item) => <Link to={`/${Object.keys(kindForPath).find((key) => kindForPath[key] === item.kind) ?? "heritage"}/${item.slug}`} className="record-card glass" key={item.id}><div className="record-art"><span>{fmtKind(item.kind)}</span><BookOpen/></div><div className="record-body"><div className="record-kind">{fmtKind(item.kind)}</div><h3>{item.title}</h3><p>{item.summary || item.description.slice(0, 140)}</p><span className="text-link">Read more <ArrowRight size={14}/></span></div></Link>)}</div>;
+  return <div className="record-grid">{items.map((item) => {
+    const imageUrl = recordImage(item);
+    return <Link to={`/${Object.keys(kindForPath).find((key) => kindForPath[key] === item.kind) ?? "heritage"}/${item.slug}`} className="record-card glass" key={item.id}><div className="record-art record-art-photo"><img src={imageUrl} alt={item.title} loading="lazy" decoding="async" onError={(event) => { event.currentTarget.src = "/images/placeholders/record-placeholder.svg"; }}/><span>{fmtKind(item.kind)}</span></div><div className="record-body"><div className="record-kind">{fmtKind(item.kind)}</div><h3>{item.title}</h3><p>{item.summary || item.description.slice(0, 140)}</p><span className="text-link">Read more <ArrowRight size={14}/></span></div></Link>;
+  })}</div>;
 }
 
 function SearchPage() {
@@ -286,59 +527,100 @@ function GalleryPage() {
   </main>;
 }
 
-function LocationsPage() {
-  const { data, isLoading, error } = useQuery({ queryKey: ["locations"], queryFn: () => api<{ items: LocationItem[] }>("/locations") });
-  const mapped = data?.items.filter((place) => place.verified && place.latitude != null && place.longitude != null) ?? [];
-  return <main className="page-shell"><div className="page-hero compact"><div className="section-kicker">Explore the area</div><h1>Locations</h1><p>Only coordinates verified or provided by an administrator are shown on the map.</p></div>
-    {isLoading ? <Loading/> : error ? <ErrorPanel message={(error as Error).message}/> : <>
-      {mapped.length > 0 && <div className="map-frame"><MapContainer center={[mapped[0].latitude!, mapped[0].longitude!]} zoom={12} scrollWheelZoom={false}>
-        <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
-        {mapped.map((place) => <Marker key={place.id} position={[place.latitude!, place.longitude!]}><Popup><strong>{place.name}</strong><br/>{place.address}</Popup></Marker>)}
-      </MapContainer></div>}
-      <div className="location-list">{data?.items.map((place) => <article className="location-card glass" key={place.id}><MapPin/><div><span className="location-category">{place.category}</span><h3>{place.name}</h3><p>{place.address}</p><p>{place.description}</p>{place.verified && place.latitude != null && place.longitude != null ? <div className="location-actions"><a target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/?mlat=${place.latitude}&mlon=${place.longitude}#map=15/${place.latitude}/${place.longitude}`}>Open map <ArrowRight size={14}/></a><Link to={`/visitor/feedback?location=${encodeURIComponent(place.id)}`}>Rate this place <ArrowRight size={14}/></Link>{place.sourceUrl && <a target="_blank" rel="noreferrer" href={place.sourceUrl}>Tourism source <ArrowRight size={14}/></a>}</div> : <span className="muted">Map coordinates not verified</span>}</div></article>)}</div>
-      {!data?.items.length && <div className="empty-state glass"><MapPin/><h3>No verified locations yet</h3><p>Verified locations added by administrators will be listed here.</p></div>}
-    </>}</main>;
+function Places3DMap({ places, focusId }: { places: LocationItem[]; focusId: string }) {
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!containerRef.current || places.length === 0) return;
+    const focused = places.find((place) => place.id === focusId) ?? places[0];
+    const map = new MapLibreMap({
+      container: containerRef.current,
+      style: "https://tiles.openfreemap.org/styles/liberty",
+      center: [focused.longitude!, focused.latitude!],
+      zoom: focusId ? 15.2 : 11.6,
+      pitch: 58,
+      bearing: -18,
+      maxPitch: 85,
+      cooperativeGestures: true,
+      canvasContextAttributes: { antialias: true }
+    });
+    map.addControl(new NavigationControl({ visualizePitch: true }), "top-right");
+    map.addControl(new FullscreenControl(), "top-right");
+    map.on("load", () => {
+      try {
+        map.addSource("mansalay-terrain", { type: "raster-dem", url: "https://tiles.mapterhorn.com/tilejson.json" });
+        map.setTerrain({ source: "mansalay-terrain", exaggeration: 1.15 });
+        map.addControl(new TerrainControl({ source: "mansalay-terrain", exaggeration: 1.15 }), "top-right");
+      } catch { /* The vector map and markers remain usable if terrain is unavailable. */ }
+      try {
+        const labelLayer = map.getStyle().layers.find((layer) => layer.type === "symbol" && Boolean(layer.layout?.["text-field"]))?.id;
+        map.addSource("openfreemap-buildings", { type: "vector", url: "https://tiles.openfreemap.org/planet" });
+        map.addLayer({
+          id: "mansalay-3d-buildings",
+          source: "openfreemap-buildings",
+          "source-layer": "building",
+          type: "fill-extrusion",
+          minzoom: 14,
+          filter: ["!=", ["get", "hide_3d"], true],
+          paint: {
+            "fill-extrusion-color": "#d6c49f",
+            "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 14, 0, 16, ["get", "render_height"]],
+            "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 14, 0, 16, ["get", "render_min_height"]],
+            "fill-extrusion-opacity": 0.78
+          }
+        }, labelLayer);
+      } catch { /* Some styles already provide buildings or omit the building layer. */ }
+    });
+    places.forEach((place, index) => {
+      const marker = document.createElement("button");
+      marker.className = "map-place-marker";
+      marker.type = "button";
+      marker.textContent = String(index + 1);
+      marker.setAttribute("aria-label", `Show ${place.name}`);
+      const popup = document.createElement("div");
+      popup.className = "map-place-popup";
+      const title = document.createElement("strong");
+      title.textContent = place.name;
+      const address = document.createElement("span");
+      address.textContent = place.address;
+      popup.append(title, address);
+      marker.addEventListener("click", () => map.flyTo({ center: [place.longitude!, place.latitude!], zoom: 15.2, pitch: 66, bearing: -22, duration: 900 }));
+      new MapLibreMarker({ element: marker }).setLngLat([place.longitude!, place.latitude!]).setPopup(new MapLibrePopup({ offset: 24 }).setDOMContent(popup)).addTo(map);
+    });
+    if (!focusId && places.length > 1) {
+      const bounds = new LngLatBounds();
+      places.forEach((place) => bounds.extend([place.longitude!, place.latitude!]));
+      map.fitBounds(bounds, { padding: 72, maxZoom: 12.5, pitch: 48, duration: 0 });
+    }
+    return () => map.remove();
+  }, [focusId, places]);
+  return <div className="map-frame map-frame-3d" id="mansalay-3d-map"><div ref={containerRef} className="maplibre-host"/><div className="map-3d-badge"><Globe2 size={15}/> Interactive 3D terrain</div></div>;
 }
 
-function AuthPage({ onUser }: { onUser: (user: User) => void }) {
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-  const navigate = useNavigate();
-  const submit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); setError(""); setBusy(true);
-    const values = Object.fromEntries(new FormData(e.currentTarget).entries());
-    try {
-      const result = await api<{ user: User; redirect: string }>("/auth/login", { method: "POST", body: JSON.stringify(values) });
-      onUser(result.user); navigate(result.redirect);
-    } catch (issue) { setError((issue as Error).message); } finally { setBusy(false); }
+function LocationsPage({ user }: { user: User | null }) {
+  const [params, setParams] = useSearchParams();
+  const focusId = params.get("focus") ?? "";
+  const { data, isLoading, error } = useQuery({ queryKey: ["locations"], queryFn: () => api<{ items: LocationItem[] }>("/locations") });
+  const saved = useSavedLocations(user);
+  const mapped = data?.items.filter((place) => place.verified && place.latitude != null && place.longitude != null) ?? [];
+  const focusOnMap = (place: LocationItem) => {
+    setParams({ focus: place.id });
+    window.setTimeout(() => document.getElementById("mansalay-3d-map")?.scrollIntoView({ behavior: "smooth", block: "center" }), 0);
   };
-  return <main className="auth-page"><div className="auth-art"><span className="auth-coordinate">MANSALAY · ORIENTAL MINDORO</span><div className="auth-art-copy"><div className="section-kicker">CultureFrame</div><h2>Stories keep<br/><em>places alive.</em></h2><p>Administrator access for the CultureFrame information system.</p></div></div><form className="auth-card glass" onSubmit={submit}><div className="section-kicker">Administrator access</div><h1>Sign in</h1><p>Visitors can explore the public portal without an account.</p>{error && <div className="form-error" role="alert">{error}</div>}
-    <Field label="Administrator email" name="email" type="email" required/>
-    <Field label="Password" name="password" type="password" required minLength={10}/>
-    <div className="auth-helper"><span>Administrator account provided by the system owner</span><Link to="/forgot-password">Forgot password?</Link></div>
-    <button className="button button-dark full-width" disabled={busy}>{busy ? "Please wait…" : "Sign in"} <ArrowRight size={16}/></button>
-  </form></main>;
+  return <main className="page-shell"><div className="page-hero compact"><div className="section-kicker">Explore the area</div><h1>Locations</h1><p>Explore verified Mansalay destinations on an interactive 3D terrain map. Save places to your visit list, then use GPS verification only after signing in and arriving on site.</p></div>
+    {isLoading ? <Loading/> : error ? <ErrorPanel message={(error as Error).message}/> : <>
+      {mapped.length > 0 && <Places3DMap places={mapped} focusId={focusId}/>}
+      <div className="location-list">{data?.items.map((place) => {
+        const photo = destinationPhotos[place.name.toLowerCase()] ?? buktotPhoto;
+        return <article className="location-card glass" key={place.id}><img className="location-card-image" src={photo.image} alt={photo.alt} loading="lazy" onError={(event) => { event.currentTarget.src = "/images/placeholders/record-placeholder.svg"; }}/><div className="location-card-copy"><span className="location-category">{place.category}</span><h3>{place.name}</h3><p className="destination-address"><MapPin size={14}/>{place.address}</p><p>{place.description}</p><SavePlaceButton place={place} saved={saved.savedIds.has(place.id)} busy={saved.savingId === place.id} onToggle={saved.toggle}/>{place.verified && place.latitude != null && place.longitude != null ? <div className="location-actions"><button type="button" onClick={() => focusOnMap(place)}>View in 3D <ArrowRight size={14}/></button><Link to={`/visitor/feedback?location=${encodeURIComponent(place.id)}`}>{user?.role === "VISITOR" ? "Verify & rate" : "Sign in to verify"} <ArrowRight size={14}/></Link>{place.sourceUrl && <a target="_blank" rel="noreferrer" href={place.sourceUrl}>Tourism source <ArrowRight size={14}/></a>}</div> : <span className="muted">Map coordinates not verified</span>}</div></article>;
+      })}</div>
+      {!data?.items.length && <div className="empty-state glass"><MapPin/><h3>No verified locations yet</h3><p>Verified locations added by administrators will be listed here.</p></div>}
+    </>}</main>;
 }
 
 function Field({ label, name, type = "text", required = false, minLength, defaultValue }: { label: string; name: string; type?: string; required?: boolean; minLength?: number; defaultValue?: string }) {
   return <label className="field"><span>{label}{required && <b> *</b>}</span><input name={name} type={type} required={required} minLength={minLength} defaultValue={defaultValue} autoComplete={name === "confirmPassword" ? "new-password" : name === "password" ? "current-password" : name === "email" ? "email" : undefined}/></label>;
 }
-function ResetPage({ mode }: { mode: "forgot" | "reset" }) {
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
-  const [params] = useSearchParams();
-  const submit = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); setError(""); setMessage("");
-    const values = Object.fromEntries(new FormData(e.currentTarget).entries());
-    try {
-      const result = await api<{ message: string }>(mode === "forgot" ? "/auth/forgot-password" : "/auth/reset-password", { method: "POST", body: JSON.stringify(mode === "forgot" ? values : { ...values, token: params.get("token") }) });
-      setMessage(result.message);
-    } catch (issue) { setError((issue as Error).message); }
-  };
-  return <main className="auth-page reset-page"><form className="auth-card glass" onSubmit={submit}><div className="section-kicker">Account recovery</div><h1>{mode === "forgot" ? "Reset your password" : "Choose a new password"}</h1><p>{mode === "forgot" ? "If your account exists, we’ll issue reset instructions." : "Choose a strong password to secure your account."}</p>{mode === "forgot" ? <Field label="Email address" name="email" type="email" required/> : <Field label="New password" name="password" type="password" required minLength={10}/ >}{error && <div className="form-error">{error}</div>}{message && <div className="form-success">{message}</div>}<button className="button button-dark full-width">Continue</button><Link className="auth-switch" to="/login">Back to sign in</Link></form></main>;
-}
-
-function FeedbackPage() {
+function FeedbackPage({ user }: { user: User | null }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const [checkingLocation, setCheckingLocation] = useState(false);
@@ -352,6 +634,11 @@ function FeedbackPage() {
   const eligibleLocations = locations?.items.filter((location) =>
     location.verified && location.latitude != null && location.longitude != null
   ) ?? [];
+
+  if (user?.role !== "VISITOR") {
+    const returnTo = `${window.location.pathname}${window.location.search}`;
+    return <main className="page-shell form-shell"><section className="account-required glass"><span className="account-required-icon"><UserRound/></span><div className="section-kicker">One customer and visitor account</div><h1>Sign in with your main CultureFrame account.</h1><p>Verified ratings are connected to the same customer identity you use for shopping, carts, wishlists, and orders. No separate visitor registration or password is needed.</p><div className="account-required-actions"><a className="button button-gold" href={customerAccessUrl(returnTo)}>Continue with CultureFrame <ArrowRight size={16}/></a><a className="button button-dark" href={mainSystemUrl("/register")}>Create one account</a></div><small><ShieldCheck size={14}/> Your password stays with the main CultureFrame system. The visitor portal receives only a short-lived verified account handoff.</small></section></main>;
+  }
 
   const verifyLocation = async () => {
     setError(""); setMessage(""); setVerification(null);
@@ -424,6 +711,26 @@ function FeedbackPage() {
   };
   const canSubmit = Boolean(verification?.allowed && verification.verificationToken);
   return <main className="page-shell form-shell"><div className="section-kicker">Verified site visit</div><h1>Rate a place you visited.</h1><p>To keep ratings trustworthy, feedback is available only while you are physically at a verified Mansalay site.</p><form className="glass content-form geofence-form" onSubmit={submit}><section className="geofence-panel"><div className="geofence-heading"><span className="geofence-icon"><MapPin/></span><div><h2>Verify your current location</h2><p>Select the place, then allow precise GPS access. Verification expires after five minutes.</p></div></div><label className="field"><span>Heritage site or attraction *</span><select value={locationId} onChange={(event) => { setLocationId(event.target.value); setVerification(null); setMessage(""); setError(""); }} required disabled={loadingLocations}><option value="">{loadingLocations ? "Loading verified locations…" : "Choose the place you are visiting"}</option>{eligibleLocations.map((location) => <option value={location.id} key={location.id}>{location.name}{location.address ? ` — ${location.address}` : ""}</option>)}</select></label>{locationsError && <div className="form-error">{(locationsError as Error).message}</div>}{!loadingLocations && !locationsError && eligibleLocations.length === 0 && <div className="form-error">No GPS-enabled locations are available. Ask an administrator to verify site coordinates.</div>}<button type="button" className="button button-location" onClick={verifyLocation} disabled={checkingLocation || !locationId}>{checkingLocation ? "Checking GPS…" : "Verify my location"} <Compass size={17}/></button>{verification?.allowed && <div className="location-verified"><Check size={18}/><div><strong>On-site location confirmed</strong><span>{Math.round(verification.distanceMeters ?? 0)} m from the site · GPS accuracy ±{Math.round(verification.accuracyMeters ?? 0)} m</span></div></div>}<p className="privacy-note"><ShieldCheck size={14}/> Your exact coordinates are used only for this verification and are not stored. The system keeps the site, distance, GPS accuracy, and verification time.</p></section><fieldset className="feedback-fields" disabled={!canSubmit}><Field label="Feedback subject" name="subject" required/><label className="field"><span>Rating *</span><select name="rating" required defaultValue="5"><option value="5">5 — Excellent</option><option value="4">4 — Good</option><option value="3">3 — Average</option><option value="2">2 — Needs improvement</option><option value="1">1 — Poor</option></select></label><label className="field"><span>Comment *</span><textarea name="message" rows={6} minLength={10} required placeholder="Share what you experienced at this place."/></label></fieldset>{error && <div className="form-error" role="alert">{error}</div>}{message && <div className="form-success" role="status">{message}</div>}<button className="button button-dark" disabled={!canSubmit}>Submit verified feedback <ArrowRight size={16}/></button></form></main>;
+}
+
+function ConnectAccount({ onUser }: { onUser: (user: User) => void }) {
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const [error, setError] = useState("");
+  useEffect(() => {
+    const token = params.get("token");
+    const returnTo = safeLocalPath(params.get("returnTo"));
+    if (!token) { setError("The CultureFrame account link is missing. Please start again from the customer sign-in button."); return; }
+    api<{ user: User }>("/integrations/cultureframe/session", { method: "POST", body: JSON.stringify({ token }) })
+      .then((result) => { onUser(result.user); navigate(returnTo === "/account/connect" ? "/" : returnTo, { replace: true }); })
+      .catch((issue) => setError((issue as Error).message));
+  }, [navigate, onUser, params]);
+  return <main className="page-shell account-connect-shell"><div className="glass account-connect-card">{error ? <><UserRound/><h1>Account connection needs attention.</h1><p>{error}</p><a className="button button-gold" href={customerAccessUrl("/")}>Return to CultureFrame sign in</a></> : <><span className="account-connect-loader"/><h1>Connecting your CultureFrame accountâ€¦</h1><p>Keeping your customer profile, shopping activity, and visitor feedback under one identity.</p></>}</div></main>;
+}
+
+function MainAdminAccess() {
+  useEffect(() => { window.location.replace(customerAccessUrl("/admin/dashboard")); }, []);
+  return <main className="page-shell account-connect-shell"><div className="glass account-connect-card"><span className="account-connect-loader"/><h1>Opening CultureFrame Adminâ€¦</h1><p>Visitor content is managed through the single main administrator account.</p></div></main>;
 }
 function AdminPage() {
   const location = useLocation();
@@ -534,6 +841,6 @@ function PolicyPage({title}:{title:string}) {
 function Loading(){return <div className="loading-state"><span className="spinner"/> Loading CultureFrame…</div>}
 function ErrorPanel({message}:{message:string}){return <div className="error-panel" role="alert"><strong>Could not load this information.</strong><p>{message}</p><p>Confirm the API and database are running, then try again.</p></div>}
 function NotFound({message="This page could not be found."}:{message?:string}){return <main className="page-shell not-found"><div className="section-kicker">404 · Not found</div><h1>That path has gone quiet.</h1><p>{message}</p><Link className="button button-dark" to="/">Return home <ArrowRight size={16}/></Link></main>}
-function Footer(){return <footer className="footer"><div className="footer-main"><Link to="/" className="brand"><span className="brand-mark">C</span><span>Culture<span className="gold">Frame</span><small>MANSALAY · ORIENTAL MINDORO</small></span></Link><p>A community-focused digital archive sharing cultural heritage information for Mansalay.</p><div className="footer-links">{menu.map(([name,href])=><Link key={href} to={href}>{name}</Link>)}</div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} CultureFrame · Mansalay, Oriental Mindoro</span><div><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link></div></div></footer>}
+function Footer(){return <footer className="footer"><div className="footer-main"><Link to="/" className="brand"><span className="brand-mark">C</span><span>Culture<span className="gold">Frame</span><small>MANSALAY · ORIENTAL MINDORO</small></span></Link><p>A connected visitor guide and cultural archive using the same CultureFrame customer account as the marketplace.</p><div className="footer-links"><a href={mainSystemUrl("/shop")}>Marketplace</a><a href={mainSystemUrl("/customer/dashboard")}>Customer account</a>{menu.map(([name,href])=><Link key={href} to={href}>{name}</Link>)}</div></div><div className="footer-bottom"><span>© {new Date().getFullYear()} CultureFrame · Mansalay, Oriental Mindoro</span><div><Link to="/privacy">Privacy</Link><Link to="/terms">Terms</Link></div></div></footer>}
 
 export default App;

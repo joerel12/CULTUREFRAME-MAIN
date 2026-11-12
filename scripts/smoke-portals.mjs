@@ -47,7 +47,6 @@ const publicPaths = [
 ];
 const retiredPublicPaths = ["/heritage", "/events", "/scenic", "/crafts"];
 const customerPaths = [
-  "/customer/dashboard",
   "/customer/profile",
   "/customer/profile/edit",
   "/customer/moments",
@@ -72,6 +71,16 @@ for (const path of retiredPublicPaths) {
   results.push({ path, status: response.status, ok: response.status === 301 });
 }
 for (const path of customerPaths) results.push(await check(path, customerCookie));
+const unifiedWorkspaceResponse = await fetch(`${baseUrl}/customer/dashboard`, {
+  headers: { cookie: customerCookie },
+  redirect: "manual"
+});
+results.push({
+  path: "/customer/dashboard -> unified Customer/Visitor workspace",
+  status: unifiedWorkspaceResponse.status,
+  ok: unifiedWorkspaceResponse.status === 302 &&
+    unifiedWorkspaceResponse.headers.get("location") === "/visitor/access?returnTo=%2Faccount"
+});
 for (const path of sellerPaths) results.push(await check(path, sellerCookie));
 
 const failed = results.filter((result) => !result.ok);

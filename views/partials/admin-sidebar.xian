@@ -28,21 +28,12 @@
       <i class="fas fa-users"></i> Customers
     </a>
 
-    <p class="cf-admin-label">Connected systems</p>
-    {{#if visitorInformationUrl}}
-      <a href="{{visitorInformationUrl}}" target="_blank" rel="noopener noreferrer" class="cf-admin-link external">
-        <i class="fas fa-compass"></i> Visitor Information
-      </a>
-    {{else}}
-      <a href="/discover" class="cf-admin-link"><i class="fas fa-compass"></i> Visitor Information</a>
-    {{/if}}
-    {{#if paymentSystemUrl}}
-      <a href="{{paymentSystemUrl}}" target="_blank" rel="noopener noreferrer" class="cf-admin-link external">
-        <i class="fas fa-credit-card"></i> Payments
-      </a>
-    {{/if}}
+    <p class="cf-admin-label">Content & intelligence</p>
+    <a href="/visitor/access?returnTo=%2Fadmin%2Fdashboard" class="cf-admin-link external">
+      <i class="fas fa-compass"></i> Visitor content
+    </a>
     {{#if cultureMetricsSystemUrl}}
-      <a href="{{cultureMetricsSystemUrl}}" target="_blank" rel="noopener noreferrer" class="cf-admin-link external">
+      <a href="/admin/analytics/business" class="cf-admin-link external">
         <i class="fas fa-chart-line"></i> CultureMetrics
       </a>
     {{/if}}

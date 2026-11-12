@@ -21,6 +21,7 @@ import {
   MAX_LOCATION_ACCURACY_METERS,
   verifyGeofenceToken
 } from "./geofence.js";
+import { resolveCultureFrameSsoSecret, verifyCultureFrameAccessToken } from "./cultureframeSso.js";
 
 export const prisma = new PrismaClient();
 export const app = express();
@@ -37,6 +38,25 @@ app.use(express.json({ limit: "1mb" }));
 app.use(cookieParser());
 app.use("/uploads", express.static(path.resolve("uploads"), { maxAge: "1d", dotfiles: "deny" }));
 const authActionLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 30, standardHeaders: true, legacyHeaders: false });
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  handler: (_req, res) => res.status(429).json({ error: "Too many unsuccessful sign-in attempts. Try again in 15 minutes." })
+});
+const passwordActionLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: (_req, res) => res.status(429).json({ error: "Too many password requests. Try again in 15 minutes." })
+});
+app.use((req, res, next) => {
+  if (/^\/api\/(auth|admin)/.test(req.path)) res.setHeader("Cache-Control", "no-store");
+  next();
+});
 app.get("/api/health/live", (_req, res) => res.json({ status: "ok" }));
 
 type AuthUser = { id: string; email: string; firstName: string; lastName: string; role: UserRole };
@@ -60,9 +80,9 @@ app.get("/api/health", asyncRoute(async (_req, res) => {
 const hashToken = (token: string) => crypto.createHmac("sha256", sessionSecret).update(token).digest("hex");
 const safeUser = ({ id, email, firstName, lastName, role }: AuthUser) => ({ id, email, firstName, lastName, role });
 
-const requireAuth = asyncRoute(async (req, res, next) => {
+const attachSessionUser = async (req: Request, res: Response) => {
   const token = req.cookies[sessionCookie];
-  if (!token) return res.status(401).json({ error: "Authentication required." });
+  if (!token) return false;
   const session = await prisma.authSession.findUnique({
     where: { tokenHash: hashToken(token) },
     include: { user: true }
@@ -70,10 +90,19 @@ const requireAuth = asyncRoute(async (req, res, next) => {
   if (!session || session.expiresAt <= new Date() || session.user.status !== "ACTIVE") {
     if (session) await prisma.authSession.delete({ where: { id: session.id } });
     res.clearCookie(sessionCookie, cookieOptions());
-    return res.status(401).json({ error: "Session expired. Please sign in again." });
+    return false;
   }
   req.user = session.user;
   req.sessionId = session.id;
+  return true;
+};
+const requireAuth = asyncRoute(async (req, res, next) => {
+  if (!(await attachSessionUser(req, res))) return res.status(401).json({ error: "Authentication required." });
+  next();
+});
+const requireVisitor = asyncRoute(async (req, res, next) => {
+  if (!(await attachSessionUser(req, res))) return res.status(401).json({ error: "Authentication required." });
+  if (req.user?.role !== UserRole.VISITOR) return res.status(403).json({ error: "A connected customer account is required." });
   next();
 });
 const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
@@ -86,7 +115,43 @@ const cookieOptions = () => ({
   path: "/", maxAge: 7 * 24 * 60 * 60 * 1000
 });
 
-app.post("/api/auth/login", authActionLimiter, asyncRoute(async (req, res) => {
+app.post("/api/integrations/cultureframe/session", authActionLimiter, asyncRoute(async (req, res) => {
+  const parsed = z.object({ token: z.string().min(20).max(4000) }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "A CultureFrame access token is required." });
+  const ssoSecret = resolveCultureFrameSsoSecret();
+  if (!ssoSecret) return res.status(503).json({ error: "CultureFrame account integration is not configured." });
+  const identity = verifyCultureFrameAccessToken(parsed.data.token, ssoSecret);
+  if (!identity) return res.status(401).json({ error: "The CultureFrame account link is invalid or expired. Please sign in again." });
+
+  const existing = await prisma.user.findUnique({ where: { email: identity.email } });
+  const targetRole = identity.role === "admin" ? UserRole.ADMIN : UserRole.VISITOR;
+  if (existing && existing.role !== targetRole) {
+    return res.status(409).json({ error: "This CultureFrame identity conflicts with an existing Visitor Information role." });
+  }
+  const parts = identity.name.split(/\s+/).filter(Boolean);
+  const firstName = (parts.shift() || "CultureFrame").slice(0, 80);
+  const lastName = (parts.join(" ") || "Visitor").slice(0, 80);
+  const user = existing
+    ? await prisma.user.update({ where: { id: existing.id }, data: { firstName, lastName, status: "ACTIVE", role: targetRole } })
+    : await prisma.user.create({
+        data: {
+          firstName,
+          lastName,
+          email: identity.email,
+          passwordHash: await bcrypt.hash(crypto.randomBytes(32).toString("base64url"), 12),
+          role: targetRole,
+          status: "ACTIVE"
+        }
+      });
+  const sessionToken = crypto.randomBytes(32).toString("base64url");
+  await prisma.authSession.create({
+    data: { tokenHash: hashToken(sessionToken), userId: user.id, expiresAt: new Date(Date.now() + cookieOptions().maxAge) }
+  });
+  res.cookie(sessionCookie, sessionToken, cookieOptions());
+  res.json({ user: safeUser(user), message: "Your CultureFrame customer account is connected." });
+}));
+
+app.post("/api/auth/login", loginLimiter, asyncRoute(async (req, res) => {
   const parsed = z.object({ email: z.string().email(), password: z.string().min(1) }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Enter a valid email and password." });
   const user = await prisma.user.findUnique({ where: { email: parsed.data.email.toLowerCase() } });
@@ -106,9 +171,22 @@ app.post("/api/auth/logout", requireAuth, asyncRoute(async (req, res) => {
   res.clearCookie(sessionCookie, cookieOptions());
   res.json({ message: "Signed out." });
 }));
-app.get("/api/auth/me", requireAuth, (req, res) => res.json({ user: safeUser(req.user!) }));
+app.get("/api/auth/me", asyncRoute(async (req, res) => {
+  const token = req.cookies[sessionCookie];
+  if (!token) return res.json({ user: null });
+  const session = await prisma.authSession.findUnique({
+    where: { tokenHash: hashToken(token) },
+    include: { user: true }
+  });
+  if (!session || session.expiresAt <= new Date() || session.user.status !== "ACTIVE") {
+    if (session) await prisma.authSession.delete({ where: { id: session.id } });
+    res.clearCookie(sessionCookie, cookieOptions());
+    return res.json({ user: null });
+  }
+  res.json({ user: safeUser(session.user) });
+}));
 
-app.post("/api/auth/forgot-password", authActionLimiter, asyncRoute(async (req, res) => {
+app.post("/api/auth/forgot-password", passwordActionLimiter, asyncRoute(async (req, res) => {
   const parsed = z.object({ email: z.string().email() }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Enter a valid email address." });
   const user = await prisma.user.findUnique({ where: { email: parsed.data.email.toLowerCase() } });
@@ -121,8 +199,13 @@ app.post("/api/auth/forgot-password", authActionLimiter, asyncRoute(async (req, 
   }
   res.json({ message: "If an account exists for that email, reset instructions have been issued." });
 }));
-app.post("/api/auth/reset-password", authActionLimiter, asyncRoute(async (req, res) => {
-  const parsed = z.object({ token: z.string().min(20), password: z.string().min(10).max(128) }).safeParse(req.body);
+app.post("/api/auth/reset-password", passwordActionLimiter, asyncRoute(async (req, res) => {
+  const parsed = z.object({
+    token: z.string().min(20),
+    password: z.string().min(12).max(128)
+      .refine(value => /[a-z]/.test(value) && /[A-Z]/.test(value) && /\d/.test(value) && /[^A-Za-z0-9]/.test(value),
+        "Use uppercase, lowercase, number, and symbol characters.")
+  }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "The reset token or new password is invalid." });
   const record = await prisma.passwordResetToken.findUnique({ where: { tokenHash: hashToken(parsed.data.token) } });
   if (!record || record.expiresAt <= new Date()) return res.status(400).json({ error: "The reset link is invalid or expired." });
@@ -149,7 +232,7 @@ const contentSchema = z.object({
   historicalBackground: z.string().max(10000).optional(),
   publicationStatus: z.nativeEnum(PublicationStatus).optional(),
   featured: z.boolean().optional(),
-  payload: z.record(z.union([z.string(), z.number(), z.boolean()])).optional()
+  payload: z.record(z.string(), z.union([z.string(), z.number(), z.boolean()])).optional()
 });
 
 function contentFilter(kind?: ContentKind, publicOnly = true) {
@@ -236,8 +319,33 @@ app.get("/api/locations", asyncRoute(async (_req, res) => {
   res.json({ items: await prisma.location.findMany({ orderBy: { name: "asc" } }) });
 }));
 
+app.get("/api/visitor/saved-locations", requireVisitor, asyncRoute(async (req, res) => {
+  const saved = await prisma.savedLocation.findMany({
+    where: { userId: req.user!.id },
+    include: { location: true },
+    orderBy: { createdAt: "desc" }
+  });
+  res.json({ items: saved.map((entry) => entry.location), savedLocationIds: saved.map((entry) => entry.locationId) });
+}));
+
+app.post("/api/visitor/saved-locations/:locationId", requireVisitor, asyncRoute(async (req, res) => {
+  const location = await prisma.location.findUnique({ where: { id: req.params.locationId } });
+  if (!location) return res.status(404).json({ error: "That destination could not be found." });
+  await prisma.savedLocation.upsert({
+    where: { userId_locationId: { userId: req.user!.id, locationId: location.id } },
+    update: {},
+    create: { userId: req.user!.id, locationId: location.id }
+  });
+  res.status(201).json({ message: `${location.name} was saved to your visit list.`, location });
+}));
+
+app.delete("/api/visitor/saved-locations/:locationId", requireVisitor, asyncRoute(async (req, res) => {
+  await prisma.savedLocation.deleteMany({ where: { userId: req.user!.id, locationId: req.params.locationId } });
+  res.status(204).end();
+}));
+
 const geofenceLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false });
-app.post("/api/visitor/location-verification", geofenceLimiter, asyncRoute(async (req, res) => {
+app.post("/api/visitor/location-verification", geofenceLimiter, requireVisitor, asyncRoute(async (req, res) => {
   const parsed = z.object({
     locationId: z.string().min(1).max(100),
     latitude: z.number().min(-90).max(90),
@@ -311,7 +419,7 @@ app.post("/api/visitor/location-verification", geofenceLimiter, asyncRoute(async
 }));
 
 const feedbackLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5, standardHeaders: true, legacyHeaders: false });
-app.post("/api/visitor/feedback", feedbackLimiter, asyncRoute(async (req, res) => {
+app.post("/api/visitor/feedback", feedbackLimiter, requireVisitor, asyncRoute(async (req, res) => {
   const parsed = z.object({
     category: z.string().min(2).max(80), subject: z.string().trim().min(3).max(160),
     rating: z.number().int().min(1).max(5), message: z.string().trim().min(10).max(5000),
@@ -319,6 +427,9 @@ app.post("/api/visitor/feedback", feedbackLimiter, asyncRoute(async (req, res) =
     verificationToken: z.string().min(20).max(2_000)
   }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Please correct the feedback form.", details: parsed.error.flatten() });
+  if (!req.user || req.user.role !== UserRole.VISITOR) {
+    return res.status(401).json({ error: "Sign in with your main CultureFrame customer account before submitting feedback." });
+  }
 
   const verification = verifyGeofenceToken(parsed.data.verificationToken, sessionSecret);
   if (!verification || verification.locationId !== parsed.data.locationId) {
@@ -346,7 +457,10 @@ const uploadDirectory = path.resolve("uploads");
 fs.mkdirSync(uploadDirectory, { recursive: true });
 const storage = multer.diskStorage({
   destination: uploadDirectory,
-  filename: (_req, file, callback) => callback(null, `${crypto.randomUUID()}${path.extname(file.originalname).toLowerCase()}`)
+  filename: (_req, file, callback) => {
+    const extensionByMime: Record<string, string> = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp" };
+    callback(null, `${crypto.randomUUID()}${extensionByMime[file.mimetype]}`);
+  }
 });
 const upload = multer({
   storage, limits: { fileSize: 5 * 1024 * 1024, files: 1 },
@@ -396,7 +510,7 @@ app.get("/api/admin/homepage", ...admin, asyncRoute(async (_req, res) => {
   res.json({ content: Object.fromEntries((await prisma.homepageContent.findMany()).map((item) => [item.key, item.value])) });
 }));
 app.patch("/api/admin/homepage", ...admin, asyncRoute(async (req, res) => {
-  const entries = z.record(z.union([z.string().max(2000), z.array(z.string()), z.number(), z.boolean()])).safeParse(req.body);
+  const entries = z.record(z.string(), z.union([z.string().max(2000), z.array(z.string()), z.number(), z.boolean()])).safeParse(req.body);
   if (!entries.success) return res.status(400).json({ error: "Homepage fields must contain supported values." });
   await prisma.$transaction(Object.entries(entries.data).map(([key, value]) => prisma.homepageContent.upsert({
     where: { key }, update: { value }, create: { key, value }

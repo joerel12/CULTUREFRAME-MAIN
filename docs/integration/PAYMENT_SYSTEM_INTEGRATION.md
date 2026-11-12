@@ -82,7 +82,6 @@ CultureFrame:
 
 ```text
 PAYMENT_INTEGRATION_TOKEN=<shared-random-secret>
-PAYMENT_SYSTEM_URL=https://payments.example.com
 ```
 
 Payment service:
@@ -95,6 +94,8 @@ CULTUREFRAME_API_TOKEN=<same-shared-random-secret>
 
 The payment service deliberately requires HTTPS in live mode. Use deployed
 staging services or a trusted local HTTPS tunnel for end-to-end testing.
+Its API operates behind CultureFrame checkout and order administration; it is
+not presented as a separate public or role-based side in the main navigation.
 
 ## Database update
 

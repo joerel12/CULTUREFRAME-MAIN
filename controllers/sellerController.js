@@ -5,6 +5,8 @@ import { User } from "../models/userModel.js";
 import { sequelize } from "../models/db.js";
 
 const accountStatusForSeller = sellerStatus => sellerStatus === "inactive" ? "inactive" : "active";
+const isStrongPassword = password => typeof password === "string" && password.length >= 12 && password.length <= 128 &&
+  /[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password) && /[^A-Za-z0-9]/.test(password);
 
 const sellerController = {
   index: async (req, res) => {
@@ -53,8 +55,8 @@ const sellerController = {
     } = req.body;
     const normalizedEmail = String(email || "").trim().toLowerCase();
 
-    if (String(temporary_password || "").length < 12) {
-      req.flash("error_msg", "A temporary seller password of at least 12 characters is required.");
+    if (!isStrongPassword(temporary_password)) {
+      req.flash("error_msg", "The temporary password must be 12-128 characters with uppercase, lowercase, number, and symbol characters.");
       return res.redirect("/admin/sellers/add");
     }
 
@@ -117,8 +119,8 @@ const sellerController = {
     } = req.body;
     const normalizedEmail = String(email || "").trim().toLowerCase();
 
-    if (reset_password && reset_password.length < 12) {
-      req.flash("error_msg", "A new seller password must contain at least 12 characters.");
+    if (reset_password && !isStrongPassword(reset_password)) {
+      req.flash("error_msg", "The new password must be 12-128 characters with uppercase, lowercase, number, and symbol characters.");
       return res.redirect(`/admin/sellers/edit/${req.params.id}`);
     }
 

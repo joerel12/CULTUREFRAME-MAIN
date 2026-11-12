@@ -26,11 +26,19 @@
 import express from "express";
 import multer from "multer";
 import path from "path";
+import crypto from "node:crypto";
 import { homePage } from "../controllers/homeController.js";
 import sellerPortalRouter from "./sellerPortal.js";
 import paymentIntegrationRouter from "./paymentIntegration.js";
 import discoverRouter from "./discover.js";
 import analyticsIntegrationRouter from "./analyticsIntegration.js";
+import {
+  createCultureMetricsAccessToken,
+  createCultureMetricsConnectUrl,
+  createVisitorAccessToken,
+  createVisitorConnectUrl,
+  safeVisitorReturnPath
+} from "../services/visitorSso.js";
 
 // Import Auth Controller
 import { 
@@ -38,16 +46,18 @@ import {
   registerPage, 
   forgotPasswordPage, 
   dashboardPage,
-  customerDashboard,
   adminDashboard,
   loginUser, 
   registerUser, 
+  forgotPassword,
   logoutUser,
   requireAuth,
+  requireCustomer,
   requireAdmin,
   renderCustomerProfileEdit,
   handleCustomerProfileEdit
 } from "../controllers/authController.js";
+import { createFixedWindowRateLimit } from "../middleware/security.js";
 
 // Import CultureFrame Controllers
 import { productcontroller } from "../controllers/productcontroller.js";
@@ -61,6 +71,16 @@ import { Order } from "../models/Order.js";
 import { Event } from "../models/Event.js";
 
 const router = express.Router();
+const registrationRateLimit = createFixedWindowRateLimit({
+  maximum: 10,
+  windowMs: 60 * 60 * 1000,
+  message: "Too many account creation attempts. Please try again later."
+});
+const passwordHelpRateLimit = createFixedWindowRateLimit({
+  maximum: 5,
+  windowMs: 15 * 60 * 1000,
+  message: "Too many password-help requests. Please wait 15 minutes before trying again."
+});
 
 const configuredSystemUrl = (name) => {
   const value = process.env[name] || "";
@@ -79,6 +99,47 @@ const retiredWriteRoute = (owner) => (_req, res) => res.status(410).json({
   message: `This page has moved. Manage this record in ${owner}.`
 });
 
+const prepareVisitorAccess = (req, res, next) => {
+  const returnTo = safeVisitorReturnPath(req.query.returnTo);
+  res.locals.visitorReturnTo = returnTo;
+  if (!req.session.isAuthenticated) {
+    req.session.postLoginRedirect = `/visitor/access?returnTo=${encodeURIComponent(returnTo)}`;
+    return res.redirect("/login");
+  }
+  next();
+};
+
+router.get("/visitor/access", prepareVisitorAccess, requireAuth, (req, res, next) => {
+  try {
+    const returnTo = res.locals.visitorReturnTo;
+
+    const visitorUrl = configuredSystemUrl("VISITOR_INFORMATION_URL");
+    if (!visitorUrl) {
+      req.flash("error_msg", "Visitor Information is not configured. Ask an administrator to check the integration settings.");
+      return res.redirect("/customer/dashboard");
+    }
+
+    if (returnTo.startsWith("/admin") && req.session.userRole !== "admin") {
+      req.flash("error_msg", "Visitor content administration is available only from the CultureFrame Admin side.");
+      return res.redirect("/customer/dashboard");
+    }
+
+    if (!["customer", "admin"].includes(req.session.userRole)) {
+      return res.redirect(new URL(returnTo, visitorUrl).toString());
+    }
+
+    const token = createVisitorAccessToken({
+      id: req.session.userId,
+      email: req.session.userEmail,
+      name: req.session.userName,
+      role: req.session.userRole
+    });
+    return res.redirect(createVisitorConnectUrl(visitorUrl, token, returnTo));
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Seller workspace integrated from Kyla's CultureFrame seller module.
 router.use("/seller", sellerPortalRouter);
 router.use("/api/integrations/payments", paymentIntegrationRouter);
@@ -91,11 +152,37 @@ const storage = multer.diskStorage({
     cb(null, path.join(process.cwd(), "public", "uploads"));
   },
   filename: function (req, file, cb) {
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, uniqueSuffix + '-' + file.originalname.replace(/\s+/g, '_'));
+    const extensionByMime = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp" };
+    cb(null, `${crypto.randomUUID()}${extensionByMime[file.mimetype]}`);
   }
 });
-const upload = multer({ storage });
+const upload = multer({
+  storage,
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, callback) => {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)) {
+      return callback(new Error("Only JPEG, PNG, or WebP images are allowed."));
+    }
+    callback(null, true);
+  }
+});
+const paymentProofUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, callback) => {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)) {
+      return callback(new Error("Payment proof must be a JPEG, PNG, or WebP image."));
+    }
+    callback(null, true);
+  }
+});
+const acceptPaymentProof = (req, res, next) => paymentProofUpload.single("payment_proof")(req, res, error => {
+  if (!error) return next();
+  req.session.error_msg = error.code === "LIMIT_FILE_SIZE"
+    ? "Payment proof must be no larger than 5 MB."
+    : error.message || "The payment proof could not be uploaded.";
+  return res.redirect("/checkout");
+});
 
 // ==================== PUBLIC ROUTES ====================
 
@@ -104,7 +191,7 @@ router.get("/", homePage);
 
 // Dev helper: expose session for debugging (only when not in production)
 router.get('/dev/session', (req, res) => {
-  if (process.env.NODE_ENV === 'production') return res.status(404).send('Not found');
+  if (process.env.NODE_ENV === 'production' || process.env.ENABLE_DEV_AUTH_ROUTES !== 'true') return res.status(404).send('Not found');
   // send a minimal session view to avoid leaking secrets
   const safeSession = {
     isAuthenticated: !!req.session.isAuthenticated,
@@ -117,7 +204,7 @@ router.get('/dev/session', (req, res) => {
 
 // Test route to simulate login and redirect
 router.get('/dev/test-login', (req, res) => {
-  if (process.env.NODE_ENV === 'production') return res.status(404).send('Not found');
+  if (process.env.NODE_ENV === 'production' || process.env.ENABLE_DEV_AUTH_ROUTES !== 'true') return res.status(404).send('Not found');
   
   console.log('🧪 Test login route accessed');
   
@@ -150,8 +237,9 @@ router.get('/dev/test-login', (req, res) => {
 router.get("/login", loginPage);
 router.post("/login", loginUser);
 router.get("/register", registerPage);
-router.post("/register", registerUser); // ⭐⭐ DITO NAGPAPROCESS NG REGISTRATION ⭐⭐
+router.post("/register", registrationRateLimit, registerUser); // ⭐⭐ DITO NAGPAPROCESS NG REGISTRATION ⭐⭐
 router.get("/forgot-password", forgotPasswordPage);
+router.post("/forgot-password", passwordHelpRateLimit, forgotPassword);
 router.get("/logout", logoutUser);
 
 // Terms and Conditions
@@ -160,7 +248,7 @@ router.get("/terms", (req, res) => {
 });
 
 // Main dashboard route - redirects based on role
-router.get("/dashboard", dashboardPage);
+router.get("/dashboard", requireAuth, dashboardPage);
 
 // Visitor content is published by the Visitor Information system.
 // Compatibility redirects keep saved links working without duplicate pages.
@@ -171,16 +259,17 @@ router.get("/heritage/:id", (_req, res) => res.redirect(301, "/discover/heritage
 router.get("/shop", productcontroller.shop);
 router.get("/shop/product/:id", productcontroller.detail);
 // Cart/Wishlist actions
-router.post('/cart/add', requireAuth, cartController.addToCart);
-router.post('/cart/remove', requireAuth, cartController.removeFromCart);
-router.post('/cart/update', requireAuth, cartController.updateCart);
-router.post('/wishlist/add', requireAuth, cartController.addToWishlist);
-router.post('/wishlist/remove', requireAuth, cartController.removeFromWishlist);
-router.get('/cart', requireAuth, cartController.viewCart);
-router.get('/wishlist', requireAuth, cartController.viewWishlist);
-router.get("/checkout", ordercontroller.checkout);
-router.post("/checkout", ordercontroller.checkout);
-router.post("/order/create", ordercontroller.create);
+router.post('/cart/add', requireCustomer, cartController.addToCart);
+router.post('/cart/remove', requireCustomer, cartController.removeFromCart);
+router.post('/cart/update', requireCustomer, cartController.updateCart);
+router.post('/wishlist/add', requireCustomer, cartController.addToWishlist);
+router.post('/wishlist/remove', requireCustomer, cartController.removeFromWishlist);
+router.get('/cart', requireCustomer, cartController.viewCart);
+router.get('/wishlist', requireCustomer, cartController.viewWishlist);
+router.get("/checkout", requireCustomer, ordercontroller.checkout);
+router.post("/checkout", requireCustomer, ordercontroller.checkout);
+router.post("/order/create", requireCustomer, acceptPaymentProof, ordercontroller.create);
+router.get("/orders/:id/payment-proof", requireAuth, ordercontroller.paymentProof);
 
 router.get("/events", (_req, res) => res.redirect(301, "/discover/events"));
 router.get("/events/:id", (_req, res) => res.redirect(301, "/discover/events"));
@@ -192,13 +281,13 @@ router.get("/crafts", (_req, res) => res.redirect(301, "/discover/traditions"));
 router.get("/crafts/:id", (_req, res) => res.redirect(301, "/discover/traditions"));
 
 // ==================== CUSTOMER DASHBOARD ROUTES ====================
-router.get("/customer/dashboard", requireAuth, customerDashboard);
-router.get("/customer/events", requireAuth, (_req, res) => res.redirect(301, "/discover/events"));
+router.get("/customer/dashboard", requireCustomer, (_req, res) => res.redirect("/visitor/access?returnTo=%2Faccount"));
+router.get("/customer/events", requireCustomer, (_req, res) => res.redirect(301, "/discover/events"));
 // Customer profile edit
-router.get("/customer/profile/edit", requireAuth, renderCustomerProfileEdit);
-router.post("/customer/profile/edit", requireAuth, upload.single('profileImage'), handleCustomerProfileEdit);
+router.get("/customer/profile/edit", requireCustomer, renderCustomerProfileEdit);
+router.post("/customer/profile/edit", requireCustomer, upload.single('profileImage'), handleCustomerProfileEdit);
 // Backwards-compatible: profile page -> redirect to edit
-router.get('/customer/profile', requireAuth, async (req, res) => {
+router.get('/customer/profile', requireCustomer, async (req, res) => {
   try {
     const userId = req.session.user && req.session.user.id;
     if (!userId) return res.redirect('/login');
@@ -218,7 +307,7 @@ router.get('/customer/profile', requireAuth, async (req, res) => {
 });
 
 // Get moment creation page
-router.get('/customer/moment/new', requireAuth, (req, res) => {
+router.get('/customer/moment/new', requireCustomer, (req, res) => {
   res.render('customer/moment-new', { 
     title: 'Post a Moment', 
     user: req.session.user || {} 
@@ -226,7 +315,7 @@ router.get('/customer/moment/new', requireAuth, (req, res) => {
 });
 
 // View all moments page
-router.get('/customer/moments', requireAuth, async (req, res) => {
+router.get('/customer/moments', requireCustomer, async (req, res) => {
   try {
     const userId = req.session.user && req.session.user.id;
     if (!userId) return res.redirect('/login');
@@ -255,7 +344,7 @@ router.get('/customer/moments', requireAuth, async (req, res) => {
 });
 
 // Get customer photos/moments
-router.get('/customer/photos', requireAuth, async (req, res) => {
+router.get('/customer/photos', requireCustomer, async (req, res) => {
   try {
     const userId = req.session.user && req.session.user.id;
     if (!userId) return res.status(401).json({ success: false, message: 'Not logged in' });
@@ -280,7 +369,7 @@ router.get('/customer/photos', requireAuth, async (req, res) => {
 });
 
 // Delete a moment
-router.delete('/customer/moment/:id', requireAuth, async (req, res) => {
+router.delete('/customer/moment/:id', requireCustomer, async (req, res) => {
   try {
     const userId = req.session.user && req.session.user.id;
     const momentId = req.params.id;
@@ -322,7 +411,7 @@ router.delete('/customer/moment/:id', requireAuth, async (req, res) => {
 });
 
 // Create a moment (text post or photo+caption)
-router.post('/customer/moment', requireAuth, upload.single('photo'), async (req, res) => {
+router.post('/customer/moment', requireCustomer, upload.single('photo'), async (req, res) => {
   try {
     console.log('📸 Creating moment...');
     console.log('User ID:', req.session.user?.id);
@@ -388,12 +477,12 @@ router.post('/customer/moment', requireAuth, upload.single('photo'), async (req,
   }
 });
 // Customer orders
-router.get('/customer/orders', requireAuth, ordercontroller.customerIndex);
-router.get('/customer/orders/:id', requireAuth, ordercontroller.customerDetail);
-router.post('/customer/orders/:id/feedback', requireAuth, ordercontroller.submitFeedback);
+router.get('/customer/orders', requireCustomer, ordercontroller.customerIndex);
+router.get('/customer/orders/:id', requireCustomer, ordercontroller.customerDetail);
+router.post('/customer/orders/:id/feedback', requireCustomer, ordercontroller.submitFeedback);
 
 // Backwards-compatible redirect: keep old `/orders` working for customers
-router.get('/orders', requireAuth, (req, res) => {
+router.get('/orders', requireCustomer, (req, res) => {
   res.redirect('/customer/orders');
 });
 
@@ -424,6 +513,7 @@ router.get("/admin/orders", requireAdmin, ordercontroller.adminIndex);
 router.get("/admin/orders/:id", requireAdmin, ordercontroller.adminDetail);
 router.get("/admin/orders/edit/:id", requireAdmin, ordercontroller.adminEdit);
 router.post("/admin/orders/update-status/:id", requireAdmin, ordercontroller.updateStatus);
+router.post("/admin/orders/review-payment/:id", requireAdmin, ordercontroller.reviewPayment);
 
 router.get(["/admin/events", "/admin/events/add", "/admin/events/edit/:id"], requireAdmin, visitorAdminRedirect);
 router.post(["/admin/events/add", "/admin/events/update/:id", "/admin/events/delete"], requireAdmin, retiredWriteRoute("Visitor Information"));
@@ -451,16 +541,32 @@ router.get('/admin/customers/:id', requireAdmin, customerMgmtController.detail);
 router.post('/admin/customers/toggle-status/:id', requireAdmin, customerMgmtController.toggleStatus);
 
 // ==================== ADMIN – PAYMENTS ====================
-const paymentAdminRedirect = redirectToSystem("PAYMENT_SYSTEM_URL", "/admin/dashboard", "CultureFrame Payments");
-router.get(["/admin/payments", "/admin/payments/add", "/admin/payments/:id"], requireAdmin, paymentAdminRedirect);
-router.post(["/admin/payments/add", "/admin/payments/update-status/:id"], requireAdmin, retiredWriteRoute("CultureFrame Payments"));
+router.get(["/admin/payments", "/admin/payments/add", "/admin/payments/:id"], requireAdmin, (_req, res) => res.redirect("/admin/orders"));
+router.post(["/admin/payments/add", "/admin/payments/update-status/:id"], requireAdmin, retiredWriteRoute("the integrated order workflow"));
 
 // ==================== ADMIN – ANALYTICS ====================
-const analyticsRedirect = redirectToSystem("CULTUREMETRICS_SYSTEM_URL", "/admin/dashboard", "CultureMetrics");
-router.get(["/admin/analytics/sales", "/admin/analytics/business"], requireAdmin, analyticsRedirect);
+router.get(["/admin/analytics/sales", "/admin/analytics/business"], requireAdmin, (req, res, next) => {
+  try {
+    const metricsUrl = configuredSystemUrl("CULTUREMETRICS_SYSTEM_URL");
+    if (!metricsUrl) {
+      req.flash("error_msg", "CultureMetrics is not configured. Ask an administrator to check the integration settings.");
+      return res.redirect("/admin/dashboard");
+    }
+
+    const token = createCultureMetricsAccessToken({
+      id: req.session.userId,
+      email: req.session.userEmail,
+      name: req.session.userName,
+      role: req.session.userRole
+    });
+    return res.redirect(createCultureMetricsConnectUrl(metricsUrl, token));
+  } catch (error) {
+    next(error);
+  }
+});
 
 // API: Get live dashboard stats
-router.get('/api/customer/dashboard-stats', requireAuth, async (req, res) => {
+router.get('/api/customer/dashboard-stats', requireCustomer, async (req, res) => {
   try {
     const { Order } = await import('../models/Order.js');
     const { CartItem } = await import('../models/CartItem.js');
@@ -486,7 +592,7 @@ router.get('/api/customer/dashboard-stats', requireAuth, async (req, res) => {
 });
 
 // API: Get recent activity for the logged-in customer
-router.get('/api/customer/recent-activity', requireAuth, async (req, res) => {
+router.get('/api/customer/recent-activity', requireCustomer, async (req, res) => {
   try {
     const { CartItem } = await import('../models/CartItem.js');
     const { WishlistItem } = await import('../models/WishlistItem.js');

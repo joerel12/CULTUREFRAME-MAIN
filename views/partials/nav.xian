@@ -10,15 +10,34 @@
       </a>
 
       <div class="cf-nav-links" aria-label="Main links">
-        <a href="/" class="cf-nav-link"><i class="fas fa-house"></i> Home</a>
-        <a href="/discover" class="cf-nav-link"><i class="fas fa-compass"></i> Discover</a>
+        {{#if isCustomer}}
+          <a href="/visitor/access?returnTo=%2F" class="cf-nav-link"><i class="fas fa-house"></i> Home</a>
+        {{else}}
+          <a href="/" class="cf-nav-link"><i class="fas fa-house"></i> Home</a>
+        {{/if}}
+        {{#if isLoggedIn}}
+          <a href="/visitor/access?returnTo=%2Flocations" class="cf-nav-link"><i class="fas fa-compass"></i> Discover</a>
+        {{else}}
+          <a href="{{visitorInformationUrl}}/locations" class="cf-nav-link"><i class="fas fa-compass"></i> Discover</a>
+        {{/if}}
         <a href="/shop" class="cf-nav-link"><i class="fas fa-store"></i> Marketplace</a>
+        {{#if isLoggedIn}}
+          <a href="/visitor/access?returnTo=%2Fabout" class="cf-nav-link"><i class="fas fa-circle-info"></i> About</a>
+        {{else}}
+          <a href="{{visitorInformationUrl}}/about" class="cf-nav-link"><i class="fas fa-circle-info"></i> About</a>
+        {{/if}}
       </div>
 
       <div class="cf-nav-actions">
-        <a href="/discover/search" class="cf-nav-icon" aria-label="Search visitor information" title="Search">
-          <i class="fas fa-magnifying-glass"></i>
-        </a>
+        {{#if isLoggedIn}}
+          <a href="/visitor/access?returnTo=%2Fsearch" class="cf-nav-icon" aria-label="Search visitor information" title="Search">
+            <i class="fas fa-magnifying-glass"></i>
+          </a>
+        {{else}}
+          <a href="{{visitorInformationUrl}}/search" class="cf-nav-icon" aria-label="Search visitor information" title="Search">
+            <i class="fas fa-magnifying-glass"></i>
+          </a>
+        {{/if}}
         {{#if isLoggedIn}}
           <a href="/cart" class="cf-nav-icon" aria-label="Shopping cart" title="Cart">
             <i class="fas fa-bag-shopping"></i>
@@ -48,10 +67,27 @@
     </div>
 
     <div id="mobileMenu" class="cf-mobile-menu">
-      <a href="/" class="cf-mobile-link"><i class="fas fa-house"></i> Home</a>
-      <a href="/discover" class="cf-mobile-link"><i class="fas fa-compass"></i> Discover culture</a>
+      {{#if isCustomer}}
+        <a href="/visitor/access?returnTo=%2F" class="cf-mobile-link"><i class="fas fa-house"></i> Home</a>
+      {{else}}
+        <a href="/" class="cf-mobile-link"><i class="fas fa-house"></i> Home</a>
+      {{/if}}
+      {{#if isLoggedIn}}
+        <a href="/visitor/access?returnTo=%2Flocations" class="cf-mobile-link"><i class="fas fa-compass"></i> Discover Mansalay</a>
+      {{else}}
+        <a href="{{visitorInformationUrl}}/locations" class="cf-mobile-link"><i class="fas fa-compass"></i> Discover Mansalay</a>
+      {{/if}}
       <a href="/shop" class="cf-mobile-link"><i class="fas fa-store"></i> Marketplace</a>
-      <a href="/discover/search" class="cf-mobile-link"><i class="fas fa-magnifying-glass"></i> Search</a>
+      {{#if isLoggedIn}}
+        <a href="/visitor/access?returnTo=%2Fabout" class="cf-mobile-link"><i class="fas fa-circle-info"></i> About</a>
+      {{else}}
+        <a href="{{visitorInformationUrl}}/about" class="cf-mobile-link"><i class="fas fa-circle-info"></i> About</a>
+      {{/if}}
+      {{#if isLoggedIn}}
+        <a href="/visitor/access?returnTo=%2Fsearch" class="cf-mobile-link"><i class="fas fa-magnifying-glass"></i> Search</a>
+      {{else}}
+        <a href="{{visitorInformationUrl}}/search" class="cf-mobile-link"><i class="fas fa-magnifying-glass"></i> Search</a>
+      {{/if}}
       {{#if isLoggedIn}}
         <a href="/dashboard" class="cf-mobile-link"><i class="fas fa-table-cells-large"></i> My workspace</a>
         <a href="/logout" class="cf-mobile-link"><i class="fas fa-arrow-right-from-bracket"></i> Sign out</a>

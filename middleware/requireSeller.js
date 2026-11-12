@@ -1,4 +1,5 @@
 import { Seller } from "../models/Seller.js";
+import { User } from "../models/userModel.js";
 
 export const requireSeller = async (req, res, next) => {
   if (!req.session?.isAuthenticated) {
@@ -11,6 +12,14 @@ export const requireSeller = async (req, res, next) => {
   }
 
   try {
+    const user = await User.findOne({
+      where: { id: req.session.userId, role: "seller", status: "active" },
+      attributes: ["id"]
+    });
+    if (!user) {
+      req.flash("error_msg", "Your login session is no longer active. Please sign in again.");
+      return res.redirect("/login");
+    }
     const seller = await Seller.findOne({
       where: {
         user_id: req.session.userId,

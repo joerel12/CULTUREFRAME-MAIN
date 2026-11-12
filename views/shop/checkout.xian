@@ -1,606 +1,137 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Checkout — CultureFrame</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
-  <style>
-    body { font-family: 'Inter', 'Segoe UI', sans-serif; background: #f0fdf4; }
+{{>head}}
+<body class="cf-checkout-page">
+  {{>nav}}
 
-    .input-field {
-      width: 100%;
-      padding: 0.65rem 1rem;
-      border: 1.5px solid #d1fae5;
-      border-radius: 10px;
-      font-size: 0.9rem;
-      transition: all 0.2s;
-      background: #fff;
-      outline: none;
-    }
-    .input-field:focus {
-      border-color: #059669;
-      box-shadow: 0 0 0 3px rgba(5,150,105,0.12);
-    }
-    .input-field::placeholder { color: #9ca3af; }
+  <main class="checkout-shell">
+    <a class="checkout-back" href="/cart"><i class="fas fa-arrow-left"></i> Return to cart</a>
 
-    .card {
-      background: #fff;
-      border-radius: 16px;
-      box-shadow: 0 1px 4px rgba(0,0,0,0.06), 0 4px 16px rgba(5,150,105,0.06);
-      border: 1px solid #d1fae5;
-    }
-    .card-header {
-      padding: 1rem 1.25rem;
-      border-bottom: 1px solid #f0fdf4;
-      display: flex;
-      align-items: center;
-      gap: 0.65rem;
-    }
-    .step-badge {
-      width: 26px; height: 26px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #059669, #10b981);
-      color: #fff;
-      font-size: 0.75rem;
-      font-weight: 700;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-    }
-
-    .payment-card {
-      border: 2px solid #e5e7eb;
-      border-radius: 12px;
-      padding: 0.9rem 1rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      gap: 0.75rem;
-    }
-    .payment-card:hover { border-color: #6ee7b7; background: #f0fdf4; }
-    .payment-card.selected { border-color: #059669; background: #ecfdf5; }
-    .payment-card input[type="radio"] { accent-color: #059669; width: 16px; height: 16px; }
-
-    .shipping-card {
-      border: 2px solid #e5e7eb;
-      border-radius: 12px;
-      padding: 0.9rem 1rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .shipping-card:hover { border-color: #6ee7b7; }
-    .shipping-card.selected { border-color: #059669; background: #ecfdf5; }
-
-    .qty-btn {
-      width: 28px; height: 28px;
-      border-radius: 8px;
-      border: 1.5px solid #d1fae5;
-      background: #f0fdf4;
-      color: #065f46;
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer;
-      transition: all 0.15s;
-      font-size: 0.8rem;
-    }
-    .qty-btn:hover { background: #059669; color: #fff; border-color: #059669; }
-
-    .order-btn {
-      width: 100%;
-      padding: 0.9rem;
-      background: linear-gradient(135deg, #059669, #10b981);
-      color: #fff;
-      border: none;
-      border-radius: 12px;
-      font-size: 1rem;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.2s;
-      box-shadow: 0 4px 12px rgba(5,150,105,0.3);
-      letter-spacing: 0.02em;
-    }
-    .order-btn:hover {
-      background: linear-gradient(135deg, #047857, #059669);
-      box-shadow: 0 6px 20px rgba(5,150,105,0.4);
-      transform: translateY(-1px);
-    }
-    .order-btn:disabled { opacity: 0.7; cursor: not-allowed; transform: none; }
-
-    .progress-step { display: flex; align-items: center; gap: 0.5rem; }
-    .progress-circle {
-      width: 32px; height: 32px; border-radius: 50%;
-      display: flex; align-items: center; justify-content: center;
-      font-weight: 700; font-size: 0.85rem;
-    }
-    .progress-line { height: 3px; width: 60px; border-radius: 2px; }
-
-    .product-img {
-      width: 64px; height: 64px;
-      border-radius: 10px;
-      object-fit: cover;
-      border: 1.5px solid #d1fae5;
-      flex-shrink: 0;
-      background: #f0fdf4;
-    }
-
-    .trust-badge {
-      display: flex; flex-direction: column; align-items: center;
-      gap: 0.25rem; font-size: 0.7rem; color: #6b7280;
-    }
-    .trust-badge .icon {
-      width: 32px; height: 32px; border-radius: 8px;
-      background: #f0fdf4; display: flex; align-items: center; justify-content: center;
-      color: #059669; font-size: 0.9rem;
-    }
-
-    @keyframes fadeUp {
-      from { opacity: 0; transform: translateY(16px); }
-      to   { opacity: 1; transform: translateY(0); }
-    }
-    .fade-up { animation: fadeUp 0.4s ease both; }
-    .fade-up-2 { animation: fadeUp 0.4s 0.1s ease both; }
-    .fade-up-3 { animation: fadeUp 0.4s 0.2s ease both; }
-    .fade-up-4 { animation: fadeUp 0.4s 0.3s ease both; }
-  </style>
-</head>
-<body class="min-h-screen">
-
-  <!-- Top bar -->
-  <div class="bg-emerald-700 text-white text-xs py-2">
-    <div class="max-w-6xl mx-auto px-4 flex justify-between items-center">
-      <div class="flex items-center gap-1 opacity-80">
-        <i class="fas fa-shield-alt"></i>
-        <span>Secure Checkout</span>
+    <header class="checkout-heading">
+      <div>
+        <span class="checkout-kicker">Secure CultureFrame checkout</span>
+        <h1>Complete your order</h1>
+        <p>Review your local products, confirm delivery details, and submit payment evidence when paying online.</p>
       </div>
-      {{#if user}}
-      <div class="flex items-center gap-2">
-        <div class="w-5 h-5 rounded-full bg-emerald-500 flex items-center justify-center text-xs font-bold">
-          {{#if user.name}}{{user.name.[0]}}{{else}}U{{/if}}
-        </div>
-        <span>{{user.name}}</span>
+      <div class="checkout-steps" aria-label="Checkout progress">
+        <span class="is-done">1 <small>Cart</small></span><i></i>
+        <span class="is-active">2 <small>Checkout</small></span><i></i>
+        <span>3 <small>Review</small></span>
       </div>
-      {{else}}
-      <div class="flex gap-3">
-        <a href="/login" class="hover:text-emerald-200 transition-colors">Login</a>
-        <a href="/register" class="hover:text-emerald-200 transition-colors">Sign Up</a>
-      </div>
-      {{/if}}
-    </div>
-  </div>
+    </header>
 
-  <!-- Nav -->
-  <nav class="bg-white shadow-sm border-b border-emerald-100 sticky top-0 z-50">
-    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
-      <a href="/" class="flex items-center gap-2">
-        <img src="/images/logo.png" alt="CultureFrame" class="w-9 h-9 object-contain" />
-        <div>
-          <p class="text-base font-bold text-gray-800 leading-none">CultureFrame</p>
-          <p class="text-[10px] text-emerald-600 leading-none mt-0.5">Mansalay</p>
-        </div>
-      </a>
-      <div class="flex items-center gap-4">
-        <a href="/cart" class="relative text-gray-500 hover:text-emerald-600 transition-colors">
-          <i class="fas fa-shopping-cart text-lg"></i>
-          {{#if cart.length}}
-          <span class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] rounded-full w-4 h-4 flex items-center justify-center">{{cart.length}}</span>
-          {{/if}}
-        </a>
-        <a href="{{#if referer}}{{referer}}{{else}}/shop{{/if}}" class="text-sm text-emerald-600 hover:text-emerald-800 font-medium flex items-center gap-1 transition-colors">
-          <i class="fas fa-arrow-left text-xs"></i> Back
-        </a>
-      </div>
-    </div>
-  </nav>
+    {{>messages}}
 
-  <div class="max-w-6xl mx-auto px-4 py-8">
+    <form method="POST" action="/order/create" id="checkoutForm" enctype="multipart/form-data" class="checkout-layout">
+      <input type="hidden" name="cart_items" value='{{{serverCartJSON}}}' />
 
-    <!-- Progress bar -->
-    <div class="flex items-center justify-center mb-8 fade-up">
-      <div class="progress-step">
-        <div class="progress-circle bg-emerald-600 text-white"><i class="fas fa-check text-xs"></i></div>
-        <span class="text-sm font-semibold text-emerald-600">Cart</span>
-      </div>
-      <div class="progress-line bg-emerald-500 mx-2"></div>
-      <div class="progress-step">
-        <div class="progress-circle bg-emerald-600 text-white font-bold text-sm">2</div>
-        <span class="text-sm font-bold text-emerald-700">Checkout</span>
-      </div>
-      <div class="progress-line bg-gray-200 mx-2"></div>
-      <div class="progress-step">
-        <div class="progress-circle bg-gray-200 text-gray-400 text-sm">3</div>
-        <span class="text-sm text-gray-400">Complete</span>
-      </div>
-    </div>
-
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-
-      <!-- ── LEFT COLUMN ── -->
-      <div class="lg:col-span-2 space-y-5">
-
-        <!-- 1. Shipping Address -->
-        <div class="card fade-up">
-          <div class="card-header">
-            <div class="step-badge">1</div>
-            <h2 class="font-bold text-gray-800">Shipping Address</h2>
+      <div class="checkout-main">
+        <section class="checkout-card">
+          <div class="checkout-card-title"><span>1</span><div><h2>Delivery details</h2><p>Use an address where the seller or courier can reach you.</p></div></div>
+          <div class="checkout-fields two-columns">
+            <label><span>Full name</span><input name="customer_name" value="{{customer_name}}" minlength="2" maxlength="100" required autocomplete="name" /></label>
+            <label><span>Phone number</span><input name="customer_phone" value="{{customer_phone}}" maxlength="30" required autocomplete="tel" /></label>
           </div>
-          <div class="p-5">
-            <form id="addressForm" class="space-y-4">
-              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Full Name *</label>
-                  <input type="text" name="customer_name" required
-                    class="input-field" placeholder="Juan dela Cruz"
-                    value="{{customer_name}}" />
-                </div>
-                <div>
-                  <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Phone Number *</label>
-                  <input type="tel" name="customer_phone" required
-                    class="input-field" placeholder="+63 9XX XXX XXXX"
-                    value="{{customer_phone}}" />
-                </div>
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Email Address *</label>
-                <input type="email" name="customer_email" required
-                  class="input-field" placeholder="juan@email.com"
-                  value="{{customer_email}}" />
-              </div>
-              <div>
-                <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Complete Address *</label>
-                <textarea name="shipping_address" required rows="3"
-                  class="input-field resize-none"
-                  placeholder="House No., Street, Barangay">{{shipping_address}}</textarea>
-              </div>
-              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div>
-                  <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">City / Municipality</label>
-                  <input type="text" name="city" class="input-field" placeholder="Mansalay" value="{{city}}" />
-                </div>
-                <div>
-                  <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">Province</label>
-                  <input type="text" name="province" class="input-field" placeholder="Oriental Mindoro" value="{{province}}" />
-                </div>
-                <div>
-                  <label class="block text-xs font-semibold text-gray-600 mb-1.5 uppercase tracking-wide">ZIP Code</label>
-                  <input type="text" name="zip_code" class="input-field" placeholder="5210" value="{{zip_code}}" />
-                </div>
-              </div>
-            </form>
+          <div class="checkout-fields stacked-fields">
+            <label><span>Email address</span><input type="email" name="customer_email" value="{{customer_email}}" required autocomplete="email" /></label>
+            <label><span>Complete shipping address</span><textarea name="shipping_address" rows="4" minlength="5" maxlength="250" required autocomplete="street-address">{{shipping_address}}</textarea></label>
           </div>
-        </div>
+          <div class="delivery-note"><i class="fas fa-truck"></i><div><strong>Standard local delivery</strong><span>Shipping arrangements and the expected delivery date will be confirmed with your order.</span></div></div>
+        </section>
 
-        <!-- 2. Shipping Method -->
-        <div class="card fade-up-2">
-          <div class="card-header">
-            <div class="step-badge">2</div>
-            <h2 class="font-bold text-gray-800">Shipping Method</h2>
+        <section class="checkout-card">
+          <div class="checkout-card-title"><span>2</span><div><h2>Payment method</h2><p>Online payments remain pending until an administrator verifies the evidence.</p></div></div>
+          <div class="payment-options">
+            <label class="payment-option is-selected"><input type="radio" name="payment_method" value="cash_on_delivery" checked /><span><b>Cash on delivery</b><small>Pay when the order arrives</small></span></label>
+            <label class="payment-option"><input type="radio" name="payment_method" value="gcash" /><span><b>GCash</b><small>Provide a reference or receipt</small></span></label>
+            <label class="payment-option"><input type="radio" name="payment_method" value="bank_transfer" /><span><b>Bank transfer</b><small>Provide a reference or receipt</small></span></label>
+            <label class="payment-option"><input type="radio" name="payment_method" value="credit_card" /><span><b>Card payment</b><small>Provide a transaction reference</small></span></label>
           </div>
-          <div class="p-5 space-y-3">
-            <label class="shipping-card selected" id="ship-standard">
-              <div class="flex items-center gap-3">
-                <input type="radio" name="shipping_method" value="standard" checked class="accent-emerald-600" />
-                <div>
-                  <div class="font-semibold text-gray-800 text-sm flex items-center gap-2">
-                    <i class="fas fa-truck text-emerald-600"></i> Standard Delivery
-                  </div>
-                  <div class="text-xs text-gray-500 mt-0.5">3–7 business days</div>
-                </div>
-              </div>
-              <span class="text-emerald-600 font-bold text-sm bg-emerald-50 px-2 py-0.5 rounded-full">FREE</span>
-            </label>
-            <label class="shipping-card" id="ship-express">
-              <div class="flex items-center gap-3">
-                <input type="radio" name="shipping_method" value="express" class="accent-emerald-600" />
-                <div>
-                  <div class="font-semibold text-gray-800 text-sm flex items-center gap-2">
-                    <i class="fas fa-bolt text-yellow-500"></i> Express Delivery
-                  </div>
-                  <div class="text-xs text-gray-500 mt-0.5">1–2 business days</div>
-                </div>
-              </div>
-              <span class="text-gray-700 font-bold text-sm">₱50</span>
-            </label>
-          </div>
-        </div>
 
-        <!-- 3. Payment Method -->
-        <div class="card fade-up-3">
-          <div class="card-header">
-            <div class="step-badge">3</div>
-            <h2 class="font-bold text-gray-800">Payment Method</h2>
-          </div>
-          <div class="p-5 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <label class="payment-card selected">
-              <input type="radio" name="payment_method" value="cash_on_delivery" checked />
-              <div>
-                <div class="font-semibold text-gray-800 text-sm">💰 Cash on Delivery</div>
-                <div class="text-xs text-gray-500">Pay when item arrives</div>
+          <div class="payment-evidence is-cod" id="paymentEvidence">
+            <div class="evidence-heading"><i class="fas fa-shield-halved"></i><div><h3 id="paymentEvidenceTitle">Cash on delivery</h3><p id="paymentEvidenceHelp">No advance proof is required. Payment will be collected when your order arrives.</p></div></div>
+            <div class="online-payment-fields">
+              <div class="checkout-fields two-columns">
+                <label><span>Payment reference</span><input type="text" name="payment_reference" id="paymentReference" maxlength="100" placeholder="GCash, bank, or card reference" autocomplete="off" /></label>
+                <label><span>Receipt or proof image</span><input type="file" name="payment_proof" id="paymentProof" accept="image/jpeg,image/png,image/webp" /></label>
               </div>
-            </label>
-            <label class="payment-card">
-              <input type="radio" name="payment_method" value="gcash" />
-              <div>
-                <div class="font-semibold text-gray-800 text-sm">📱 GCash</div>
-                <div class="text-xs text-gray-500">Pay via GCash app</div>
-              </div>
-            </label>
-            <label class="payment-card">
-              <input type="radio" name="payment_method" value="bank_transfer" />
-              <div>
-                <div class="font-semibold text-gray-800 text-sm">🏦 Bank Transfer</div>
-                <div class="text-xs text-gray-500">BPI, BDO, Metrobank</div>
-              </div>
-            </label>
-            <label class="payment-card">
-              <input type="radio" name="payment_method" value="credit_card" />
-              <div>
-                <div class="font-semibold text-gray-800 text-sm">💳 Credit / Debit Card</div>
-                <div class="text-xs text-gray-500">Visa, Mastercard</div>
-              </div>
-            </label>
-          </div>
-        </div>
-
-        <!-- 4. Order Items -->
-        <div class="card fade-up-4">
-          <div class="card-header">
-            <div class="step-badge">4</div>
-            <h2 class="font-bold text-gray-800">Order Items</h2>
-            <span class="ml-auto text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded-full">{{cart.length}} item(s)</span>
-          </div>
-          <div class="p-5 space-y-3">
-            {{#each cart}}
-            <div class="flex items-center gap-4 p-3 rounded-xl border border-emerald-50 hover:border-emerald-200 hover:bg-emerald-50/40 transition-all checkout-item"
-                 data-product-id="{{this.product_id}}" data-price="{{this.price}}">
-              <img src="{{this.image_url}}" alt="{{this.name}}" class="product-img"
-                   onerror="this.src='/images/logo.png'" />
-              <div class="flex-1 min-w-0">
-                <p class="font-semibold text-gray-800 text-sm leading-snug truncate">{{this.name}}</p>
-                <p class="text-xs text-emerald-600 font-medium mt-0.5">₱{{this.price}} each</p>
-                <div class="flex items-center gap-2 mt-2">
-                  <button type="button" class="qty-btn qty-decrease" data-product-id="{{this.product_id}}">
-                    <i class="fas fa-minus" style="font-size:10px"></i>
-                  </button>
-                  <input type="number" value="{{this.quantity}}" min="1" max="99" readonly
-                         class="qty-input w-10 text-center text-sm font-bold border border-emerald-100 rounded-lg py-0.5 bg-white"
-                         data-product-id="{{this.product_id}}" />
-                  <button type="button" class="qty-btn qty-increase" data-product-id="{{this.product_id}}">
-                    <i class="fas fa-plus" style="font-size:10px"></i>
-                  </button>
-                </div>
-              </div>
-              <div class="text-right shrink-0">
-                <p class="font-bold text-emerald-700 text-base item-total">₱{{this.total}}</p>
-              </div>
+              <small class="proof-rule">Provide at least one: a reference of 6 or more characters, or a JPEG/PNG/WebP receipt up to 5 MB.</small>
             </div>
+          </div>
+        </section>
+
+        <section class="checkout-card">
+          <div class="checkout-card-title"><span>3</span><div><h2>Items in this order</h2><p>Product prices and stock are checked again by the server when you place the order.</p></div></div>
+          <div class="checkout-products">
+            {{#each cart}}
+            <article>
+              <img src="{{this.image_url}}" alt="{{this.name}}" loading="lazy" onerror="this.onerror=null;this.src='/images/products/ramit-textile.jpg'" />
+              <div><h3>{{this.name}}</h3><p>Quantity: {{this.quantity}} <span>·</span> ₱{{this.price}} each</p></div>
+              <strong>₱{{this.total}}</strong>
+            </article>
             {{/each}}
           </div>
+        </section>
+      </div>
+
+      <aside class="checkout-summary">
+        <div class="checkout-card summary-card">
+          <span class="checkout-kicker">Order summary</span>
+          <h2>Ready for review</h2>
+          <div class="summary-line"><span>Products</span><b>{{cart.length}} item(s)</b></div>
+          <div class="summary-line"><span>Delivery</span><b>To be confirmed</b></div>
+          <div class="summary-total"><span>Total</span><strong>₱{{cartTotal}}</strong></div>
+          <button type="submit" id="placeOrderButton"><i class="fas fa-lock"></i> Place order securely</button>
+          <p class="summary-security"><i class="fas fa-circle-check"></i> Online orders cannot be processed until payment evidence is approved. Uploaded receipts are private to the order owner and administrators.</p>
         </div>
+      </aside>
+    </form>
+  </main>
 
-      </div><!-- end left column -->
-
-      <!-- ── RIGHT COLUMN — Order Summary ── -->
-      <div class="lg:col-span-1">
-        <div class="lg:sticky lg:top-[72px] space-y-4">
-
-          <!-- Summary card -->
-          <div class="card fade-up">
-            <div class="card-header">
-              <i class="fas fa-receipt text-emerald-600"></i>
-              <h3 class="font-bold text-gray-800">Order Summary</h3>
-            </div>
-            <div class="p-5 space-y-3">
-              <div class="flex justify-between text-sm text-gray-600">
-                <span>Subtotal ({{cart.length}} items)</span>
-                <span class="font-medium text-gray-800" id="subtotal">₱{{cartTotal}}</span>
-              </div>
-              <div class="flex justify-between text-sm text-gray-600">
-                <span>Shipping Fee</span>
-                <span class="text-emerald-600 font-semibold" id="shippingDisplay">FREE</span>
-              </div>
-              <div class="flex justify-between text-sm text-gray-600">
-                <span>Service Fee</span>
-                <span class="font-medium text-gray-800">₱0</span>
-              </div>
-              <div class="flex justify-between text-sm text-gray-500">
-                <span>Voucher Discount</span>
-                <span class="text-red-500 font-medium">- ₱0</span>
-              </div>
-              <div class="border-t border-emerald-100 pt-3 flex justify-between items-center">
-                <span class="font-bold text-gray-800">Total Payment</span>
-                <span class="text-2xl font-extrabold text-emerald-600" id="totalAmount">₱{{cartTotal}}</span>
-              </div>
-            </div>
-
-            <!-- Voucher -->
-            <div class="px-5 pb-4">
-              <div class="flex gap-2">
-                <input type="text" id="voucherInput" placeholder="Voucher code"
-                  class="input-field flex-1 text-xs py-2" />
-                <button type="button" onclick="applyVoucher()"
-                  class="text-xs px-3 py-2 rounded-xl bg-emerald-100 text-emerald-700 font-semibold hover:bg-emerald-200 transition-colors whitespace-nowrap">
-                  Apply
-                </button>
-              </div>
-            </div>
-
-            <!-- Place Order form -->
-            <div class="px-5 pb-5">
-              <form method="POST" action="/order/create" id="checkoutForm">
-                <input type="hidden" name="cart_items" value='{{{serverCartJSON}}}'>
-                <input type="hidden" name="total_amount" id="hiddenTotal" value="{{cartTotal}}">
-                <input type="hidden" name="customer_name" id="finalCustomerName">
-                <input type="hidden" name="customer_email" id="finalCustomerEmail">
-                <input type="hidden" name="customer_phone" id="finalCustomerPhone">
-                <input type="hidden" name="shipping_address" id="finalShippingAddress">
-                <input type="hidden" name="payment_method" id="finalPaymentMethod">
-                <button type="submit" class="order-btn" id="placeOrderBtn">
-                  <i class="fas fa-lock mr-2"></i>Place Order Securely
-                </button>
-              </form>
-            </div>
-          </div>
-
-          <!-- Trust badges -->
-          <div class="card p-4">
-            <div class="grid grid-cols-3 gap-2">
-              <div class="trust-badge">
-                <div class="icon"><i class="fas fa-shield-alt"></i></div>
-                <span>Secure Pay</span>
-              </div>
-              <div class="trust-badge">
-                <div class="icon"><i class="fas fa-truck"></i></div>
-                <span>Free Shipping</span>
-              </div>
-              <div class="trust-badge">
-                <div class="icon"><i class="fas fa-undo"></i></div>
-                <span>7-Day Return</span>
-              </div>
-            </div>
-          </div>
-
-        </div>
-      </div><!-- end right column -->
-
-    </div>
-  </div>
+  <style>
+    .cf-checkout-page{margin:0;background:linear-gradient(135deg,#f7f6ef 0,#eef6f1 55%,#f7faf8 100%);color:#15241f;min-height:100vh}.checkout-shell{width:min(1180px,calc(100% - 32px));margin:0 auto;padding:38px 0 70px}.checkout-back{display:inline-flex;align-items:center;gap:8px;color:#1b674f;font-weight:800;font-size:13px;text-decoration:none;margin-bottom:24px}.checkout-heading{display:flex;align-items:flex-end;justify-content:space-between;gap:30px;margin-bottom:28px}.checkout-heading h1{font:600 clamp(34px,5vw,58px)/1.03 "Playfair Display",serif;margin:6px 0 10px;color:#11392e}.checkout-heading p{margin:0;color:#66776f;max-width:650px;line-height:1.65}.checkout-kicker{color:#197356;font:800 11px/1 "Manrope",sans-serif;letter-spacing:.14em;text-transform:uppercase}.checkout-steps{display:flex;align-items:center;flex-shrink:0}.checkout-steps>span{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:#dfe8e3;color:#718079;font:800 12px "Manrope",sans-serif;position:relative}.checkout-steps>span small{position:absolute;top:44px;left:50%;transform:translateX(-50%);font-size:9px;white-space:nowrap}.checkout-steps>span.is-done,.checkout-steps>span.is-active{background:#17694f;color:#fff}.checkout-steps>span.is-active{box-shadow:0 0 0 6px #cde6da}.checkout-steps>i{width:42px;height:2px;background:#cbd8d1}.checkout-layout{display:grid;grid-template-columns:minmax(0,1fr) 350px;gap:24px;align-items:start}.checkout-main{display:grid;gap:20px}.checkout-card{background:#fff;border:1px solid #dce7e1;border-radius:22px;padding:26px;box-shadow:0 16px 44px rgba(17,57,46,.07)}.checkout-card-title{display:flex;align-items:flex-start;gap:14px;margin-bottom:22px}.checkout-card-title>span{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:#17694f;color:#fff;font:800 12px "Manrope",sans-serif;flex:0 0 auto}.checkout-card h2,.checkout-card h3{margin:0;color:#153a2f}.checkout-card-title h2{font:800 18px "Manrope",sans-serif}.checkout-card-title p{margin:5px 0 0;color:#77857e;font-size:12px}.checkout-fields{display:grid;gap:15px}.checkout-fields.two-columns{grid-template-columns:1fr 1fr}.stacked-fields{margin-top:15px}.checkout-fields label{display:grid;gap:7px;color:#3b5048;font-size:12px;font-weight:800}.checkout-fields input,.checkout-fields textarea{width:100%;border:1px solid #cedbd4;border-radius:12px;padding:12px 13px;background:#fbfdfc;color:#17271f;font:500 14px "DM Sans",sans-serif;outline:0}.checkout-fields input:focus,.checkout-fields textarea:focus{border-color:#248967;box-shadow:0 0 0 4px rgba(36,137,103,.12)}.delivery-note{display:flex;align-items:center;gap:13px;margin-top:17px;padding:14px;border-radius:14px;background:#edf8f3;color:#1b684f}.delivery-note>i{width:36px;height:36px;display:grid;place-items:center;border-radius:10px;background:#fff}.delivery-note div{display:grid;gap:3px}.delivery-note strong{font-size:13px}.delivery-note span{font-size:11px;color:#5d756b}.payment-options{display:grid;grid-template-columns:1fr 1fr;gap:10px}.payment-option{display:flex;align-items:center;gap:11px;border:1px solid #d8e1dc;border-radius:14px;padding:14px;cursor:pointer;background:#fff;transition:.18s}.payment-option:hover,.payment-option.is-selected{border-color:#268563;background:#f0faf5;box-shadow:inset 0 0 0 1px #268563}.payment-option input{accent-color:#17694f}.payment-option span{display:grid;gap:3px}.payment-option b{font-size:13px}.payment-option small{font-size:10px;color:#72827a}.payment-evidence{margin-top:16px;padding:17px;border:1px solid #e4c776;border-radius:16px;background:#fff9e8}.evidence-heading{display:flex;gap:12px;align-items:flex-start}.evidence-heading>i{width:35px;height:35px;display:grid;place-items:center;border-radius:10px;background:#fff0bc;color:#7e5b08}.evidence-heading h3{font:800 14px "Manrope",sans-serif}.evidence-heading p{margin:4px 0 0;color:#766641;font-size:11px;line-height:1.5}.online-payment-fields{margin-top:15px}.payment-evidence.is-cod{border-color:#cce1d6;background:#f2faf6}.payment-evidence.is-cod .online-payment-fields{display:none}.proof-rule{display:block;margin-top:9px;color:#806c39;line-height:1.5}.checkout-products{display:grid;gap:10px}.checkout-products article{display:grid;grid-template-columns:62px minmax(0,1fr) auto;align-items:center;gap:14px;padding:11px;border:1px solid #e1e9e5;border-radius:14px}.checkout-products img{width:62px;height:62px;border-radius:11px;object-fit:cover;background:#edf4f0}.checkout-products h3{font:800 13px "Manrope",sans-serif}.checkout-products p{margin:6px 0 0;color:#79867f;font-size:11px}.checkout-products article>strong{color:#17694f;font-size:14px}.checkout-summary{position:sticky;top:92px}.summary-card{padding:28px;background:linear-gradient(155deg,#0f3d30,#17694f);color:#fff;border:0}.summary-card h2{color:#fff;font:600 28px "Playfair Display",serif;margin:8px 0 22px}.summary-card .checkout-kicker{color:#b9e2d0}.summary-line,.summary-total{display:flex;justify-content:space-between;gap:16px}.summary-line{padding:11px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:12px;color:#c8ded5}.summary-line b{color:#fff}.summary-total{align-items:end;padding:20px 0}.summary-total span{font-weight:800}.summary-total strong{font:600 28px "Playfair Display",serif;color:#f0c964}.summary-card button{width:100%;border:0;border-radius:13px;padding:14px;background:#efc65c;color:#17392f;font:800 13px "Manrope",sans-serif;cursor:pointer;box-shadow:0 10px 25px rgba(0,0,0,.16)}.summary-card button:hover{background:#f5d47e;transform:translateY(-1px)}.summary-card button:disabled{opacity:.65;cursor:wait}.summary-security{font-size:10px;line-height:1.55;color:#bdd5ca;margin:16px 0 0}.summary-security i{color:#efc65c;margin-right:5px}.checkout-toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:100;padding:12px 18px;border-radius:12px;background:#a62929;color:#fff;font-weight:800;font-size:12px;box-shadow:0 14px 36px rgba(0,0,0,.2)}
+    @media(max-width:900px){.checkout-layout{grid-template-columns:1fr}.checkout-summary{position:static}.checkout-heading{align-items:flex-start;flex-direction:column}.checkout-steps{margin-bottom:16px}}
+    @media(max-width:600px){.checkout-shell{width:min(100% - 20px,1180px);padding-top:24px}.checkout-card{padding:18px;border-radius:17px}.checkout-fields.two-columns,.payment-options{grid-template-columns:1fr}.checkout-heading h1{font-size:39px}.checkout-steps>i{width:25px}.checkout-products article{grid-template-columns:52px minmax(0,1fr)}.checkout-products img{width:52px;height:52px}.checkout-products article>strong{grid-column:2}}
+  </style>
 
   <script>
-  document.addEventListener('DOMContentLoaded', () => {
-    const checkoutForm = document.getElementById('checkoutForm');
-    const addressForm  = document.getElementById('addressForm');
-    const placeBtn     = document.getElementById('placeOrderBtn');
-    let shippingFee    = 0;
-
-    // ── Quantity Controls ──────────────────────────
-    document.querySelectorAll('.qty-decrease').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const pid   = btn.dataset.productId;
-        const input = document.querySelector(`.qty-input[data-product-id="${pid}"]`);
-        if (parseInt(input.value) > 1) {
-          input.value = parseInt(input.value) - 1;
-          updateItemTotal(pid);
-          updateCartTotal();
-          syncCartJSON();
-        }
-      });
-    });
-
-    document.querySelectorAll('.qty-increase').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const pid   = btn.dataset.productId;
-        const input = document.querySelector(`.qty-input[data-product-id="${pid}"]`);
-        if (parseInt(input.value) < 99) {
-          input.value = parseInt(input.value) + 1;
-          updateItemTotal(pid);
-          updateCartTotal();
-          syncCartJSON();
-        }
-      });
-    });
-
-    function updateItemTotal(pid) {
-      const item  = document.querySelector(`.checkout-item[data-product-id="${pid}"]`);
-      const price = parseFloat(item.dataset.price);
-      const qty   = parseInt(item.querySelector('.qty-input').value);
-      item.querySelector('.item-total').textContent = '₱' + (price * qty).toFixed(2);
-    }
-
-    function updateCartTotal() {
-      let sub = 0;
-      document.querySelectorAll('.checkout-item').forEach(item => {
-        sub += parseFloat(item.dataset.price) * parseInt(item.querySelector('.qty-input').value);
-      });
-      const total = sub + shippingFee;
-      document.getElementById('subtotal').textContent    = '₱' + sub.toFixed(2);
-      document.getElementById('totalAmount').textContent = '₱' + total.toFixed(2);
-      document.getElementById('hiddenTotal').value       = total.toFixed(2);
-    }
-
-    function syncCartJSON() {
-      const items = [];
-      document.querySelectorAll('.checkout-item').forEach(item => {
-        items.push({
-          product_id: item.dataset.productId,
-          name:       item.querySelector('p.font-semibold').textContent.trim(),
-          price:      parseFloat(item.dataset.price),
-          quantity:   parseInt(item.querySelector('.qty-input').value)
+    (() => {
+      const form = document.getElementById('checkoutForm');
+      const evidence = document.getElementById('paymentEvidence');
+      const reference = document.getElementById('paymentReference');
+      const proof = document.getElementById('paymentProof');
+      const submitButton = document.getElementById('placeOrderButton');
+      const showError = message => {
+        document.querySelector('.checkout-toast')?.remove();
+        const toast = document.createElement('div');
+        toast.className = 'checkout-toast';
+        toast.setAttribute('role', 'alert');
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        window.setTimeout(() => toast.remove(), 4500);
+      };
+      document.querySelectorAll('input[name="payment_method"]').forEach(input => {
+        input.addEventListener('change', () => {
+          document.querySelectorAll('.payment-option').forEach(option => option.classList.remove('is-selected'));
+          input.closest('.payment-option').classList.add('is-selected');
+          const isCod = input.value === 'cash_on_delivery';
+          evidence.classList.toggle('is-cod', isCod);
+          document.getElementById('paymentEvidenceTitle').textContent = isCod ? 'Cash on delivery' : 'Payment evidence required';
+          document.getElementById('paymentEvidenceHelp').textContent = isCod
+            ? 'No advance proof is required. Payment will be collected when your order arrives.'
+            : 'Enter a valid transaction reference or upload a receipt. Your order stays pending until an administrator approves it.';
         });
       });
-      document.querySelector('input[name="cart_items"]').value = JSON.stringify(items);
-    }
-
-    // ── Shipping method toggle ──────────────────────
-    document.querySelectorAll('input[name="shipping_method"]').forEach(r => {
-      r.addEventListener('change', () => {
-        document.querySelectorAll('.shipping-card').forEach(c => c.classList.remove('selected'));
-        r.closest('.shipping-card').classList.add('selected');
-        shippingFee = r.value === 'express' ? 50 : 0;
-        document.getElementById('shippingDisplay').textContent = shippingFee === 0 ? 'FREE' : '₱50';
-        updateCartTotal();
+      form.addEventListener('submit', event => {
+        const method = document.querySelector('input[name="payment_method"]:checked').value;
+        if (method !== 'cash_on_delivery' && reference.value.trim().length < 6 && !proof.files.length) {
+          event.preventDefault();
+          showError('Enter a payment reference or upload proof of payment.');
+          evidence.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          return;
+        }
+        submitButton.disabled = true;
+        submitButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Submitting securely…';
       });
-    });
-
-    // ── Payment method toggle ───────────────────────
-    document.querySelectorAll('input[name="payment_method"]').forEach(r => {
-      r.addEventListener('change', () => {
-        document.querySelectorAll('.payment-card').forEach(c => c.classList.remove('selected'));
-        r.closest('.payment-card').classList.add('selected');
-      });
-    });
-
-    // ── Form submit ─────────────────────────────────
-    checkoutForm.addEventListener('submit', e => {
-      e.preventDefault();
-
-      const name    = addressForm.querySelector('[name="customer_name"]').value.trim();
-      const email   = addressForm.querySelector('[name="customer_email"]').value.trim();
-      const phone   = addressForm.querySelector('[name="customer_phone"]').value.trim();
-      const addr    = addressForm.querySelector('[name="shipping_address"]').value.trim();
-      const city    = addressForm.querySelector('[name="city"]').value.trim();
-      const prov    = addressForm.querySelector('[name="province"]').value.trim();
-      const zip     = addressForm.querySelector('[name="zip_code"]').value.trim();
-      const payment = document.querySelector('input[name="payment_method"]:checked').value;
-
-      if (!name || !email || !phone || !addr) {
-        showToast('Please fill in all required fields.', 'error');
-        return;
-      }
-
-      const fullAddr = [addr, city, prov, zip].filter(Boolean).join(', ');
-
-      document.getElementById('finalCustomerName').value    = name;
-      document.getElementById('finalCustomerEmail').value   = email;
-      document.getElementById('finalCustomerPhone').value   = phone;
-      document.getElementById('finalShippingAddress').value = fullAddr;
-      document.getElementById('finalPaymentMethod').value   = payment;
-
-      placeBtn.innerHTML  = '<i class="fas fa-spinner fa-spin mr-2"></i>Processing...';
-      placeBtn.disabled   = true;
-      checkoutForm.submit();
-    });
-  });
-
-  // ── Toast notification ──────────────────────────────
-  function showToast(msg, type = 'info') {
-    const t = document.createElement('div');
-    t.className = `fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-5 py-3 rounded-xl shadow-lg text-sm font-semibold text-white transition-all
-      ${type === 'error' ? 'bg-red-500' : 'bg-emerald-600'}`;
-    t.textContent = msg;
-    document.body.appendChild(t);
-    setTimeout(() => t.remove(), 3000);
-  }
-
-  // ── Voucher (placeholder) ───────────────────────────
-  function applyVoucher() {
-    const code = document.getElementById('voucherInput').value.trim();
-    if (!code) return showToast('Enter a voucher code first.', 'error');
-    showToast('Voucher "' + code + '" is not valid.', 'error');
-  }
+    })();
   </script>
 
   {{>footer}}

@@ -23,13 +23,16 @@
     SOFTWARE.
 */
 import { Product, sequelize } from "../models/Product.js";
+import { ProductCategory } from "../models/ProductCategory.js";
 import { Order } from "../models/Order.js";
 import { OrderItem } from "../models/Orderitem.js";
 
 const productcontroller = {
   shop: async (req, res) => {
     // --- FILTERS & SORTING ---
-    const { price_min, price_max, sort, free_shipping, in_stock, category, search } = req.query;
+    const { price_min, price_max, sort = "popular", free_shipping, in_stock, category, search } = req.query;
+    const requestedPage = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
+    const pageSize = 12;
     
     console.log('[Shop] Query params:', req.query);
     console.log('[Shop] Filters:', { price_min, price_max, sort, free_shipping, in_stock, category, search });
@@ -38,14 +41,16 @@ const productcontroller = {
     const where = { status: 'active' };
     
     // Price range filter - properly handle both min and max
-    if (price_min && price_max) {
-      where.price = { [Op.between]: [Number(price_min), Number(price_max)] };
+    const minimumPrice = price_min !== undefined && price_min !== "" ? Number(price_min) : null;
+    const maximumPrice = price_max !== undefined && price_max !== "" ? Number(price_max) : null;
+    if (Number.isFinite(minimumPrice) && Number.isFinite(maximumPrice)) {
+      where.price = { [Op.between]: [minimumPrice, maximumPrice] };
       console.log('[Shop] Price filter: between', price_min, 'and', price_max);
-    } else if (price_min) {
-      where.price = { [Op.gte]: Number(price_min) };
+    } else if (Number.isFinite(minimumPrice)) {
+      where.price = { [Op.gte]: minimumPrice };
       console.log('[Shop] Price filter: >= ', price_min);
-    } else if (price_max) {
-      where.price = { [Op.lte]: Number(price_max) };
+    } else if (Number.isFinite(maximumPrice)) {
+      where.price = { [Op.lte]: maximumPrice };
       console.log('[Shop] Price filter: <= ', price_max);
     }
     
@@ -62,11 +67,12 @@ const productcontroller = {
       console.log('[Shop] In stock filter: ON');
     }
     if (search) {
-      // Match search against name, category, or description (case-insensitive where supported)
+      // Keep text search portable: PostgreSQL needs ILIKE while SQLite/MySQL use LIKE.
+      const searchOperator = sequelize.getDialect() === "postgres" ? Op.iLike : Op.like;
       where[Op.or] = [
-        { name: { [Op.like]: `%${search}%` } },
-        { category: { [Op.like]: `%${search}%` } },
-        { description: { [Op.like]: `%${search}%` } }
+        { name: { [searchOperator]: `%${String(search).trim()}%` } },
+        { category: { [searchOperator]: `%${String(search).trim()}%` } },
+        { description: { [searchOperator]: `%${String(search).trim()}%` } }
       ];
       console.log('[Shop] Search filter:', search);
     }
@@ -74,13 +80,15 @@ const productcontroller = {
     console.log('[Shop] Final where clause:', JSON.stringify(where, null, 2));
 
     // Sorting
-    let order = [];
+    let order = [['is_featured', 'DESC'], ['createdAt', 'DESC']];
     if (sort === 'price_asc') order = [['price', 'ASC']];
     else if (sort === 'price_desc') order = [['price', 'DESC']];
     else if (sort === 'new') order = [['createdAt', 'DESC']];
-    // else default: no sort or by popularity
-
-    const productsRaw = await Product.findAll({ where, order });
+    const [{ rows: productsRaw, count: totalProducts }, categoryRows] = await Promise.all([
+      Product.findAndCountAll({ where, order, limit: pageSize, offset: (requestedPage - 1) * pageSize }),
+      ProductCategory.findAll({ where: { is_active: true }, order: [["name", "ASC"]] })
+    ]);
+    const totalPages = Math.max(1, Math.ceil(totalProducts / pageSize));
 
     // Attach ordered status per product for the logged-in user (match by email)
     let products = productsRaw.map(p => p.get({ plain: true }));
@@ -124,7 +132,23 @@ const productcontroller = {
       wishlistCount = Array.isArray(req.session.wishlist) ? req.session.wishlist.length : 0;
     }
 
-    res.render("shop/index", { products, user: req.session, cartCount, wishlistCount, query: req.query });
+    res.render("shop/index", {
+      products,
+      categories: categoryRows.map((row) => row.get({ plain: true })),
+      totalProducts,
+      user: req.session,
+      cartCount,
+      wishlistCount,
+      query: { ...req.query, sort },
+      pagination: {
+        current: requestedPage,
+        pages: Array.from({ length: totalPages }, (_, index) => index + 1),
+        hasPrev: requestedPage > 1,
+        hasNext: requestedPage < totalPages,
+        prev: Math.max(1, requestedPage - 1),
+        next: Math.min(totalPages, requestedPage + 1)
+      }
+    });
   },
   
   detail: async (req, res) => {

@@ -35,6 +35,7 @@ Server will run at: http://localhost:3000
 | `npm run sync` | Create/update database tables (safe) |
 | `npm run migrate` | Reset database (⚠️ deletes data) |
 | `npm run seed:integration` | Add local end-to-end acceptance data |
+| `npm run seed:mansalay` | Idempotently add the local Mansalay heritage, festival and artisan marketplace catalog |
 | `npm run test:integration` | Test all service contracts |
 | `npm run test:admin-smoke` | Test retained admin pages and retired-page redirects |
 | `npm run test:portal-smoke` | Test public, customer and seller portals |
@@ -49,6 +50,26 @@ seller profile.
 Before using the seller workspace on an existing database, create a backup and
 run `npm run sync`. See `docs/integration/KYLA_SELLER_INTEGRATION.md` for the data
 model, administrator workflow, and verification status.
+
+## Security controls
+
+- Customer cart, wishlist, checkout, orders, profile, moments and customer APIs
+  require an active customer session. Seller and administrator routes verify both
+  the account role and current account status.
+- Five unsuccessful sign-in attempts lock that email for 15 minutes; a broader
+  per-network limit also slows attempts spread across many addresses. Login
+  rotates the session identifier, cookies are `HttpOnly` and `SameSite=Lax`, and
+  production cookies require HTTPS.
+- New and changed passwords must contain 12–128 characters with uppercase,
+  lowercase, number and symbol characters. Changing a customer email or password
+  also requires the current password.
+- Security headers, no-store rules for private pages, cross-site write protection,
+  request-size limits, image upload limits and integration bearer tokens protect
+  the remaining application boundaries. Development authentication shortcuts are
+  disabled unless `ENABLE_DEV_AUTH_ROUTES=true` is explicitly configured.
+- Set unique random values of at least 32 characters for `SESSION_SECRET`,
+  `CULTUREFRAME_SSO_SECRET`, `PAYMENT_INTEGRATION_TOKEN` and
+  `CULTUREMETRICS_INTEGRATION_TOKEN` before deployment. Never commit `.env`.
 
 ## Payment Service Integration
 
@@ -71,6 +92,15 @@ separately using its existing commands.
 
 Set `VISITOR_INFORMATION_URL` to the public root URL
 of that service (for example, `http://localhost:5173` during local development).
+Customers and visitors use one main CultureFrame account and one visible
+workspace. A successful customer login opens the Visitor home page first.
+From the Marketplace header, Home returns there and Discover opens the Mansalay
+locations page instead of repeating the home route. `/customer/dashboard`
+redirects through the signed handoff to the visitor portal's `/account` page,
+where discovery, GPS feedback, Marketplace,
+cart, wishlist, orders, profile and community links are presented together.
+The visitor module does not maintain a separate public password. Configure the same
+`CULTUREFRAME_SSO_SECRET` in both systems for production.
 Only records published by the Visitor Information team are displayed. See
 `docs/integration/VISITOR_INFORMATION_INTEGRATION.md` for ownership rules,
 routes, deployment configuration, and verification details.
@@ -82,14 +112,14 @@ orchestrator. It deliberately does not duplicate pages owned by another system:
 
 | Module | Owning system | Main-system entry point |
 | --- | --- | --- |
-| Heritage, traditions, events and attractions | Visitor Information | `/discover` |
+| Heritage, traditions, events and attractions | Unified Customer/Visitor side | `/discover` and signed `/visitor/access` |
 | Seller product catalog | Seller Workspace | `/seller` (seller accounts) |
-| Payments, refunds, receipts and payouts | CultureFrame Payments | configured `PAYMENT_SYSTEM_URL` |
-| Reports and business analytics | CultureMetrics | configured `CULTUREMETRICS_SYSTEM_URL` |
-| Accounts, carts, checkout, orders, sellers and customers | Main CultureFrame | this application |
+| Checkout payment methods and payment status | Internal payment integration | `/checkout` and `/admin/orders` |
+| Reports and business analytics | CultureMetrics | Admin-only `/admin/analytics/business` |
+| Customer identity, cart, wishlist and orders | Main CultureFrame, surfaced in the unified Customer/Visitor workspace | signed `/visitor/access?returnTo=%2Faccount` |
 
 Old public content URLs redirect to `/discover`. Old duplicate administrator
-GET routes redirect to the owning system, while retired write routes return
+GET routes redirect to the unified owning workspace, while retired write routes return
 HTTP `410 Gone` so records cannot be edited in two places.
 
 ## CultureMetrics Integration
@@ -97,9 +127,12 @@ HTTP `410 Gone` so records cannot be edited in two places.
 The integration branch implements the seven read-only analytics endpoints used
 by the separate CultureMetrics dashboard. Configure the same private
 `CULTUREMETRICS_INTEGRATION_TOKEN` in both servers, point CultureMetrics at this
-CultureFrame deployment, and enable its live data mode. Optionally set
-`CULTUREMETRICS_SYSTEM_URL` to show a dashboard link in the administrator
-sidebar. See `docs/integration/CULTUREMETRICS_INTEGRATION.md` for the complete
+CultureFrame deployment, and enable its live data mode. Set
+`CULTUREMETRICS_SYSTEM_URL` so the dashboard is available from the main
+administrator side only. The main administrator session uses a short-lived signed
+handoff, so CultureMetrics does not require a second login. Configure the same
+`CULTUREFRAME_SSO_SECRET` in both applications in production. See
+`docs/integration/CULTUREMETRICS_INTEGRATION.md` for the complete
 contract, privacy rules, and activation checklist.
 
 ## Default Accounts
@@ -150,7 +183,7 @@ darling/
 - 🧩 Connected-system control center
 - 📦 Order and feedback management
 - 👥 Customer and seller-account management
-- ↗️ Direct access to Visitor Information, Payments and CultureMetrics
+- ↗️ Signed access to Visitor content and CultureMetrics; payments stay inside orders
 
 ## Tech Stack
 

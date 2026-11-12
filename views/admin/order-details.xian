@@ -112,6 +112,14 @@
           </div>
         </div>
 
+        {{#if payment}}
+        <section class="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-lg">
+          <p class="text-xs font-bold uppercase tracking-widest text-amber-700">Payment evidence</p>
+          <div class="mt-3 grid gap-4 md:grid-cols-3"><div><span class="text-sm text-gray-500">Method</span><strong class="block capitalize">{{payment.method}}</strong></div><div><span class="text-sm text-gray-500">Reference</span><strong class="block">{{#if payment.reference_number}}{{payment.reference_number}}{{else}}Receipt uploaded{{/if}}</strong></div><div><span class="text-sm text-gray-500">Status</span><strong class="block capitalize">{{payment.status}}</strong></div></div>
+          {{#if payment.proof_path}}<a href="{{payment.proof_path}}" target="_blank" rel="noopener" class="mt-4 inline-block rounded-xl bg-white px-4 py-3 font-semibold text-emerald-700 shadow-sm">Open payment receipt ↗</a>{{/if}}
+        </section>
+        {{/if}}
+
         <!-- Order Items -->
         <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-emerald-100/50">
           <h2 class="text-2xl font-bold text-gray-800 mb-6">Order Items</h2>

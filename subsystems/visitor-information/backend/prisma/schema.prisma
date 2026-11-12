@@ -41,6 +41,7 @@ model User {
   updatedAt    DateTime         @updatedAt @map("updated_at")
   sessions     AuthSession[]
   feedback     VisitorFeedback[]
+  savedLocations SavedLocation[]
   createdItems ContentRecord[]  @relation("CreatedContent")
   media        MediaAsset[]     @relation("UploadedMedia")
   auditLogs    AuditLog[]
@@ -139,8 +140,22 @@ model Location {
   createdAt             DateTime          @default(now()) @map("created_at")
   updatedAt             DateTime          @updatedAt @map("updated_at")
   feedback              VisitorFeedback[]
+  savedBy               SavedLocation[]
 
   @@map("locations")
+}
+
+model SavedLocation {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  locationId String   @map("location_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, locationId])
+  @@index([userId, createdAt])
+  @@map("saved_locations")
 }
 
 model VisitorFeedback {

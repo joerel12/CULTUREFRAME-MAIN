@@ -28,6 +28,24 @@ import { OrderItem } from "../models/Orderitem.js";
 import { CartItem } from "../models/CartItem.js";
 import { Feedback } from "../models/Feedback.js";
 import { Product } from "../models/Product.js";
+import { Payment } from "../models/Payment.js";
+import crypto from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
+
+const privateProofDirectory = path.resolve(process.cwd(), "private-uploads", "payment-proofs");
+
+const paymentEvidence = payment => {
+  if (!payment) return null;
+  let evidence = {};
+  try { evidence = JSON.parse(payment.notes || "{}"); } catch { evidence = {}; }
+  return {
+    ...payment.get({ plain: true }),
+    proof_path: typeof evidence.proofFile === "string" ? `/orders/${payment.order_id}/payment-proof` : null,
+    submitted_at: typeof evidence.submittedAt === "string" ? evidence.submittedAt : null,
+    review_note: typeof evidence.reviewNote === "string" ? evidence.reviewNote : null
+  };
+};
 
 const ordercontroller = {
   checkout: async (req, res) => {
@@ -130,7 +148,7 @@ const ordercontroller = {
   },
   
   create: async (req, res) => {
-    const { customer_name, customer_email, customer_phone, shipping_address, cart_items, payment_method } = req.body;
+    const { customer_name, customer_email, customer_phone, shipping_address, cart_items, payment_method, payment_reference } = req.body;
 
     console.log('[Order Create] Request body:', { customer_name, cart_items: cart_items?.substring(0, 100), payment_method });
 
@@ -156,7 +174,9 @@ const ordercontroller = {
     }
 
     const normalizedName = String(customer_name || '').trim();
-    const normalizedEmail = String(customer_email || '').trim().toLowerCase();
+    // Order ownership is bound to the authenticated account, never to a
+    // browser-supplied email field.
+    const normalizedEmail = String(req.session.userEmail || '').trim().toLowerCase();
     const normalizedPhone = String(customer_phone || '').trim();
     const normalizedAddress = String(shipping_address || '').trim();
     const allowedPaymentMethods = ['cash_on_delivery', 'gcash', 'bank_transfer', 'credit_card'];
@@ -166,6 +186,17 @@ const ordercontroller = {
     }
     if (!allowedPaymentMethods.includes(payment_method)) {
       req.session.error_msg = 'Select a supported payment method.';
+      return res.redirect('/checkout');
+    }
+    const normalizedPaymentReference = String(payment_reference || '').trim();
+    if (normalizedPaymentReference.length > 100) {
+      req.session.error_msg = 'Payment reference numbers must be 100 characters or fewer.';
+      return res.redirect('/checkout');
+    }
+    const hasUploadedProof = Boolean(req.file?.buffer?.length);
+    const requiresPaymentEvidence = payment_method !== 'cash_on_delivery';
+    if (requiresPaymentEvidence && normalizedPaymentReference.length < 6 && !hasUploadedProof) {
+      req.session.error_msg = 'Enter a payment reference number or upload a payment receipt before placing an online-payment order.';
       return res.redirect('/checkout');
     }
 
@@ -185,7 +216,27 @@ const ordercontroller = {
       requestedItems.set(productId, combinedQuantity);
     }
 
+    let proofFile = null;
+    if (hasUploadedProof) {
+      const extensionByMime = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
+      const extension = extensionByMime[req.file.mimetype];
+      if (!extension) {
+        req.session.error_msg = 'Payment proof must be a JPEG, PNG, or WebP image.';
+        return res.redirect('/checkout');
+      }
+      proofFile = `${crypto.randomUUID()}${extension}`;
+      try {
+        await fs.promises.mkdir(privateProofDirectory, { recursive: true });
+        await fs.promises.writeFile(path.join(privateProofDirectory, proofFile), req.file.buffer, { flag: 'wx' });
+      } catch (error) {
+        console.error('[Order Create] Could not store private payment proof:', error);
+        req.session.error_msg = 'The payment proof could not be stored. Please try again.';
+        return res.redirect('/checkout');
+      }
+    }
+
     let order;
+    let payment;
     try {
       order = await sequelize.transaction(async transaction => {
         const trustedItems = [];
@@ -233,10 +284,25 @@ const ordercontroller = {
           await product.save({ transaction });
         }
 
-        return createdOrder;
+        const createdPayment = requiresPaymentEvidence ? await Payment.create({
+          order_id: createdOrder.id,
+          customer_name: normalizedName,
+          customer_email: normalizedEmail,
+          amount: (totalCents / 100).toFixed(2),
+          method: payment_method,
+          status: 'pending',
+          refunded_amount: 0,
+          reference_number: normalizedPaymentReference || null,
+          notes: JSON.stringify({ proofFile, submittedAt: new Date().toISOString() })
+        }, { transaction }) : null;
+
+        return { order: createdOrder, payment: createdPayment };
       });
+      payment = order.payment;
+      order = order.order;
     } catch (error) {
       console.error('[Order Create] Transaction failed:', error);
+      if (proofFile) await fs.promises.unlink(path.join(privateProofDirectory, proofFile)).catch(() => {});
       req.session.error_msg = error.message || 'Could not create the order.';
       return res.redirect('/cart');
     }
@@ -263,15 +329,13 @@ const ordercontroller = {
         try {
           await User.update({
             name: normalizedName,
-            email: normalizedEmail,
             phone: normalizedPhone,
             address: normalizedAddress
           }, { where: { id: uid } });
 
           // Update session copy
           req.session.userName = normalizedName;
-          req.session.userEmail = normalizedEmail;
-          req.session.user = Object.assign({}, req.session.user, { name: normalizedName, email: normalizedEmail });
+          req.session.user = Object.assign({}, req.session.user, { name: normalizedName });
         } catch (err) {
           console.warn('Could not save customer info to user profile:', err);
         }
@@ -280,7 +344,36 @@ const ordercontroller = {
       console.warn('Could not import User model to save profile info:', err);
     }
 
-    res.render("shop/order-success", { order });
+    res.render("shop/order-success", { order, payment: paymentEvidence(payment) });
+  },
+
+  paymentProof: async (req, res) => {
+    const order = await Order.findByPk(req.params.id);
+    if (!order) return res.status(404).send('Order not found');
+    const isAdmin = req.session?.userRole === 'admin' || req.session?.user?.role === 'admin';
+    const userId = Number(req.session?.userId);
+    const userEmail = String(req.session?.userEmail || req.session?.user?.email || '').toLowerCase();
+    const ownsOrder = (Number.isInteger(userId) && Number(order.user_id) === userId)
+      || (!order.user_id && userEmail && String(order.customer_email).toLowerCase() === userEmail);
+    if (!isAdmin && !ownsOrder) return res.status(403).send('Forbidden');
+
+    const payment = await Payment.findOne({ where: { order_id: order.id }, order: [['createdAt', 'DESC']] });
+    if (!payment) return res.status(404).send('Payment proof not found');
+    let evidence = {};
+    try { evidence = JSON.parse(payment.notes || '{}'); } catch { evidence = {}; }
+    const proofFile = typeof evidence.proofFile === 'string' ? evidence.proofFile : '';
+    if (!/^[0-9a-f-]{36}\.(?:jpg|png|webp)$/.test(proofFile) || path.basename(proofFile) !== proofFile) {
+      return res.status(404).send('Payment proof not found');
+    }
+    const proofPath = path.join(privateProofDirectory, proofFile);
+    try {
+      await fs.promises.access(proofPath, fs.constants.R_OK);
+    } catch {
+      return res.status(404).send('Payment proof not found');
+    }
+    res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return res.sendFile(proofPath);
   },
   
   adminIndex: async (req, res) => {
@@ -292,7 +385,8 @@ const ordercontroller = {
     const { id } = req.params;
     const order = await Order.findByPk(id);
     const items = await OrderItem.findAll({ where: { order_id: id } });
-    res.render("admin/order-details", { order, items });
+    const payment = await Payment.findOne({ where: { order_id: id }, order: [['createdAt', 'DESC']] });
+    res.render("admin/order-details", { order, items, payment: paymentEvidence(payment) });
   },
   
   // Render edit form for admin to change order status
@@ -301,14 +395,59 @@ const ordercontroller = {
     const order = await Order.findByPk(id);
     if (!order) return res.status(404).send('Order not found');
     const items = await OrderItem.findAll({ where: { order_id: id } });
-    res.render('admin/order-edit', { order, items });
+    const payment = await Payment.findOne({ where: { order_id: id }, order: [['createdAt', 'DESC']] });
+    res.render('admin/order-edit', { order, items, payment: paymentEvidence(payment) });
   },
   
   updateStatus: async (req, res) => {
     const { id } = req.params;
     const { status } = req.body;
+    const allowedStatuses = ['pending', 'confirmed', 'shipped', 'delivered', 'cancelled'];
+    if (!allowedStatuses.includes(status)) {
+      req.flash('error_msg', 'Select a valid order status.');
+      return res.redirect(`/admin/orders/edit/${id}`);
+    }
+    const order = await Order.findByPk(id);
+    if (!order) return res.status(404).send('Order not found');
+    if (order.payment_method !== 'cash_on_delivery' && ['confirmed', 'shipped', 'delivered'].includes(status) && order.payment_status !== 'paid') {
+      req.flash('error_msg', 'Review and approve the submitted payment evidence before processing this order.');
+      return res.redirect(`/admin/orders/edit/${id}`);
+    }
     await Order.update({ status }, { where: { id } });
     req.flash('success_msg', `Order status updated to ${status}.`);
+    res.redirect(`/admin/orders/edit/${id}`);
+  }
+  ,
+  reviewPayment: async (req, res) => {
+    const { id } = req.params;
+    const action = String(req.body.action || '');
+    const reviewNote = String(req.body.review_note || '').trim().slice(0, 500);
+    const order = await Order.findByPk(id);
+    if (!order) return res.status(404).send('Order not found');
+    const payment = await Payment.findOne({ where: { order_id: id }, order: [['createdAt', 'DESC']] });
+    if (!payment) {
+      req.flash('error_msg', 'No payment evidence was submitted for this order.');
+      return res.redirect(`/admin/orders/edit/${id}`);
+    }
+    if (!['approve', 'reject'].includes(action)) {
+      req.flash('error_msg', 'Choose whether to approve or reject the payment evidence.');
+      return res.redirect(`/admin/orders/edit/${id}`);
+    }
+    let evidence = {};
+    try { evidence = JSON.parse(payment.notes || '{}'); } catch { evidence = {}; }
+    if (action === 'approve') {
+      await sequelize.transaction(async transaction => {
+        await payment.update({ status: 'paid', paid_at: new Date(), notes: JSON.stringify({ ...evidence, reviewNote, reviewedAt: new Date().toISOString() }) }, { transaction });
+        await order.update({ payment_status: 'paid', status: order.status === 'pending' ? 'confirmed' : order.status }, { transaction });
+      });
+      req.flash('success_msg', 'Payment evidence approved. The order can now be processed.');
+    } else {
+      await sequelize.transaction(async transaction => {
+        await payment.update({ status: 'failed', notes: JSON.stringify({ ...evidence, reviewNote, reviewedAt: new Date().toISOString() }) }, { transaction });
+        await order.update({ payment_status: 'failed', status: 'pending' }, { transaction });
+      });
+      req.flash('error_msg', 'Payment evidence was rejected. The customer must provide valid payment information.');
+    }
     res.redirect(`/admin/orders/edit/${id}`);
   }
   ,
@@ -354,26 +493,36 @@ const ordercontroller = {
       feedback = await Feedback.findOne({ where: { order_id: id, user_email: userEmail } });
     } catch (err) { /* ignore */ }
 
-    res.render('customer/order-detail', { order, items, feedback });
+    const payment = await Payment.findOne({ where: { order_id: id }, order: [['createdAt', 'DESC']] });
+    res.render('customer/order-detail', { order, items, feedback, payment: paymentEvidence(payment) });
   },
 
   // Customer submits feedback for an order
   submitFeedback: async (req, res) => {
     const { id } = req.params;
+    const userId = req.session && req.session.userId;
     const userEmail = req.session && req.session.user && req.session.user.email;
-    if (!userEmail) return res.redirect('/login');
+    if (!userId || !userEmail) return res.redirect('/login');
     const { rating, comment } = req.body;
     const order = await Order.findByPk(id);
     if (!order) return res.status(404).send('Order not found');
-    if (order.customer_email !== userEmail) return res.status(403).send('Forbidden');
+    const ownsOrder = (order.user_id && order.user_id === Number(userId)) ||
+      (!order.user_id && order.customer_email === userEmail);
+    if (!ownsOrder) return res.status(403).send('Forbidden');
+    const normalizedRating = Number(rating);
+    const normalizedComment = String(comment || '').trim();
+    if (!Number.isInteger(normalizedRating) || normalizedRating < 1 || normalizedRating > 5 || normalizedComment.length > 1000) {
+      req.session.error_msg = 'Use a rating from 1 to 5 and keep feedback under 1,000 characters.';
+      return res.redirect(`/customer/orders/${id}#feedback`);
+    }
 
     try {
       // Upsert: if feedback exists update, else create
       const existing = await Feedback.findOne({ where: { order_id: id, user_email: userEmail } });
       if (existing) {
-        await existing.update({ rating: Number(rating) || 5, comment });
+        await existing.update({ rating: normalizedRating, comment: normalizedComment });
       } else {
-        await Feedback.create({ order_id: id, user_email: userEmail, rating: Number(rating) || 5, comment });
+        await Feedback.create({ order_id: id, user_email: userEmail, rating: normalizedRating, comment: normalizedComment });
       }
     } catch (err) {
       console.error('Failed to save feedback:', err);

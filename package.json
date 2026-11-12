@@ -13,6 +13,7 @@
     "migrate": "node migrate.js",
     "sync": "node sync-models.js",
     "seed:integration": "node scripts/seed-integration-demo.mjs",
+    "seed:mansalay": "node scripts/seed-mansalay-content.mjs",
     "test:admin-smoke": "node scripts/smoke-admin-pages.mjs",
     "test:portal-smoke": "node scripts/smoke-portals.mjs",
     "create:model": "node create.js model",
@@ -24,7 +25,7 @@
     "visitor:test": "npm test --prefix subsystems/visitor-information"
   },
   "dependencies": {
-    "bcrypt": "^5.1.0",
+    "bcrypt": "^6.0.0",
     "connect-flash": "^0.1.1",
     "dotenv": "^18.0.7",
     "express": "^4.19.2",

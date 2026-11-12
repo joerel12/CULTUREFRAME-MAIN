@@ -132,6 +132,33 @@
           </div>
         </div>
 
+        {{#if payment}}
+        <section class="rounded-2xl border border-amber-200 bg-amber-50 p-6 shadow-lg">
+          <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <p class="text-xs font-bold uppercase tracking-widest text-amber-700">Payment verification</p>
+              <h2 class="mt-2 text-2xl font-bold text-gray-900">Review submitted payment evidence</h2>
+              <dl class="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+                <div><dt class="text-gray-500">Method</dt><dd class="font-semibold capitalize text-gray-900">{{payment.method}}</dd></div>
+                <div><dt class="text-gray-500">Reference</dt><dd class="font-semibold text-gray-900">{{#if payment.reference_number}}{{payment.reference_number}}{{else}}Proof image submitted{{/if}}</dd></div>
+                <div><dt class="text-gray-500">Review status</dt><dd class="font-semibold capitalize text-gray-900">{{payment.status}}</dd></div>
+              </dl>
+              {{#if payment.proof_path}}<a href="{{payment.proof_path}}" target="_blank" rel="noopener" class="mt-4 inline-flex items-center gap-2 rounded-xl bg-white px-4 py-3 font-semibold text-emerald-700 shadow-sm">Open payment receipt ↗</a>{{/if}}
+            </div>
+            {{#if (eq payment.status 'pending')}}
+            <form method="POST" action="/admin/orders/review-payment/{{order.id}}" class="w-full rounded-xl border border-amber-200 bg-white p-4 lg:max-w-md">
+              <label class="block text-sm font-semibold text-gray-700">Review note
+                <textarea name="review_note" maxlength="500" rows="3" class="mt-2 w-full rounded-xl border border-gray-300 p-3" placeholder="Optional note about the receipt or reference"></textarea>
+              </label>
+              <div class="mt-3 grid grid-cols-2 gap-3"><button name="action" value="reject" class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 font-bold text-red-700">Reject</button><button name="action" value="approve" class="rounded-xl bg-emerald-600 px-4 py-3 font-bold text-white">Approve payment</button></div>
+            </form>
+            {{/if}}
+          </div>
+        </section>
+        {{else}}
+          {{#if (neq order.payment_method 'cash_on_delivery')}}<div class="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-800"><strong>Payment evidence missing.</strong> Do not process this order until a valid reference or receipt is provided.</div>{{/if}}
+        {{/if}}
+
         <!-- Order Items -->
         <div class="bg-white/80 backdrop-blur-sm rounded-2xl shadow-2xl p-8 border border-emerald-100/50">
           <h2 class="text-2xl font-bold text-gray-800 mb-6">Order Items</h2>

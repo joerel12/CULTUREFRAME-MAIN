@@ -75,6 +75,11 @@
         </button>
       </form>
 
+      <div class="mt-4 flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 text-xs leading-5 text-amber-900">
+        <i class="fas fa-shield-halved mt-0.5"></i>
+        <span>For your protection, five unsuccessful sign-in attempts lock the account for 15 minutes.</span>
+      </div>
+
       <div class="mt-5 text-center text-sm text-gray-500">
         Don't have an account?
         <a href="/register" class="text-emerald-600 hover:text-emerald-700 font-semibold ml-1 transition-colors">Create one free</a>

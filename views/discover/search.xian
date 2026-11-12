@@ -24,11 +24,14 @@
       {{#if items.length}}
       <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
         {{#each items}}
-        <a href="{{this.url}}" class="cf-card p-6 group hover:shadow-md transition-all">
+        <a href="{{this.url}}" class="cf-card group overflow-hidden hover:shadow-md transition-all">
+          <img src="{{this.imageUrl}}" alt="{{this.imageAlt}}" loading="lazy" decoding="async" class="h-44 w-full object-cover" onerror="this.onerror=null;this.src='/images/placeholders/record-placeholder.svg'" />
+          <div class="p-6">
           <span class="cf-badge cf-badge-green">{{this.categoryLabel}}</span>
           <h2 class="text-xl font-bold text-gray-900 mt-3 group-hover:text-emerald-700">{{this.title}}</h2>
           <p class="text-sm text-gray-500 mt-2 line-clamp-3">{{#if this.summary}}{{this.summary}}{{else}}{{this.description}}{{/if}}</p>
           <span class="inline-flex items-center gap-2 text-emerald-600 font-semibold text-sm mt-4">Read record <i class="fas fa-arrow-right text-xs"></i></span>
+          </div>
         </a>
         {{/each}}
       </div>

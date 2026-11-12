@@ -18,12 +18,54 @@ const location = {
   updatedAt: now
 };
 
+const visitorUser = {
+  id: "visitor-user-1",
+  firstName: "Mina",
+  lastName: "Visitor",
+  email: "mina@example.test",
+  contact: null,
+  passwordHash: "unused",
+  role: "VISITOR",
+  status: "ACTIVE",
+  createdAt: new Date(),
+  updatedAt: new Date()
+};
+const visitorSession = {
+  id: "visitor-session-1",
+  tokenHash: "test-token-hash",
+  userId: "visitor-user-1",
+  expiresAt: new Date(Date.now() + 60_000),
+  createdAt: new Date(),
+  user: visitorUser
+};
+
+const authenticatedPost = (path: string) => request(app)
+  .post(path)
+  .set("Cookie", "cultureframe_session=test-session-token");
+
 describe("GPS-gated visitor feedback routes", () => {
   afterEach(() => vi.restoreAllMocks());
 
+  it("rejects an administrator session from customer-only GPS verification", async () => {
+    vi.spyOn(prisma.authSession, "findUnique").mockResolvedValue({
+      ...visitorSession,
+      user: { ...visitorUser, role: "ADMIN" }
+    } as never);
+    const response = await authenticatedPost("/api/visitor/location-verification").send({
+      locationId: location.id,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      accuracyMeters: 12,
+      capturedAt: Date.now()
+    });
+    expect(response.status).toBe(403);
+    expect(response.body.error).toMatch(/customer account/i);
+  });
+
   it("issues a signed verification only when the reading is inside the site radius", async () => {
+    vi.spyOn(prisma.authSession, "findUnique").mockResolvedValue(visitorSession as never);
     vi.spyOn(prisma.location, "findUnique").mockResolvedValue(location);
-    const response = await request(app).post("/api/visitor/location-verification").send({
+    const response = await authenticatedPost("/api/visitor/location-verification").send({
       locationId: location.id,
       latitude: location.latitude,
       longitude: location.longitude,
@@ -37,8 +79,9 @@ describe("GPS-gated visitor feedback routes", () => {
   });
 
   it("does not issue a verification when the visitor is outside the site radius", async () => {
+    vi.spyOn(prisma.authSession, "findUnique").mockResolvedValue(visitorSession as never);
     vi.spyOn(prisma.location, "findUnique").mockResolvedValue(location);
-    const response = await request(app).post("/api/visitor/location-verification").send({
+    const response = await authenticatedPost("/api/visitor/location-verification").send({
       locationId: location.id,
       latitude: location.latitude + 0.01,
       longitude: location.longitude,
@@ -52,8 +95,9 @@ describe("GPS-gated visitor feedback routes", () => {
   });
 
   it("stores verification evidence without storing the visitor's exact coordinates", async () => {
+    vi.spyOn(prisma.authSession, "findUnique").mockResolvedValue(visitorSession as never);
     vi.spyOn(prisma.location, "findUnique").mockResolvedValue(location);
-    const verification = await request(app).post("/api/visitor/location-verification").send({
+    const verification = await authenticatedPost("/api/visitor/location-verification").send({
       locationId: location.id,
       latitude: location.latitude,
       longitude: location.longitude,
@@ -62,7 +106,7 @@ describe("GPS-gated visitor feedback routes", () => {
     });
     const create = vi.spyOn(prisma.visitorFeedback, "create").mockResolvedValue({
       id: "feedback-1",
-      userId: null,
+      userId: "visitor-user-1",
       category: "On-site visit",
       subject: "A real site visit",
       rating: 5,
@@ -75,7 +119,7 @@ describe("GPS-gated visitor feedback routes", () => {
       status: "NEW",
       createdAt: new Date()
     });
-    const response = await request(app).post("/api/visitor/feedback").send({
+    const response = await authenticatedPost("/api/visitor/feedback").send({
       category: "On-site visit",
       subject: "A real site visit",
       rating: 5,
@@ -86,6 +130,7 @@ describe("GPS-gated visitor feedback routes", () => {
     expect(response.status).toBe(201);
     const storedData = create.mock.calls[0][0].data;
     expect(storedData).toMatchObject({
+      userId: "visitor-user-1",
       locationId: location.id,
       geofenceDistanceMeters: 0,
       geofenceAccuracyMeters: 18

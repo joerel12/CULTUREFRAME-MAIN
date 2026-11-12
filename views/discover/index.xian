@@ -2,7 +2,7 @@
 <body class="bg-gray-50">
   {{>nav}}
 
-  <section class="cf-hero text-white">
+  <section class="cf-hero cf-discover-hero text-white">
     <div class="relative max-w-7xl mx-auto px-4 py-16 md:py-24">
       <div class="max-w-3xl cf-fade-up">
         <div class="inline-flex items-center gap-2 text-emerald-200 text-sm font-semibold mb-4">
@@ -20,6 +20,11 @@
           </button>
         </form>
       </div>
+      <p class="cf-beach-credit cf-beach-credit-inline">
+        Buktot Beach photo: <a href="https://commons.wikimedia.org/wiki/File:Buktot_Beach,_Mansalay_in_the_afternoon_(The_Wandering_Angel)_-_Flickr.jpg" target="_blank" rel="noopener noreferrer">The Wandering Angel</a>
+        <span aria-hidden="true">·</span> <a href="https://creativecommons.org/licenses/by/2.0/" target="_blank" rel="noopener noreferrer">CC BY 2.0</a>
+        <span aria-hidden="true">·</span> cropped for layout
+      </p>
     </div>
   </section>
 
@@ -35,13 +40,19 @@
 
       <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
         {{#each modules}}
-        <a href="/discover/{{this.segment}}" class="cf-card-green group p-6 hover:-translate-y-1 hover:shadow-lg transition-all">
+        <a href="/discover/{{this.segment}}" class="cf-card-green group overflow-hidden hover:-translate-y-1 hover:shadow-lg transition-all">
+          <div class="relative h-40 overflow-hidden bg-emerald-900">
+            <img src="{{this.imageUrl}}" alt="{{this.label}} in Mansalay" loading="lazy" decoding="async" class="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105" onerror="this.onerror=null;this.src='/images/placeholders/record-placeholder.svg'" />
+            <div class="absolute inset-0 bg-gradient-to-t from-emerald-950/70 to-transparent"></div>
+          </div>
+          <div class="p-6">
           <div class="w-11 h-11 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center mb-4 group-hover:bg-emerald-600 group-hover:text-white transition-colors">
             <i class="fas {{this.icon}}"></i>
           </div>
           <h3 class="text-lg font-bold text-gray-900 group-hover:text-emerald-700">{{this.label}}</h3>
           <p class="text-gray-500 text-sm mt-2 leading-relaxed">{{this.description}}</p>
           <span class="inline-flex items-center gap-2 text-emerald-600 font-semibold text-sm mt-4">Browse records <i class="fas fa-arrow-right text-xs"></i></span>
+          </div>
         </a>
         {{/each}}
       </div>
@@ -60,6 +71,7 @@
         {{#each destinations}}
         <article class="cf-place-card">
           <div class="cf-place-art">
+            <img src="{{this.imageUrl}}" alt="{{this.imageAlt}}" loading="eager" decoding="async" onerror="this.onerror=null;this.src='/images/placeholders/record-placeholder.svg'" />
             <span>{{this.category}}</span>
             <i class="fas fa-compass" aria-hidden="true"></i>
             <small><i class="fas fa-location-crosshairs"></i> On-site feedback</small>
@@ -70,9 +82,10 @@
             <p>{{this.description}}</p>
             <div class="cf-place-actions">
               <a href="{{this.feedbackUrl}}" class="cf-place-primary">Verify & rate <i class="fas fa-arrow-right"></i></a>
-              <a href="{{this.mapUrl}}" target="_blank" rel="noopener noreferrer">Map</a>
+              <a href="{{this.mapUrl}}" target="_blank" rel="noopener noreferrer">3D map</a>
               {{#if this.sourceUrl}}<a href="{{this.sourceUrl}}" target="_blank" rel="noopener noreferrer">Source</a>{{/if}}
             </div>
+            {{#if this.imageUrl}}<p class="cf-card-credit">Image: <a href="{{this.imageSourceUrl}}" target="_blank" rel="noopener noreferrer">{{this.imageCredit}}</a>{{#if this.imageLicense}} · <a href="{{this.imageLicenseUrl}}" target="_blank" rel="noopener noreferrer">{{this.imageLicense}}</a>{{/if}}</p>{{/if}}
           </div>
         </article>
         {{/each}}
@@ -88,11 +101,13 @@
       </div>
       <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
         {{#each upcoming}}
-        <a href="{{this.url}}" class="cf-card group p-6 hover:shadow-md transition-all">
-          <span class="cf-badge cf-badge-green">{{this.categoryLabel}}</span>
+        <a href="{{this.url}}" class="cf-card group overflow-hidden hover:shadow-md transition-all">
+          <img src="{{this.imageUrl}}" alt="{{this.imageAlt}}" loading="lazy" decoding="async" class="h-44 w-full object-cover" onerror="this.onerror=null;this.src='/images/placeholders/record-placeholder.svg'" />
+          <div class="p-6"><span class="cf-badge cf-badge-green">{{this.categoryLabel}}</span>
           <h3 class="font-bold text-lg text-gray-900 mt-3 group-hover:text-emerald-700">{{this.title}}</h3>
           <p class="text-sm text-gray-500 mt-2 line-clamp-3">{{#if this.summary}}{{this.summary}}{{else}}{{this.description}}{{/if}}</p>
           {{#if this.eventDate}}<p class="text-xs text-emerald-700 font-semibold mt-4"><i class="fas fa-calendar mr-1"></i>{{this.eventDate}}</p>{{/if}}
+          </div>
         </a>
         {{/each}}
       </div>
@@ -108,9 +123,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
         {{#each featured}}
         <a href="{{this.url}}" class="cf-card group overflow-hidden hover:shadow-md transition-all">
-          <div class="h-28 bg-gradient-to-br from-emerald-700 to-green-500 flex items-center justify-center text-white/80">
-            <i class="fas fa-book-open text-3xl"></i>
-          </div>
+          <img src="{{this.imageUrl}}" alt="{{this.imageAlt}}" loading="lazy" decoding="async" class="h-44 w-full object-cover" onerror="this.onerror=null;this.src='/images/placeholders/record-placeholder.svg'" />
           <div class="p-5">
             <span class="text-xs font-semibold uppercase tracking-wide text-emerald-600">{{this.categoryLabel}}</span>
             <h3 class="font-bold text-lg text-gray-900 mt-1 group-hover:text-emerald-700">{{this.title}}</h3>

@@ -18,39 +18,39 @@
           </div>
           <div class="cf-hero-proof" aria-label="Connected community platform">
             <span class="cf-proof-stack" aria-hidden="true"><span>V</span><span>S</span><span>P</span><span>M</span></span>
-            <span>Four specialized systems. One CultureFrame experience.</span>
+            <span>Three role-based workspaces. One CultureFrame platform.</span>
           </div>
         </div>
 
-        <div class="cf-ecosystem-board" aria-label="CultureFrame connected systems">
+        <div class="cf-ecosystem-board" aria-label="CultureFrame role-based workspaces">
           <div class="cf-board-top">
-            <strong>Connected ecosystem</strong>
-            <span>Unified by CultureFrame</span>
+            <strong>Choose your workspace</strong>
+            <span>One clear entry for every role</span>
           </div>
           <div class="cf-system-stack">
-            <a href="/discover" class="cf-system-row">
+            <a href="/dashboard" class="cf-system-row">
               <span class="cf-system-icon"><i class="fas fa-compass"></i></span>
-              <span class="cf-system-copy"><strong>Visitor Information</strong><span>Stories, places, traditions and events</span></span>
-              <span class="cf-system-state">Live</span>
+              <span class="cf-system-copy"><strong>Customer & Visitor</strong><span>One account for places, ratings, shopping and orders</span></span>
+              <span class="cf-system-state">Unified</span>
             </a>
-            <a href="/shop" class="cf-system-row">
+            <a href="/seller/dashboard" class="cf-system-row">
               <span class="cf-system-icon gold"><i class="fas fa-basket-shopping"></i></span>
-              <span class="cf-system-copy"><strong>Seller Marketplace</strong><span>Products from local cultural makers</span></span>
-              <span class="cf-system-state">Live</span>
+              <span class="cf-system-copy"><strong>Seller Workspace</strong><span>Products, categories and marketplace inventory</span></span>
+              <span class="cf-system-state">Role-based</span>
             </a>
-            <a href="/login" class="cf-system-row">
+            <a href="/admin/dashboard" class="cf-system-row">
               <span class="cf-system-icon coral"><i class="fas fa-shield-halved"></i></span>
-              <span class="cf-system-copy"><strong>Secure Payments</strong><span>Order and payment operations</span></span>
-              <span class="cf-system-state">Linked</span>
-            </a>
-            <a href="/login" class="cf-system-row">
-              <span class="cf-system-icon blue"><i class="fas fa-chart-line"></i></span>
-              <span class="cf-system-copy"><strong>CultureMetrics</strong><span>Impact and performance intelligence</span></span>
-              <span class="cf-system-state">Linked</span>
+              <span class="cf-system-copy"><strong>Admin Control Center</strong><span>Operations, visitor content, payments and CultureMetrics</span></span>
+              <span class="cf-system-state">Admin-only</span>
             </a>
           </div>
         </div>
       </div>
+      <p class="cf-beach-credit">
+        Buktot Beach photo: <a href="https://commons.wikimedia.org/wiki/File:Buktot_Beach,_Mansalay_in_the_afternoon_(The_Wandering_Angel)_-_Flickr.jpg" target="_blank" rel="noopener noreferrer">The Wandering Angel</a>
+        <span aria-hidden="true">·</span> <a href="https://creativecommons.org/licenses/by/2.0/" target="_blank" rel="noopener noreferrer">CC BY 2.0</a>
+        <span aria-hidden="true">·</span> cropped for layout
+      </p>
     </section>
 
     <section class="cf-shell cf-overlap" aria-label="Platform principles">
@@ -76,6 +76,7 @@
           {{#each destinations}}
           <article class="cf-place-card">
             <div class="cf-place-art">
+              <img src="{{this.imageUrl}}" alt="{{this.imageAlt}}" loading="eager" decoding="async" onerror="this.onerror=null;this.src='/images/placeholders/record-placeholder.svg'" />
               <span>{{this.category}}</span>
               <i class="fas fa-location-dot" aria-hidden="true"></i>
               <small><i class="fas fa-shield-check"></i> GPS verified</small>
@@ -86,8 +87,9 @@
               <p>{{this.description}}</p>
               <div class="cf-place-actions">
                 <a href="{{this.feedbackUrl}}" class="cf-place-primary">Rate on site <i class="fas fa-arrow-right"></i></a>
-                <a href="{{this.mapUrl}}" target="_blank" rel="noopener noreferrer">Map</a>
+                <a href="{{this.mapUrl}}" target="_blank" rel="noopener noreferrer">3D map</a>
               </div>
+              {{#if this.imageUrl}}<p class="cf-card-credit">Image: <a href="{{this.imageSourceUrl}}" target="_blank" rel="noopener noreferrer">{{this.imageCredit}}</a>{{#if this.imageLicense}} · <a href="{{this.imageLicenseUrl}}" target="_blank" rel="noopener noreferrer">{{this.imageLicense}}</a>{{/if}}</p>{{/if}}
             </div>
           </article>
           {{/each}}
@@ -111,28 +113,38 @@
         </div>
 
         <div class="cf-journey-grid">
-          <a href="/discover" class="cf-journey-card">
-            <span class="cf-journey-art cf-art-discover"><i class="fas fa-compass"></i></span>
+          <a href="/discover/attractions" class="cf-journey-card">
+            <span class="cf-journey-art cf-art-discover">
+              <img src="https://www.travelorientalmindoro.ph/uploads/places/222/gallery/20251211053518_09274ecb.jpg" alt="Casabangan Beach and its forested Mansalay coastline" loading="eager" decoding="async" />
+              <i class="fas fa-compass"></i><span class="cf-journey-photo-label">Casabangan Beach</span>
+            </span>
             <small>Explore</small>
-            <h3>Discover living culture</h3>
-            <p>Browse verified heritage, attractions, traditions, festivals and community stories.</p>
+            <h3>Explore Mansalay's places</h3>
+            <p>Plan responsible visits to white-sand beaches, eco trails, sacred sites and living heritage.</p>
             <span class="cf-card-arrow"><i class="fas fa-arrow-right"></i></span>
           </a>
           <a href="/shop" class="cf-journey-card">
-            <span class="cf-journey-art cf-art-market"><i class="fas fa-basket-shopping"></i></span>
+            <span class="cf-journey-art cf-art-market">
+              <img src="https://www.travelorientalmindoro.ph/uploads/places/488/gallery/20251212033811_fa20c30b.jpg" alt="A Hanunuo Mangyan artisan weaving in Barangay Panaytayan, Mansalay" loading="eager" decoding="async" />
+              <i class="fas fa-basket-shopping"></i><span class="cf-journey-photo-label">Mangyan weaving</span>
+            </span>
             <small>Support</small>
-            <h3>Shop from local makers</h3>
-            <p>Find authentic cultural products while supporting sellers and artisan communities.</p>
+            <h3>Support Mangyan makers</h3>
+            <p>Discover local craft and cultural products while supporting Mansalay sellers and artisan communities.</p>
             <span class="cf-card-arrow"><i class="fas fa-arrow-right"></i></span>
           </a>
-          <a href="/register" class="cf-journey-card">
-            <span class="cf-journey-art cf-art-community"><i class="fas fa-people-group"></i></span>
-            <small>Participate</small>
-            <h3>Join the community</h3>
-            <p>Create an account to manage orders, save products and take part in the CultureFrame ecosystem.</p>
+          <a href="/discover/festivals" class="cf-journey-card">
+            <span class="cf-journey-art cf-art-community">
+              <img src="https://www.travelorientalmindoro.ph/uploads/events/10/gallery/20260209073544_cacbbcf1.png" alt="Mangyan Festival street dancers celebrating Mansalay's indigenous heritage" loading="eager" decoding="async" />
+              <i class="fas fa-masks-theater"></i><span class="cf-journey-photo-label">Every November 25</span>
+            </span>
+            <small>Celebrate</small>
+            <h3>Mangyan Festival</h3>
+            <p>Experience indigenous dances, traditional crafts and heritage celebrations at Mansalay Municipal Grounds.</p>
             <span class="cf-card-arrow"><i class="fas fa-arrow-right"></i></span>
           </a>
         </div>
+        <p class="cf-image-sources">Images: <a href="https://www.travelorientalmindoro.ph/place/casabangan-beach-marine-protected-areas" target="_blank" rel="noopener noreferrer">Casabangan Beach</a>, <a href="https://www.travelorientalmindoro.ph/place/mangyan-villages" target="_blank" rel="noopener noreferrer">Mangyan Villages</a>, and <a href="https://www.travelorientalmindoro.ph/festival/mangyan-festival" target="_blank" rel="noopener noreferrer">Mangyan Festival</a> · Travel Oriental Mindoro.</p>
       </div>
     </section>
 
@@ -141,10 +153,10 @@
         <div class="cf-platform-grid">
           <div>
             <span class="cf-eyebrow" style="color:#cbed9b">A coordinated platform</span>
-            <h2>Specialized systems, without a fragmented experience.</h2>
+            <h2>Five clear areas, without a fragmented experience.</h2>
             <p>
-              Visitor Information publishes cultural content. Sellers manage products. Payments protects
-              financial workflows. CultureMetrics measures impact. CultureFrame connects them all.
+              The landing page leads to one Customer & Visitor side, one Seller side, and one Admin side.
+              Payments stay inside checkout and order management, while CultureMetrics opens only from Admin.
             </p>
           </div>
           <a href="/register" class="cf-button cf-button-primary">Create your account <i class="fas fa-arrow-right"></i></a>

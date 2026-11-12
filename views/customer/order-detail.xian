@@ -54,6 +54,9 @@
           <i class="fas fa-credit-card text-emerald-500 text-xs"></i> Payment
         </h3>
         <p class="text-sm text-gray-600 capitalize">{{order.payment_method}}</p>
+        <p class="text-xs font-semibold capitalize text-amber-600 mt-1">{{order.payment_status}}</p>
+        {{#if payment.reference_number}}<p class="text-xs text-gray-500 mt-2">Reference: {{payment.reference_number}}</p>{{/if}}
+        {{#if payment.proof_path}}<a class="inline-block text-xs text-emerald-700 font-semibold mt-2" href="{{payment.proof_path}}" target="_blank" rel="noopener">View submitted receipt ↗</a>{{/if}}
         <p class="text-2xl font-extrabold text-emerald-600 mt-2">₱{{order.total_amount}}</p>
       </div>
     </div>

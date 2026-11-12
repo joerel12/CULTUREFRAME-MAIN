@@ -33,6 +33,7 @@ import hbs from "hbs";
 import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { createRequire } from 'module';
+import { sameOriginWriteProtection, securityHeaders } from "./middleware/security.js";
 const require = createRequire(import.meta.url);
 try { require('dotenv').config(); } catch(e) {}
 
@@ -49,25 +50,33 @@ const __dirname = dirname(__filename);
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const sessionSecret = process.env.SESSION_SECRET;
+if (!sessionSecret || sessionSecret.length < 32) {
+  throw new Error("SESSION_SECRET must contain at least 32 characters.");
+}
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
-app.use(express.static(path.join(process.cwd(), "public")));
+app.disable("x-powered-by");
+// Trust the first deployment proxy before secure session cookies are evaluated.
+app.set('trust proxy', 1);
+app.use(securityHeaders);
+app.use(express.json({ limit: "100kb" }));
+app.use(express.urlencoded({ extended: true, limit: "100kb", parameterLimit: 100 }));
+app.use(express.static(path.join(process.cwd(), "public"), { dotfiles: "deny", maxAge: "1h" }));
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || "xianfire-secret-key",
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
   cookie: {
     secure: process.env.NODE_ENV === 'production', // true on Railway (HTTPS), false local
     httpOnly: true,
-    maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    sameSite: 'lax',
+    maxAge: 8 * 60 * 60 * 1000 // 8 hours unless Remember me is selected
   },
   name: 'sessionId'
 }));
-// Trust Railway/Render/Heroku reverse proxy so secure cookies work
-app.set('trust proxy', 1);
 app.use(flash());
+app.use(sameOriginWriteProtection);
 
 app.engine("xian", async (filePath, options, callback) => {
   try {
@@ -143,8 +152,7 @@ app.use((req, res, next) => {
   res.locals.isLoggedIn = isAuthenticated;
   res.locals.sessionUserName = req.session.userName || '';
   res.locals.sessionUserRole = req.session.userRole || 'customer';
-  const paymentSystemUrl = process.env.PAYMENT_SYSTEM_URL || '';
-  res.locals.paymentSystemUrl = /^https?:\/\//i.test(paymentSystemUrl) ? paymentSystemUrl : null;
+  res.locals.isCustomer = isAuthenticated && req.session.userRole === 'customer';
   const cultureMetricsSystemUrl = process.env.CULTUREMETRICS_SYSTEM_URL || '';
   res.locals.cultureMetricsSystemUrl = /^https?:\/\//i.test(cultureMetricsSystemUrl) ? cultureMetricsSystemUrl : null;
   const visitorInformationUrl = process.env.VISITOR_INFORMATION_URL || '';
@@ -216,9 +224,10 @@ app.use((err, req, res, next) => {
       stack: isDev ? err.stack : null
     });
   } catch (renderErr) {
+    const fallbackMessage = isDev ? err.stack : 'Something went wrong. Please try again.';
     res.status(500).send(`
       <h2>Internal Server Error</h2>
-      <pre>${isDev ? err.stack : err.message}</pre>
+      <pre>${fallbackMessage}</pre>
     `);
   }
 });

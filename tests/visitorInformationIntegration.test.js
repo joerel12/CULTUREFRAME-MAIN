@@ -62,6 +62,15 @@ test("loads and normalizes the Visitor Information homepage", async () => {
           sourceUrl: "https://www.travelorientalmindoro.ph/place/buktot-beach",
           latitude: 12.44872704,
           longitude: 121.4203594
+        }, {
+          id: "site-2",
+          name: "Casabangan Beach and Marine Protected Area",
+          category: "Beach & Marine Sanctuary",
+          address: "Barangay Don Pedro, Mansalay",
+          description: "A sourced marine destination.",
+          sourceUrl: "https://www.travelorientalmindoro.ph/place/casabangan-beach-marine-protected-areas",
+          latitude: 12.50516334,
+          longitude: 121.3207688
         }]
       });
     }
@@ -71,10 +80,16 @@ test("loads and normalizes the Visitor Information homepage", async () => {
   assert.equal(result.content.heroTitle, "Living Mansalay");
   assert.equal(result.featured.length, 1);
   assert.equal(result.featured[0].url, "/discover/heritage/hanunuo-mangyan-writing");
-  assert.equal(result.destinations.length, 1);
+  assert.equal(result.destinations.length, 2);
   assert.equal(result.destinations[0].name, "Buktot Beach");
-  assert.equal(result.destinations[0].feedbackUrl, "http://127.0.0.1:5174/visitor/feedback?location=site-1");
-  assert.match(result.destinations[0].mapUrl, /^https:\/\/www\.openstreetmap\.org\//);
+  assert.equal(result.destinations[0].feedbackUrl, "/visitor/access?returnTo=%2Fvisitor%2Ffeedback%3Flocation%3Dsite-1");
+  assert.equal(result.destinations[0].mapUrl, "http://127.0.0.1:5174/locations?focus=site-1");
+  assert.match(result.destinations[0].imageUrl, /places\/184\/gallery/);
+  assert.equal(result.destinations[0].imageCredit, "Travel Oriental Mindoro");
+  assert.equal(result.destinations[0].imageLicense, "");
+  assert.match(result.destinations[1].imageUrl, /places\/222\/gallery/);
+  assert.equal(result.destinations[1].imageCredit, "Travel Oriental Mindoro");
+  assert.equal(result.destinations[1].imageLicense, "");
 });
 
 test("uses only allowlisted category paths and encodes list filters", async () => {

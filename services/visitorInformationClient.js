@@ -1,11 +1,11 @@
 const MODULE_DEFINITIONS = [
-  { segment: "heritage", label: "Cultural Heritage", icon: "fa-landmark", description: "Stories, knowledge, and identity documented by the community." },
-  { segment: "historical-sites", label: "Historical Sites", icon: "fa-building-columns", description: "Places that preserve a visible record of Mansalay's past." },
-  { segment: "traditions", label: "Traditions", icon: "fa-hands", description: "Practices and knowledge carried across generations." },
-  { segment: "events", label: "Cultural Events", icon: "fa-calendar-days", description: "Community gatherings, programs, and cultural activities." },
-  { segment: "attractions", label: "Attractions", icon: "fa-map-location-dot", description: "Landscapes and destinations to explore responsibly." },
-  { segment: "festivals", label: "Festivals", icon: "fa-masks-theater", description: "Celebrations rooted in local history and identity." },
-  { segment: "local-products", label: "Local Products", icon: "fa-basket-shopping", description: "Local craft and livelihood presented with cultural context." }
+  { segment: "heritage", label: "Cultural Heritage", icon: "fa-landmark", imageUrl: "https://www.travelorientalmindoro.ph/uploads/places/571/gallery/20251213075615_1cbf3edf.png", description: "Stories, knowledge, and identity documented by the community." },
+  { segment: "historical-sites", label: "Historical Sites", icon: "fa-building-columns", imageUrl: "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Mansalay_road_and_public_market.jpg/960px-Mansalay_road_and_public_market.jpg", description: "Places that preserve a visible record of Mansalay's past." },
+  { segment: "traditions", label: "Traditions", icon: "fa-hands", imageUrl: "https://www.travelorientalmindoro.ph/uploads/places/488/gallery/20251212033811_fa20c30b.jpg", description: "Practices and knowledge carried across generations." },
+  { segment: "events", label: "Cultural Events", icon: "fa-calendar-days", imageUrl: "https://www.travelorientalmindoro.ph/uploads/events/10/gallery/20260209073544_cacbbcf1.png", description: "Community gatherings, programs, and cultural activities." },
+  { segment: "attractions", label: "Attractions", icon: "fa-map-location-dot", imageUrl: "https://www.travelorientalmindoro.ph/uploads/places/184/gallery/20251211030638_a75fad4b.jpg", description: "Landscapes and destinations to explore responsibly." },
+  { segment: "festivals", label: "Festivals", icon: "fa-masks-theater", imageUrl: "https://www.travelorientalmindoro.ph/uploads/events/10/gallery/20260209073544_cacbbcf1.png", description: "Celebrations rooted in local history and identity." },
+  { segment: "local-products", label: "Local Products", icon: "fa-basket-shopping", imageUrl: "/images/products/ramit-textile.jpg", description: "Local craft and livelihood presented with cultural context." }
 ];
 
 const MODULE_BY_SEGMENT = new Map(MODULE_DEFINITIONS.map(module => [module.segment, module]));
@@ -17,6 +17,40 @@ const SEGMENT_BY_KIND = new Map([
   ["ATTRACTION", "attractions"],
   ["FESTIVAL", "festivals"],
   ["LOCAL_PRODUCT", "local-products"]
+]);
+const SEGMENT_IMAGES = Object.fromEntries(MODULE_DEFINITIONS.map(module => [module.segment, module.imageUrl]));
+
+const DESTINATION_PHOTOS = new Map([
+  ["buktot beach", {
+    imageUrl: "https://www.travelorientalmindoro.ph/uploads/places/184/gallery/20251211030638_a75fad4b.jpg",
+    imageAlt: "Buktot Beach in Mansalay, Oriental Mindoro",
+    imageCredit: "Travel Oriental Mindoro",
+    imageSourceUrl: "https://www.travelorientalmindoro.ph/place/buktot-beach"
+  }],
+  ["casabangan beach and marine protected area", {
+    imageUrl: "https://www.travelorientalmindoro.ph/uploads/places/222/gallery/20251211053518_09274ecb.jpg",
+    imageAlt: "Casabangan Beach and its forested coastline in Mansalay",
+    imageCredit: "Travel Oriental Mindoro",
+    imageSourceUrl: "https://www.travelorientalmindoro.ph/place/casabangan-beach-marine-protected-areas"
+  }],
+  ["mangyan burial cave", {
+    imageUrl: "https://www.travelorientalmindoro.ph/uploads/places/484/gallery/20251212033035_9b8a6587.jpg",
+    imageAlt: "The sacred coastal islet at Palaypay Cove in Mansalay",
+    imageCredit: "Travel Oriental Mindoro",
+    imageSourceUrl: "https://www.travelorientalmindoro.ph/place/mangyan-burial-cave"
+  }],
+  ["mansalay eco park", {
+    imageUrl: "https://www.travelorientalmindoro.ph/uploads/places/491/gallery/20251212034452_dd8222a1.jpg",
+    imageAlt: "A hillside hut surrounded by greenery at Mansalay Eco Park",
+    imageCredit: "Travel Oriental Mindoro",
+    imageSourceUrl: "https://www.travelorientalmindoro.ph/place/mansalay-eco-park"
+  }],
+  ["mt. abenlay eco tour monkey trail", {
+    imageUrl: "https://www.travelorientalmindoro.ph/uploads/places/527/gallery/20251212060630_2235c978.jpg",
+    imageAlt: "The forested landscape of Mt. Abenlay Eco Tour Monkey Trail",
+    imageCredit: "Travel Oriental Mindoro",
+    imageSourceUrl: "https://www.travelorientalmindoro.ph/place/mt-abenlay-eco-tour-monkey-trail"
+  }]
 ]);
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
@@ -130,6 +164,8 @@ function normalizeItem(item) {
     location: cleanText(payload.location, 500),
     eventDate: cleanText(payload.eventDate || payload.startDate || payload.date, 100),
     sourceUrl: safeExternalUrl(payload.sourceUrl),
+    imageUrl: safeImageUrl(payload.imageUrl || payload.image_url) || SEGMENT_IMAGES[segment] || "/images/placeholders/record-placeholder.svg",
+    imageAlt: `${title} in CultureFrame`,
     featured: item.featured === true,
     url: `/discover/${segment}/${encodeURIComponent(slug)}`
   };
@@ -149,6 +185,12 @@ function safeExternalUrl(value) {
   }
 }
 
+function safeImageUrl(value) {
+  const text = cleanText(value, 1000);
+  if (/^\/images\/[a-zA-Z0-9_./-]+$/.test(text) && !text.includes("..")) return text;
+  return safeExternalUrl(text);
+}
+
 function normalizeDestinations(items, portalUrl) {
   if (!Array.isArray(items)) return [];
   return items.map(item => {
@@ -160,12 +202,11 @@ function normalizeDestinations(items, portalUrl) {
     if (!id || !name || !Number.isFinite(latitude) || !Number.isFinite(longitude)
       || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
 
-    const feedbackUrl = new URL("/visitor/feedback", portalUrl);
-    feedbackUrl.searchParams.set("location", id);
-    const mapUrl = new URL("https://www.openstreetmap.org/");
-    mapUrl.searchParams.set("mlat", String(latitude));
-    mapUrl.searchParams.set("mlon", String(longitude));
-    mapUrl.hash = `map=15/${latitude}/${longitude}`;
+    const feedbackReturnTo = `/visitor/feedback?location=${encodeURIComponent(id)}`;
+    const feedbackUrl = `/visitor/access?returnTo=${encodeURIComponent(feedbackReturnTo)}`;
+    const mapUrl = new URL("/locations", portalUrl);
+    mapUrl.searchParams.set("focus", id);
+    const photo = DESTINATION_PHOTOS.get(name.toLowerCase()) || {};
     return {
       id,
       name,
@@ -174,7 +215,13 @@ function normalizeDestinations(items, portalUrl) {
       description: cleanText(item.description, 1000),
       sourceUrl: safeExternalUrl(item.sourceUrl),
       mapUrl: mapUrl.toString(),
-      feedbackUrl: feedbackUrl.toString()
+      feedbackUrl,
+      imageUrl: photo.imageUrl || "",
+      imageAlt: photo.imageAlt || "",
+      imageCredit: photo.imageCredit || "",
+      imageSourceUrl: photo.imageSourceUrl || "",
+      imageLicense: photo.imageLicense || "",
+      imageLicenseUrl: photo.imageLicenseUrl || ""
     };
   }).filter(Boolean).slice(0, 6);
 }

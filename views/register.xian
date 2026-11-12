@@ -56,19 +56,22 @@
           <label for="password" class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Password</label>
           <div class="relative">
             <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-            <input type="password" id="password" name="password" required minlength="8"
-              class="cf-input pl-9 pr-10" placeholder="Min. 8 characters" />
+            <input type="password" id="password" name="password" required minlength="12" maxlength="128"
+              autocomplete="new-password" pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{12,128}"
+              title="Use 12-128 characters with uppercase, lowercase, a number, and a symbol."
+              class="cf-input pl-9 pr-10" placeholder="12+ characters" />
             <button type="button" onclick="togglePwd('password','pwdIcon1')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
               <i id="pwdIcon1" class="fas fa-eye text-xs"></i>
             </button>
           </div>
+          <p class="mt-1.5 text-[11px] leading-4 text-gray-500">Use 12–128 characters with uppercase, lowercase, a number, and a symbol.</p>
         </div>
 
         <div>
           <label for="confirmPassword" class="block text-xs font-semibold text-gray-600 uppercase tracking-wide mb-1.5">Confirm Password</label>
           <div class="relative">
             <i class="fas fa-lock absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xs"></i>
-            <input type="password" id="confirmPassword" name="confirmPassword" required
+            <input type="password" id="confirmPassword" name="confirmPassword" required minlength="12" maxlength="128" autocomplete="new-password"
               class="cf-input pl-9 pr-10" placeholder="Repeat your password" />
             <button type="button" onclick="togglePwd('confirmPassword','pwdIcon2')" class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600">
               <i id="pwdIcon2" class="fas fa-eye text-xs"></i>

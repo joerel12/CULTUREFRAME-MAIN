@@ -7,8 +7,9 @@
 - CultureFrame branch: `integration/unified-cultureframe`
 
 CultureMetrics remains an independent React/Express analytics application with
-its own administrator authentication, optional PostgreSQL diagnostic archive,
-reports, and deployment. Jenny's CultureFrame application remains the source of
+an optional PostgreSQL diagnostic archive, reports, and deployment. Administrators
+enter it only through the main CultureFrame Admin side using a short-lived signed
+handoff, without another password. Jenny's CultureFrame application remains the source of
 truth for orders, payments, products, customers, event registrations, heritage,
 and scenic destinations.
 
@@ -26,6 +27,7 @@ CultureFrame:
 
 ```text
 CULTUREMETRICS_INTEGRATION_TOKEN=<shared-random-secret>
+CULTUREFRAME_SSO_SECRET=<separate-shared-random-sso-secret>
 CULTUREMETRICS_SYSTEM_URL=https://metrics.example.com
 ```
 
@@ -34,6 +36,7 @@ CultureMetrics:
 ```text
 CULTUREFRAME_API_URL=https://cultureframe.example.com
 CULTUREFRAME_API_TOKEN=<same-shared-random-secret>
+CULTUREFRAME_SSO_SECRET=<same-random-sso-secret-as-cultureframe>
 CULTUREFRAME_INTEGRATION_ENABLED=true
 CULTUREMETRICS_DATA_MODE=live
 ```

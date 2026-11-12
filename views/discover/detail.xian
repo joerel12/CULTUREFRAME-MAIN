@@ -18,6 +18,8 @@
         </div>
       </header>
 
+      <img src="{{item.imageUrl}}" alt="{{item.imageAlt}}" loading="eager" decoding="async" class="h-64 md:h-96 w-full object-cover" onerror="this.onerror=null;this.src='/images/placeholders/record-placeholder.svg'" />
+
       <div class="p-6 md:p-10 space-y-9">
         <section>
           <h2 class="cf-section-title text-xl mb-4">About this record</h2>

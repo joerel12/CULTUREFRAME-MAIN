@@ -37,6 +37,31 @@
       </div>
     </div>
 
+    <!-- One account across visitor information and marketplace -->
+    <section class="mb-8 overflow-hidden rounded-2xl bg-gradient-to-br from-emerald-950 via-emerald-900 to-emerald-700 text-white shadow-xl cf-fade-up" aria-labelledby="connected-account-title">
+      <div class="grid lg:grid-cols-[1.05fr_.95fr]">
+        <div class="p-6 sm:p-8">
+          <p class="text-amber-300 text-xs font-bold uppercase tracking-[0.18em]">One CultureFrame account</p>
+          <h2 id="connected-account-title" class="mt-3 text-2xl sm:text-3xl font-extrabold">Your customer account is also your visitor account.</h2>
+          <p class="mt-3 max-w-2xl text-sm leading-6 text-emerald-100">Keep one profile and password while you explore Mansalay, submit GPS-verified ratings, shop from local makers, manage your cart, and track orders.</p>
+        </div>
+        <div class="grid sm:grid-cols-3 lg:grid-cols-1 gap-px bg-white/10 p-px">
+          <a href="/visitor/access?returnTo=%2F" class="flex items-center gap-3 bg-emerald-950/45 p-4 hover:bg-emerald-800 transition-colors group">
+            <span class="w-10 h-10 rounded-xl bg-white/10 grid place-items-center"><i class="fas fa-compass text-amber-300"></i></span>
+            <span class="flex-1"><strong class="block text-sm">Visitor guide</strong><small class="text-emerald-200">Places, festivals, and heritage</small></span><i class="fas fa-arrow-right text-xs group-hover:translate-x-1 transition-transform"></i>
+          </a>
+          <a href="/visitor/access?returnTo=%2Fvisitor%2Ffeedback" class="flex items-center gap-3 bg-emerald-950/45 p-4 hover:bg-emerald-800 transition-colors group">
+            <span class="w-10 h-10 rounded-xl bg-white/10 grid place-items-center"><i class="fas fa-location-crosshairs text-amber-300"></i></span>
+            <span class="flex-1"><strong class="block text-sm">Rate a visited place</strong><small class="text-emerald-200">GPS-verified feedback</small></span><i class="fas fa-arrow-right text-xs group-hover:translate-x-1 transition-transform"></i>
+          </a>
+          <a href="/shop" class="flex items-center gap-3 bg-emerald-950/45 p-4 hover:bg-emerald-800 transition-colors group">
+            <span class="w-10 h-10 rounded-xl bg-white/10 grid place-items-center"><i class="fas fa-basket-shopping text-amber-300"></i></span>
+            <span class="flex-1"><strong class="block text-sm">Marketplace</strong><small class="text-emerald-200">Your cart, wishlist, and orders</small></span><i class="fas fa-arrow-right text-xs group-hover:translate-x-1 transition-transform"></i>
+          </a>
+        </div>
+      </div>
+    </section>
+
     <!-- Stats row -->
     <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
       <div class="cf-card-green p-5 flex items-center gap-4 cf-fade-up">
@@ -100,13 +125,13 @@
               </div>
               <i class="fas fa-chevron-right text-gray-300 text-xs group-hover:text-emerald-500 transition-colors"></i>
             </a>
-            <a href="/discover/events" class="flex items-center gap-3 p-3 rounded-xl hover:bg-emerald-50 transition-colors group">
+            <a href="/visitor/access?returnTo=%2Fevents" class="flex items-center gap-3 p-3 rounded-xl hover:bg-emerald-50 transition-colors group">
               <div class="w-9 h-9 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <i class="fas fa-calendar-check text-purple-600 text-sm"></i>
               </div>
               <div class="flex-1 min-w-0">
-                <p class="font-semibold text-gray-800 text-sm">My Events</p>
-                <p class="text-xs text-gray-400">Your event registrations</p>
+                <p class="font-semibold text-gray-800 text-sm">Visitor Events</p>
+                <p class="text-xs text-gray-400">Festivals and community activities</p>
               </div>
               <i class="fas fa-chevron-right text-gray-300 text-xs group-hover:text-emerald-500 transition-colors"></i>
             </a>
@@ -120,7 +145,7 @@
               </div>
               <i class="fas fa-chevron-right text-gray-300 text-xs group-hover:text-emerald-500 transition-colors"></i>
             </a>
-            <a href="/discover/heritage" class="flex items-center gap-3 p-3 rounded-xl hover:bg-emerald-50 transition-colors group">
+            <a href="/visitor/access?returnTo=%2Fheritage" class="flex items-center gap-3 p-3 rounded-xl hover:bg-emerald-50 transition-colors group">
               <div class="w-9 h-9 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <i class="fas fa-landmark text-emerald-600 text-sm"></i>
               </div>

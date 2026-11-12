@@ -163,7 +163,8 @@ test("checkout ignores browser prices and stores database-authoritative totals",
     transaction: sequelize.transaction,
     productFind: Product.findOne,
     orderCreate: Order.create,
-    itemCreate: OrderItem.create
+    itemCreate: OrderItem.create,
+    paymentCreate: Payment.create
   };
   const product = {
     id: 7,
@@ -174,6 +175,7 @@ test("checkout ignores browser prices and stores database-authoritative totals",
   };
   let orderValues;
   let itemValues;
+  let paymentValues;
   let rendered;
 
   try {
@@ -184,18 +186,23 @@ test("checkout ignores browser prices and stores database-authoritative totals",
       return { id: 15, ...values };
     };
     OrderItem.create = async values => { itemValues = values; return values; };
+    Payment.create = async values => {
+      paymentValues = values;
+      return { get: () => ({ id: 22, ...values }), ...values };
+    };
 
     const req = {
       body: {
         customer_name: "Test Customer",
-        customer_email: "customer@example.com",
+        customer_email: "spoofed@example.com",
         customer_phone: "09123456789",
         shipping_address: "Mansalay, Oriental Mindoro",
         payment_method: "gcash",
+        payment_reference: "GCASH-TEST-0001",
         total_amount: "0.02",
         cart_items: JSON.stringify([{ product_id: 7, quantity: 2, price: "0.01", name: "Fake name" }])
       },
-      session: { cart: [] }
+      session: { cart: [], userEmail: "customer@example.com" }
     };
     const res = {
       redirect: value => { throw new Error(`Unexpected redirect: ${value}`); },
@@ -205,8 +212,11 @@ test("checkout ignores browser prices and stores database-authoritative totals",
     await ordercontroller.create(req, res);
 
     assert.equal(orderValues.total_amount, "1250.00");
+    assert.equal(orderValues.customer_email, "customer@example.com");
     assert.equal(itemValues.price, "625.00");
     assert.equal(itemValues.product_name, product.name);
+    assert.equal(paymentValues.reference_number, "GCASH-TEST-0001");
+    assert.equal(paymentValues.status, "pending");
     assert.equal(product.stocks, 8);
     assert.equal(rendered.view, "shop/order-success");
   } finally {
@@ -214,5 +224,85 @@ test("checkout ignores browser prices and stores database-authoritative totals",
     Product.findOne = originals.productFind;
     Order.create = originals.orderCreate;
     OrderItem.create = originals.itemCreate;
+    Payment.create = originals.paymentCreate;
+  }
+});
+
+test("online checkout requires a payment reference or uploaded proof", async () => {
+  const req = {
+    body: {
+      customer_name: "Test Customer",
+      customer_phone: "09123456789",
+      shipping_address: "Mansalay, Oriental Mindoro",
+      payment_method: "gcash",
+      payment_reference: "",
+      cart_items: JSON.stringify([{ product_id: 7, quantity: 1 }])
+    },
+    session: { cart: [], userEmail: "customer@example.com" }
+  };
+  let redirected;
+  const res = { redirect: value => { redirected = value; } };
+
+  await ordercontroller.create(req, res);
+
+  assert.equal(redirected, "/checkout");
+  assert.match(req.session.error_msg, /payment reference number or upload a payment receipt/i);
+});
+
+test("online orders cannot advance until payment evidence is approved", async () => {
+  const originals = { orderFind: Order.findByPk, orderUpdate: Order.update };
+  let updateCalled = false;
+  let message = "";
+  let redirected = "";
+  try {
+    Order.findByPk = async () => ({
+      id: 44,
+      payment_method: "gcash",
+      payment_status: "unpaid"
+    });
+    Order.update = async () => { updateCalled = true; };
+    const req = {
+      params: { id: "44" },
+      body: { status: "shipped" },
+      flash: (_type, value) => { message = value; }
+    };
+    const res = { redirect: value => { redirected = value; } };
+
+    await ordercontroller.updateStatus(req, res);
+
+    assert.equal(updateCalled, false);
+    assert.equal(redirected, "/admin/orders/edit/44");
+    assert.match(message, /approve the submitted payment evidence/i);
+  } finally {
+    Order.findByPk = originals.orderFind;
+    Order.update = originals.orderUpdate;
+  }
+});
+
+test("another customer cannot open an order payment receipt", async () => {
+  const originalOrderFind = Order.findByPk;
+  let statusCode = 200;
+  let body = "";
+  try {
+    Order.findByPk = async () => ({
+      id: 51,
+      user_id: 7,
+      customer_email: "owner@example.com"
+    });
+    const req = {
+      params: { id: "51" },
+      session: { userId: 8, userEmail: "other@example.com", userRole: "customer" }
+    };
+    const res = {
+      status: value => { statusCode = value; return res; },
+      send: value => { body = value; return res; }
+    };
+
+    await ordercontroller.paymentProof(req, res);
+
+    assert.equal(statusCode, 403);
+    assert.equal(body, "Forbidden");
+  } finally {
+    Order.findByPk = originalOrderFind;
   }
 });

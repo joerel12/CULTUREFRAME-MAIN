@@ -6,7 +6,7 @@
     <header class="cf-admin-topbar">
       <div>
         <h1>CultureFrame Control Center</h1>
-        <p>Shared operations and connected-system access</p>
+        <p>Customers, visitors, sellers, orders, content, and intelligence</p>
       </div>
       <span class="cf-status-pill">Main system online</span>
     </header>
@@ -17,10 +17,10 @@
       <section class="cf-admin-hero">
         <div>
           <span class="cf-eyebrow" style="color:#cbed9b">Administrator workspace</span>
-          <h2>One control center.<br/>Clear system ownership.</h2>
+          <h2>One admin side.<br/>Every important control.</h2>
           <p>
-            Monitor core operations here, then open the specialized system responsible for
-            visitor content, seller products, payments or analytics.
+            Manage customers, visitor content, sellers, orders and payment status here.
+            CultureMetrics is available only through this administrator workspace.
           </p>
         </div>
         <div class="cf-admin-hero-mark" aria-hidden="true"><i class="fas fa-diagram-project"></i></div>
@@ -48,18 +48,14 @@
       <section class="cf-admin-grid">
         <div class="cf-panel">
           <div class="cf-panel-head">
-            <div><h3>Connected systems</h3><p>Open the system that owns each module</p></div>
-            <span class="cf-status-pill">Configured</span>
+            <div><h3>Administrator modules</h3><p>One entry point for every administrative task</p></div>
+            <span class="cf-status-pill">Unified</span>
           </div>
           <div class="cf-service-list">
-            {{#if visitorInformationUrl}}
-              <a href="{{visitorInformationUrl}}" target="_blank" rel="noopener noreferrer" class="cf-service-card">
-            {{else}}
-              <a href="/discover" class="cf-service-card">
-            {{/if}}
+              <a href="/visitor/access?returnTo=%2Fadmin%2Fdashboard" class="cf-service-card">
                 <span class="cf-system-icon"><i class="fas fa-compass"></i></span>
-                <span><strong>Visitor Information</strong><small>Heritage, traditions, events, attractions and published content</small></span>
-                <i class="fas fa-arrow-up-right-from-square"></i>
+                <span><strong>Visitor content</strong><small>Heritage, traditions, events, attractions and published content</small></span>
+                <i class="fas fa-arrow-right"></i>
               </a>
 
             <a href="/admin/sellers" class="cf-service-card">
@@ -68,18 +64,16 @@
               <i class="fas fa-arrow-right"></i>
             </a>
 
-            {{#if paymentSystemUrl}}
-              <a href="{{paymentSystemUrl}}" target="_blank" rel="noopener noreferrer" class="cf-service-card">
-                <span class="cf-system-icon coral"><i class="fas fa-credit-card"></i></span>
-                <span><strong>CultureFrame Payments</strong><small>Payments, verification, refunds, receipts and payouts</small></span>
-                <i class="fas fa-arrow-up-right-from-square"></i>
-              </a>
-            {{/if}}
+            <a href="/admin/orders" class="cf-service-card">
+              <span class="cf-system-icon coral"><i class="fas fa-credit-card"></i></span>
+              <span><strong>Orders & payments</strong><small>Payment methods, status, order processing and customer records</small></span>
+              <i class="fas fa-arrow-right"></i>
+            </a>
 
             {{#if cultureMetricsSystemUrl}}
-              <a href="{{cultureMetricsSystemUrl}}" target="_blank" rel="noopener noreferrer" class="cf-service-card">
+              <a href="/admin/analytics/business" class="cf-service-card">
                 <span class="cf-system-icon blue"><i class="fas fa-chart-line"></i></span>
-                <span><strong>CultureMetrics</strong><small>Revenue, customer, event and destination analytics</small></span>
+                <span><strong>CultureMetrics</strong><small>Admin-only revenue, customer, event and destination analytics</small></span>
                 <i class="fas fa-arrow-up-right-from-square"></i>
               </a>
             {{/if}}

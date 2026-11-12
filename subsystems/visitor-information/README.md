@@ -2,7 +2,7 @@
 
 CultureFrame is a full-stack cultural heritage information portal for Mansalay, Oriental Mindoro. Visitors browse the public site without accounts; administrator access is provisioned by the system owner. It includes a React/TypeScript frontend, Express API, Prisma/PostgreSQL persistence, session-cookie authentication, public visitor feedback, publication-controlled content, search, image attribution management, and administrator tools.
 
-> **Scope and source-data note:** The supplied prompt references `GREGORIO BEA DIAGRAM.docx`, but that document was not included in the workspace. This implementation follows the workflows described in the pasted prompt. The landing-page photo showcase uses two verified Mansalay photographs hosted by Wikimedia Commons: Buktot Beach by The Wandering Angel (CC BY 2.0) and the Mansalay public market by Hariboneagle927 (CC BY-SA 4.0). Their source and license links are displayed beside the images. Other initial sections use designed placeholders, not purported photographs of Mansalay. Administrators must verify facts, sources, coordinates, image licenses, and permissions before publishing additional media.
+> **Scope and source-data note:** The supplied prompt references `GREGORIO BEA DIAGRAM.docx`, but that document was not included in the workspace. This implementation follows the workflows described in the pasted prompt. The landing-page photo showcase uses two verified Mansalay photographs hosted by Wikimedia Commons: Buktot Beach by The Wandering Angel (CC BY 2.0) and the Mansalay public market by Hariboneagle927 (CC BY-SA 4.0). Destination and culture-promotion cards also display remotely hosted images from their linked Travel Oriental Mindoro or identified source pages, with visible source credits. Those third-party images are not bundled or presented as open-license assets. Administrators must verify facts, sources, image permissions, coordinates, and cultural protocols before publishing additional media.
 
 ## Requirements
 
@@ -48,12 +48,26 @@ npm run db:seed
 - Administrator login, session invalidation, and forgot/reset password token flow
 - GPS-verified visitor ratings and comments with a configurable per-site radius,
   fresh high-accuracy readings, signed short-lived verification tokens, validation,
-  and rate limiting; no visitor account is required
+  rate limiting, and the shared main CultureFrame customer identity
 - Administrator content create/edit-publication-state/delete, homepage editor, feedback status management, media upload and attribution, locations, audit records, and database-backed counts
 - Media allowlist, upload size limit, permission-gated public gallery, secure HTTP-only session cookie, hashed passwords/session tokens, authentication rate limiting, and admin API authorization
 - Docker Compose PostgreSQL, Prisma schema/seed, backend validation/access tests
 
 There is no public registration endpoint or visitor account flow. When both `ADMIN_EMAIL` and `ADMIN_PASSWORD` are configured, the seed command upserts that administrator and resets its password. Without both values, public destination/content data is still seeded and administrator accounts are left unchanged. Password reset delivery is intentionally not connected to an email provider. In development the reset URL is printed by the API; production requires integrating a trusted mail delivery service before enabling account recovery.
+
+## Shared customer and visitor account
+
+Visitors use the main CultureFrame customer account; this subsystem does not issue a second visitor password. The main application sends a signed, two-minute account handoff to `/account/connect`, and the API creates a local identity mirror used only to associate visitor activity such as GPS-verified feedback. The `/account` page is the single visible Customer/Visitor workspace: it combines discovery and GPS feedback with links to the main Marketplace, cart, wishlist, orders, profile and community moments. Those commerce records remain owned by the main CultureFrame system, so opening them does not require another login.
+
+GPS verification and feedback submission require that shared signed-in customer
+session. Public visitors may browse published content, locations and the gallery,
+but cannot generate a verification token or submit feedback anonymously. Visitor
+administrator sign-in and password actions are rate limited, private API responses
+are not cached, and password resets invalidate existing Visitor sessions.
+
+Visitor content administrators also enter through the main CultureFrame Admin side. The legacy local login URL redirects to the main administrator handoff, keeping a single visible administrator workspace and credential path.
+
+For production, configure the same random `CULTUREFRAME_SSO_SECRET` of at least 32 characters in both applications and set `VITE_MAIN_SYSTEM_URL` to the public main-system origin. Local development uses the documented localhost defaults.
 
 The location view maps verified administrator-entered coordinates and links each
 eligible place to its GPS-gated feedback form. Administrators set a feedback

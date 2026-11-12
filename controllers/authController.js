@@ -24,10 +24,21 @@
 */
 
 import bcrypt from "bcrypt";
-import { User, sequelize } from "../models/userModel.js";
+import { User, sequelize, Op } from "../models/userModel.js";
 import { CartItem } from "../models/CartItem.js";
 import { WishlistItem } from "../models/WishlistItem.js";
 import { Product } from "../models/Product.js";
+import {
+  checkLoginAllowed,
+  clearLoginFailures,
+  LOGIN_SECURITY,
+  recordLoginFailure
+} from "../services/loginSecurity.js";
+
+const validatePassword = password => typeof password === "string" &&
+  password.length >= 12 && password.length <= 128 &&
+  /[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password) && /[^A-Za-z0-9]/.test(password);
+const dummyPasswordHash = bcrypt.hash("CultureFrame-invalid-password-timing-value", 12);
 
 // ==================== INITIALIZATION ====================
 
@@ -39,10 +50,9 @@ const initializeAuth = async () => {
     // ==================== DEFAULT ADMIN CREATION ====================
     const adminExists = await User.findOne({ where: { role: 'admin' } });
     if (!adminExists) {
-      const initialAdminPassword = process.env.ADMIN_INITIAL_PASSWORD ||
-        (process.env.NODE_ENV !== 'production' ? 'admin123' : null);
-      if (!initialAdminPassword) {
-        throw new Error('ADMIN_INITIAL_PASSWORD is required when creating the production administrator.');
+      const initialAdminPassword = process.env.ADMIN_INITIAL_PASSWORD;
+      if (!validatePassword(initialAdminPassword)) {
+        throw new Error('ADMIN_INITIAL_PASSWORD must be 12-128 characters and include upper/lowercase letters, a number, and a symbol.');
       }
       await User.create({
         name: 'System Administrator',
@@ -72,13 +82,38 @@ const validateEmail = (email) => {
   return emailRegex.test(email);
 };
 
-const validatePassword = (password) => {
-  return password.length >= 8;
-};
-
 const clearSessionMessages = (req) => {
   req.session.error_msg = null;
   req.session.success_msg = null;
+};
+
+const regenerateSession = req => new Promise((resolve, reject) => {
+  const cart = Array.isArray(req.session?.cart) ? req.session.cart.slice() : [];
+  const wishlist = Array.isArray(req.session?.wishlist) ? req.session.wishlist.slice() : [];
+  req.session.regenerate(error => {
+    if (error) return reject(error);
+    req.session.cart = cart;
+    req.session.wishlist = wishlist;
+    resolve();
+  });
+});
+
+const isJsonRequest = req => req.headers['x-requested-with'] === 'XMLHttpRequest' ||
+  req.headers['accept']?.includes('application/json') || req.get('Accept')?.includes('application/json');
+
+const loginFailureResponse = (req, res, message, status = 401, retryAfterSeconds = 0) => {
+  if (retryAfterSeconds > 0) res.setHeader('Retry-After', String(retryAfterSeconds));
+  if (isJsonRequest(req)) return res.status(status).json({ success: false, message, retryAfterSeconds });
+  req.session.error_msg = message;
+  return res.redirect('/login');
+};
+
+const failedLoginMessage = result => {
+  if (result.locked) {
+    const minutes = Math.max(1, Math.ceil(result.retryAfterSeconds / 60));
+    return `Too many unsuccessful sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`;
+  }
+  return `Invalid email or password. ${result.attemptsRemaining} attempt${result.attemptsRemaining === 1 ? '' : 's'} remaining before a 15-minute lock.`;
 };
 
 const setSession = async (req, user) => {
@@ -218,8 +253,8 @@ export const loginPage = (req, res) => {
   console.log('📄 Rendering login page');
   res.render("login", { 
     title: "Login - CultureFrame",
-    error_msg: req.session.error_msg,
-    success_msg: req.session.success_msg,
+    error_msg: res.locals.error_msg,
+    success_msg: res.locals.success_msg,
     formData: req.session.formData || {}
   });
 };
@@ -232,8 +267,8 @@ export const registerPage = (req, res) => {
   
   res.render("register", { 
     title: "Register - CultureFrame",
-    error_msg: req.session.error_msg,
-    success_msg: req.session.success_msg,
+    error_msg: res.locals.error_msg,
+    success_msg: res.locals.success_msg,
     formData: req.session.formData || {}
   });
 };
@@ -241,8 +276,8 @@ export const registerPage = (req, res) => {
 export const forgotPasswordPage = (req, res) => {
   res.render("forgotpassword", { 
     title: "Forgot Password - CultureFrame",
-    error_msg: req.session.error_msg,
-    success_msg: req.session.success_msg
+    error_msg: res.locals.error_msg,
+    success_msg: res.locals.success_msg
   });
 };
 
@@ -267,7 +302,7 @@ export const dashboardPage = (req, res) => {
     return res.redirect("/seller/dashboard");
   } else {
     console.log('📍 Redirecting customer to customer dashboard');
-    return res.redirect("/customer/dashboard");
+    return res.redirect("/visitor/access?returnTo=%2F");
   }
 };
 
@@ -409,13 +444,25 @@ export const adminDashboard = async (req, res) => {
 export const loginUser = async (req, res) => {
   try {
     const { email, password, remember } = req.body;
-    
-    console.log('🔄 Login attempt for:', email);
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const loginIdentity = { email: normalizedEmail, ip: req.ip };
     
     clearSessionMessages(req);
     
     // Store form data for persistence
     req.session.formData = { email };
+
+    const allowed = checkLoginAllowed(loginIdentity);
+    if (!allowed.allowed) {
+      const minutes = Math.max(1, Math.ceil(allowed.retryAfterSeconds / 60));
+      return loginFailureResponse(
+        req,
+        res,
+        `Too many unsuccessful sign-in attempts. Try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`,
+        429,
+        allowed.retryAfterSeconds
+      );
+    }
     
     // Validation
     if (!email?.trim() || !password?.trim()) {
@@ -426,14 +473,11 @@ export const loginUser = async (req, res) => {
     
     if (!validateEmail(email)) {
       console.log('❌ Invalid email format');
-      req.session.error_msg = "Please enter a valid email address";
-      return res.redirect('/login');
+      const failure = recordLoginFailure(loginIdentity);
+      return loginFailureResponse(req, res, failedLoginMessage(failure), failure.locked ? 429 : 401, failure.retryAfterSeconds);
     }
     
     // Find user - CASE INSENSITIVE and trim whitespace
-    const normalizedEmail = email.trim().toLowerCase();
-    console.log('🔍 Searching for user with normalized email:', normalizedEmail);
-    
     const user = await User.findOne({ 
       where: { 
         email: normalizedEmail 
@@ -441,38 +485,24 @@ export const loginUser = async (req, res) => {
     });
     
     if (!user) {
-      console.log('❌ User not found:', normalizedEmail);
-      req.session.error_msg = "Invalid email or password";
-      return res.redirect('/login');
+      await bcrypt.compare(String(password), await dummyPasswordHash);
+      const failure = recordLoginFailure(loginIdentity);
+      return loginFailureResponse(req, res, failedLoginMessage(failure), failure.locked ? 429 : 401, failure.retryAfterSeconds);
     }
-    
-    console.log('✅ User found:', user.name, 'Role:', user.role);
     
     // Compare password using raw dataValues to avoid toJSON stripping
     const storedHash = user.getDataValue('password');
-    console.log('🔐 Hash exists:', !!storedHash, 'Hash length:', storedHash?.length);
-    
-    const isPasswordValid = await bcrypt.compare(password.trim(), storedHash);
-    if (!isPasswordValid) {
-      console.log('❌ Password comparison failed');
-      const isAjax = req.headers['x-requested-with'] === 'XMLHttpRequest' || 
-                     req.headers['accept']?.includes('application/json') ||
-                     req.get('Accept')?.includes('application/json');
-      if (isAjax) {
-        return res.json({ success: false, message: "Invalid email or password" });
-      }
-      req.session.error_msg = "Invalid email or password";
-      return res.redirect('/login');
+    const isPasswordValid = await bcrypt.compare(String(password), storedHash);
+    if (!isPasswordValid || user.status !== 'active') {
+      const failure = recordLoginFailure(loginIdentity);
+      return loginFailureResponse(req, res, failedLoginMessage(failure), failure.locked ? 429 : 401, failure.retryAfterSeconds);
     }
     
+    clearLoginFailures(loginIdentity);
+    // Replace the pre-login session identifier to prevent session fixation.
+    await regenerateSession(req);
     // Set session (loads persisted cart/wishlist)
     await setSession(req, user);
-    console.log('✅ Session created for:', user.name);
-    console.log('🔐 Session isAuthenticated:', req.session.isAuthenticated);
-    console.log('👤 Session userRole:', req.session.userRole);
-    console.log('📧 Session userEmail:', req.session.userEmail);
-    console.log('🆔 Session userId:', req.session.userId);
-    
     if (remember) {
       req.session.cookie.maxAge = 30 * 24 * 60 * 60 * 1000; // 30 days
     }
@@ -489,16 +519,18 @@ export const loginUser = async (req, res) => {
     req.session.formData = null;
     
     // Check if this is an AJAX request (from modal)
-    const isAjax = req.headers['x-requested-with'] === 'XMLHttpRequest' || 
-                   req.headers['accept']?.includes('application/json') ||
-                   req.get('Accept')?.includes('application/json');
+    const isAjax = isJsonRequest(req);
     
+    // Customer login always opens the unified Visitor home first. Protected
+    // features remain available from its navigation without another login.
+    delete req.session.postLoginRedirect;
+
     // Determine redirect URL based on role
     const redirectUrl = user.role === 'admin'
       ? '/admin/dashboard'
       : user.role === 'seller'
         ? '/seller/dashboard'
-        : '/customer/dashboard';
+        : '/visitor/access?returnTo=%2F';
     
     if (isAjax) {
       console.log('📡 AJAX login request, returning JSON response');
@@ -518,13 +550,6 @@ export const loginUser = async (req, res) => {
       console.log('🌐 Regular form login, redirecting to dashboard');
       console.log('👤 User role:', user.role);
       console.log('📍 Redirect URL:', redirectUrl);
-      console.log('🔐 Session after login:', {
-        isAuthenticated: req.session.isAuthenticated,
-        userRole: req.session.userRole,
-        userId: req.session.userId,
-        userEmail: req.session.userEmail
-      });
-      
       // Force redirect to appropriate dashboard
       console.log('🚀 Redirecting to:', redirectUrl);
       return res.redirect(redirectUrl);
@@ -534,9 +559,7 @@ export const loginUser = async (req, res) => {
     console.error('💥 Login error:', error);
     
     // Check if this is an AJAX request (from modal)
-    const isAjax = req.headers['x-requested-with'] === 'XMLHttpRequest' || 
-                   req.headers['accept']?.includes('application/json') ||
-                   req.get('Accept')?.includes('application/json');
+    const isAjax = isJsonRequest(req);
     
     if (isAjax) {
       return res.json({
@@ -571,11 +594,6 @@ export const registerUser = async (req, res) => {
   try {
     const { name, email, password, confirmPassword, terms } = req.body;
     
-    console.log('🔄 Registration attempt:');
-    console.log('📝 Name:', name);
-    console.log('📧 Email:', email);
-    console.log('✅ Terms accepted:', terms);
-    
     clearSessionMessages(req);
     
     req.session.formData = { name, email };
@@ -593,7 +611,7 @@ export const registerUser = async (req, res) => {
     
     if (!validatePassword(password)) {
       console.log('❌ Password too short');
-      return handleRegistrationError(req, res, "Password must be at least 8 characters");
+      return handleRegistrationError(req, res, "Password must be 12-128 characters and include uppercase, lowercase, number, and symbol characters");
     }
     
     if (password !== confirmPassword) {
@@ -615,7 +633,6 @@ export const registerUser = async (req, res) => {
     });
     
     if (existingUser) {
-      console.log('❌ Email already exists:', normalizedEmail);
       return handleRegistrationError(req, res, "Email already registered");
     }
     
@@ -628,8 +645,6 @@ export const registerUser = async (req, res) => {
       role: 'customer'
     });
     
-    console.log(`✅ New customer registered: ${user.name} (ID: ${user.id})`);
-    console.log(`📧 Email saved as: ${user.email}`);
     // Clear form data
     req.session.formData = null;
 
@@ -667,7 +682,7 @@ export const registerUser = async (req, res) => {
   } catch (error) {
     console.error('💥 Registration error:', error);
     console.error('💥 Registration error details:', error.message);
-    console.error('💥 Registration error stack:', error.stack);
+    if (process.env.NODE_ENV !== 'production') console.error('💥 Registration error stack:', error.stack);
     if (error.errors) {
       error.errors.forEach(e => console.error('  - Validation:', e.message));
     }
@@ -723,36 +738,70 @@ export const logoutUser = (req, res) => {
 
 // ==================== MIDDLEWARE ====================
 
-export const requireAuth = (req, res, next) => {
-  if (!req.session.isAuthenticated) {
-    // If AJAX request, return 401 JSON instead of redirect
-    if (req.get('X-Requested-With') === 'XMLHttpRequest' || (req.get('accept') || '').includes('application/json')) {
-      return res.status(401).json({ success: false, message: 'Authentication required' });
-    }
-    return res.redirect('/login');
-  }
-  next();
+const activeSessionUser = async req => {
+  if (!req.session?.isAuthenticated || !req.session.userId) return null;
+  const user = await User.findByPk(req.session.userId, {
+    attributes: ["id", "name", "email", "role", "status"]
+  });
+  if (!user || user.status !== "active" || user.role !== req.session.userRole) return null;
+  return user;
 };
 
-export const requireAdmin = (req, res, next) => {
-  if (!req.session.isAuthenticated) {
-    return res.redirect('/login');
+const denyUnauthenticated = (req, res) => {
+  if (isJsonRequest(req)) {
+    return res.status(401).json({ success: false, message: 'Authentication required. Please sign in again.' });
   }
-  
-  if (req.session.userRole !== 'admin') {
-    req.session.error_msg = "Access denied. Admin privileges required.";
-    return res.redirect('/customer/dashboard');
+  req.session.error_msg = 'Please sign in to continue.';
+  return res.redirect('/login');
+};
+
+export const requireAuth = async (req, res, next) => {
+  try {
+    const user = await activeSessionUser(req);
+    if (!user) return denyUnauthenticated(req, res);
+    req.authUser = user;
+    next();
+  } catch (error) {
+    next(error);
   }
-  
-  next();
+};
+
+export const requireCustomer = async (req, res, next) => {
+  try {
+    const user = await activeSessionUser(req);
+    if (!user) return denyUnauthenticated(req, res);
+    if (user.role !== 'customer') {
+      req.session.error_msg = "Access denied. A customer account is required.";
+      return res.redirect('/dashboard');
+    }
+    req.authUser = user;
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const requireAdmin = async (req, res, next) => {
+  try {
+    const user = await activeSessionUser(req);
+    if (!user) return denyUnauthenticated(req, res);
+    if (user.role !== 'admin') {
+      req.session.error_msg = "Access denied. Admin privileges required.";
+      return res.redirect('/dashboard');
+    }
+    req.authUser = user;
+    next();
+  } catch (error) {
+    next(error);
+  }
 };
 
 // ==================== ADMIN PASSWORD RESET ====================
 export const resetAdminPassword = async () => {
   try {
     const password = process.env.ADMIN_INITIAL_PASSWORD;
-    if (!password) {
-      console.error('❌ ADMIN_INITIAL_PASSWORD is required to reset the administrator password');
+    if (!validatePassword(password)) {
+      console.error('❌ ADMIN_INITIAL_PASSWORD does not meet the strong-password policy');
       return false;
     }
     const adminUser = await User.findOne({ where: { email: 'admin@cultureframe.com' } });
@@ -763,7 +812,6 @@ export const resetAdminPassword = async () => {
 
     await adminUser.update({ password });
     console.log('✅ Admin password reset successfully');
-    console.log('📧 Email: admin@cultureframe.com');
     return true;
   } catch (error) {
     console.error('❌ Error resetting admin password:', error);
@@ -774,14 +822,14 @@ export const resetAdminPassword = async () => {
 // Manual emergency password reset function
 export const emergencyPasswordReset = async (email, newPassword) => {
   try {
+    if (!validatePassword(newPassword)) return false;
     const user = await User.findOne({ where: { email: email } });
     if (!user) {
-      console.log(`❌ User ${email} not found`);
       return false;
     }
 
     await user.update({ password: newPassword });
-    console.log(`✅ Emergency password reset for ${email}`);
+    console.log('✅ Emergency password reset completed');
     return true;
   } catch (error) {
     console.error('❌ Emergency reset error:', error);
@@ -816,15 +864,41 @@ export const renderCustomerProfileEdit = async (req, res) => {
 export const handleCustomerProfileEdit = async (req, res) => {
   if (!req.session.isAuthenticated) return res.redirect('/login');
   try {
-    const { name, email, password } = req.body;
+    const { name, email, password, currentPassword } = req.body;
     const user = await User.findOne({ where: { id: req.session.userId } });
     if (!user) {
       req.session.error_msg = 'User not found.';
       return res.redirect('/customer/dashboard');
     }
-    user.name = name;
-    user.email = email;
-    if (password && password.trim().length > 0) {
+    const normalizedName = String(name || '').trim();
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const passwordChanging = typeof password === 'string' && password.length > 0;
+    const emailChanging = normalizedEmail !== user.email;
+    if (normalizedName.length < 2 || normalizedName.length > 100 || !validateEmail(normalizedEmail)) {
+      req.session.error_msg = 'Enter a valid name and email address.';
+      return res.redirect('/customer/profile/edit');
+    }
+    if (passwordChanging && !validatePassword(password)) {
+      req.session.error_msg = 'A new password must be 12-128 characters and include uppercase, lowercase, number, and symbol characters.';
+      return res.redirect('/customer/profile/edit');
+    }
+    if (passwordChanging || emailChanging) {
+      const currentPasswordValid = currentPassword && await user.comparePassword(String(currentPassword));
+      if (!currentPasswordValid) {
+        req.session.error_msg = 'Enter your current password to change your email or password.';
+        return res.redirect('/customer/profile/edit');
+      }
+    }
+    if (emailChanging) {
+      const emailOwner = await User.findOne({ where: { email: normalizedEmail, id: { [Op.ne]: user.id } } });
+      if (emailOwner) {
+        req.session.error_msg = 'That email address is already in use.';
+        return res.redirect('/customer/profile/edit');
+      }
+    }
+    user.name = normalizedName;
+    user.email = normalizedEmail;
+    if (passwordChanging) {
       user.password = password;
     }
     // Handle profile image upload
@@ -832,8 +906,14 @@ export const handleCustomerProfileEdit = async (req, res) => {
       user.profileImage = req.file.filename;
     }
     await user.save();
-    req.session.userName = user.name;
-    req.session.userEmail = user.email;
+    if (passwordChanging || emailChanging) {
+      await regenerateSession(req);
+      await setSession(req, user);
+    } else {
+      req.session.userName = user.name;
+      req.session.userEmail = user.email;
+      req.session.user = Object.assign({}, req.session.user, { name: user.name, email: user.email });
+    }
     req.session.success_msg = 'Profile updated successfully!';
     res.redirect('/customer/dashboard');
   } catch (err) {

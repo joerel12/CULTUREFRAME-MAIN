@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="CultureFrame">
+  <rect width="64" height="64" rx="16" fill="#163d34"/>
+  <path d="M44 18c-15 1-25 9-25 21 0 7 5 11 12 11 10 0 17-8 17-21 0-4-1-8-4-11Z" fill="#d8ac58"/>
+  <path d="M17 49c4-12 12-20 25-25M21 38c5 1 9 3 13 7" fill="none" stroke="#f8f5eb" stroke-width="4" stroke-linecap="round"/>
+</svg>
