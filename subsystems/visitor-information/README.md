@@ -46,18 +46,36 @@ npm run db:seed
 - Public browse/detail routes for heritage, historical sites, traditions, events, attractions, festivals, and local products
 - Published-only server-side search with pagination
 - Administrator login, session invalidation, and forgot/reset password token flow
-- Public visitor feedback with validation and rate limiting; no account or registration required
+- GPS-verified visitor ratings and comments with a configurable per-site radius,
+  fresh high-accuracy readings, signed short-lived verification tokens, validation,
+  and rate limiting; no visitor account is required
 - Administrator content create/edit-publication-state/delete, homepage editor, feedback status management, media upload and attribution, locations, audit records, and database-backed counts
 - Media allowlist, upload size limit, permission-gated public gallery, secure HTTP-only session cookie, hashed passwords/session tokens, authentication rate limiting, and admin API authorization
 - Docker Compose PostgreSQL, Prisma schema/seed, backend validation/access tests
 
 There is no public registration endpoint or visitor account flow. Administrators are provisioned with the seed command, which upserts the configured account and resets its password to the current `ADMIN_PASSWORD`. Password reset delivery is intentionally not connected to an email provider. In development the reset URL is printed by the API; production requires integrating a trusted mail delivery service before enabling account recovery.
 
-The location view links to OpenStreetMap for verified administrator-entered coordinates. A map tile widget and chart views are not yet integrated. Image compression/thumbnail generation, CSRF token workflow, email delivery, full content editing UI, migration history, and end-to-end browser tests remain follow-up work; see `REQUIREMENTS_TRACEABILITY.md`.
+The location view maps verified administrator-entered coordinates and links each
+eligible place to its GPS-gated feedback form. Administrators set a feedback
+radius from 25 to 2,000 meters; the default is 150 meters and browser accuracy
+must be 100 meters or better. Exact visitor coordinates are evaluated in memory
+and are not stored. The selected location, calculated distance, accuracy, and
+verification time are stored with accepted feedback.
+
+The seed includes Buktot Beach at `12.44872704, 121.4203594` with a 150-meter
+feedback radius, based on the Provincial Tourism Office destination listing.
+Administrators can add and configure more verified sites from **Admin > Locations**.
+
+Browser geolocation is a practical presence check, not tamper-proof proof: a
+technically capable visitor can spoof device coordinates. Stronger assurance
+would require a native application with device attestation or a separately
+controlled on-site factor such as a rotating QR code.
 
 ## Deployment checklist
 
-- Use managed PostgreSQL and TLS; set `COOKIE_SECURE=true`, a production-only secret, and the exact HTTPS frontend origin.
+- Use managed PostgreSQL and TLS; browser geolocation works only on HTTPS origins
+  (with `localhost` allowed for development). Set `COOKIE_SECURE=true`, a
+  production-only secret, and the exact HTTPS frontend origin.
 - Configure a trusted email delivery provider and remove development reset-link logging.
 - Configure durable private media storage, image inspection/compression, backups, and attribution/consent review.
 - Review privacy/terms copy, contact information, accessibility, upload malware scanning, retention rules, and legal/cultural permissions.

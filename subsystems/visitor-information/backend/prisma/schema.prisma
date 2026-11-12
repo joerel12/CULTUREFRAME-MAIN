@@ -126,32 +126,40 @@ model MediaAsset {
 }
 
 model Location {
-  id          String   @id @default(cuid())
-  name        String
-  address     String   @default("")
-  description String   @default("")
-  latitude    Float?
-  longitude   Float?
-  verified    Boolean  @default(false)
-  createdAt   DateTime @default(now()) @map("created_at")
-  updatedAt   DateTime @updatedAt @map("updated_at")
+  id                    String            @id @default(cuid())
+  name                  String
+  address               String            @default("")
+  description           String            @default("")
+  latitude              Float?
+  longitude             Float?
+  verified              Boolean           @default(false)
+  feedbackRadiusMeters  Int               @default(150) @map("feedback_radius_meters")
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
+  feedback              VisitorFeedback[]
 
   @@map("locations")
 }
 
 model VisitorFeedback {
-  id               String   @id @default(cuid())
-  userId           String?  @map("user_id")
-  category         String
-  subject          String
-  rating           Int
-  message          String
-  relatedHeritageId String? @map("related_heritage_id")
-  status           String   @default("NEW")
-  createdAt        DateTime @default(now()) @map("created_at")
-  user             User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  id                       String    @id @default(cuid())
+  userId                   String?   @map("user_id")
+  category                 String
+  subject                  String
+  rating                   Int
+  message                  String
+  relatedHeritageId        String?   @map("related_heritage_id")
+  locationId               String?   @map("location_id")
+  geofenceDistanceMeters   Float?    @map("geofence_distance_meters")
+  geofenceAccuracyMeters   Float?    @map("geofence_accuracy_meters")
+  locationVerifiedAt       DateTime? @map("location_verified_at")
+  status                   String    @default("NEW")
+  createdAt                DateTime  @default(now()) @map("created_at")
+  user                     User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  location                 Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
 
   @@index([createdAt])
+  @@index([locationId, createdAt])
   @@map("visitor_feedback")
 }
 

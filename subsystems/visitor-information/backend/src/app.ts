@@ -11,6 +11,16 @@ import path from "node:path";
 import fs from "node:fs";
 import multer from "multer";
 import { z } from "zod";
+import {
+  createGeofenceToken,
+  DEFAULT_FEEDBACK_RADIUS_METERS,
+  distanceInMeters,
+  GEOFENCE_TOKEN_TTL_MS,
+  isFreshLocationReading,
+  MAX_FEEDBACK_RADIUS_METERS,
+  MAX_LOCATION_ACCURACY_METERS,
+  verifyGeofenceToken
+} from "./geofence.js";
 
 export const prisma = new PrismaClient();
 export const app = express();
@@ -221,15 +231,109 @@ app.get("/api/locations", asyncRoute(async (_req, res) => {
   res.json({ items: await prisma.location.findMany({ orderBy: { name: "asc" } }) });
 }));
 
+const geofenceLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 20, standardHeaders: true, legacyHeaders: false });
+app.post("/api/visitor/location-verification", geofenceLimiter, asyncRoute(async (req, res) => {
+  const parsed = z.object({
+    locationId: z.string().min(1).max(100),
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+    accuracyMeters: z.number().min(1).max(10_000),
+    capturedAt: z.number().int().positive()
+  }).safeParse(req.body);
+  if (!parsed.success) return res.status(400).json({ error: "A complete GPS reading and location are required." });
+
+  const location = await prisma.location.findUnique({ where: { id: parsed.data.locationId } });
+  if (!location || !location.verified || location.latitude == null || location.longitude == null) {
+    return res.status(404).json({ error: "This location is not available for verified feedback." });
+  }
+
+  const radiusMeters = Math.min(
+    MAX_FEEDBACK_RADIUS_METERS,
+    Math.max(25, location.feedbackRadiusMeters || DEFAULT_FEEDBACK_RADIUS_METERS)
+  );
+  const distanceMeters = distanceInMeters(
+    { latitude: parsed.data.latitude, longitude: parsed.data.longitude },
+    { latitude: location.latitude, longitude: location.longitude }
+  );
+  const distance = Math.round(distanceMeters * 10) / 10;
+  const accuracy = Math.round(parsed.data.accuracyMeters * 10) / 10;
+
+  if (!isFreshLocationReading(parsed.data.capturedAt)) {
+    return res.json({
+      allowed: false,
+      reason: "STALE_READING",
+      message: "Your GPS reading is no longer current. Please verify your location again."
+    });
+  }
+  if (accuracy > MAX_LOCATION_ACCURACY_METERS) {
+    return res.json({
+      allowed: false,
+      reason: "LOW_ACCURACY",
+      accuracyMeters: accuracy,
+      maximumAccuracyMeters: MAX_LOCATION_ACCURACY_METERS,
+      message: "GPS accuracy is too low. Move outdoors, enable precise location, and try again."
+    });
+  }
+  if (distance > radiusMeters) {
+    return res.json({
+      allowed: false,
+      reason: "OUTSIDE_GEOFENCE",
+      distanceMeters: distance,
+      radiusMeters,
+      message: `You are about ${Math.round(distance)} meters from ${location.name}. Visit the site before leaving a rating or comment.`
+    });
+  }
+
+  const now = Date.now();
+  const verificationToken = createGeofenceToken({
+    version: 1,
+    locationId: location.id,
+    locationVersion: location.updatedAt.getTime(),
+    distanceMeters: distance,
+    accuracyMeters: accuracy,
+    verifiedAt: now,
+    expiresAt: now + GEOFENCE_TOKEN_TTL_MS
+  }, sessionSecret);
+  res.json({
+    allowed: true,
+    verificationToken,
+    location: { id: location.id, name: location.name },
+    distanceMeters: distance,
+    accuracyMeters: accuracy,
+    expiresAt: new Date(now + GEOFENCE_TOKEN_TTL_MS).toISOString(),
+    message: `Location verified at ${location.name}. You may now submit feedback.`
+  });
+}));
+
 const feedbackLimiter = rateLimit({ windowMs: 15 * 60 * 1000, limit: 5, standardHeaders: true, legacyHeaders: false });
 app.post("/api/visitor/feedback", feedbackLimiter, asyncRoute(async (req, res) => {
   const parsed = z.object({
     category: z.string().min(2).max(80), subject: z.string().trim().min(3).max(160),
     rating: z.number().int().min(1).max(5), message: z.string().trim().min(10).max(5000),
-    relatedHeritageId: z.string().optional()
+    relatedHeritageId: z.string().optional(), locationId: z.string().min(1).max(100),
+    verificationToken: z.string().min(20).max(2_000)
   }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Please correct the feedback form.", details: parsed.error.flatten() });
-  const feedback = await prisma.visitorFeedback.create({ data: { ...parsed.data, userId: req.user?.id ?? null } });
+
+  const verification = verifyGeofenceToken(parsed.data.verificationToken, sessionSecret);
+  if (!verification || verification.locationId !== parsed.data.locationId) {
+    return res.status(403).json({ error: "Location verification is invalid or expired. Verify your GPS location again." });
+  }
+  const location = await prisma.location.findUnique({ where: { id: parsed.data.locationId } });
+  if (!location || !location.verified || location.updatedAt.getTime() !== verification.locationVersion) {
+    return res.status(403).json({ error: "This site's location details changed. Verify your GPS location again." });
+  }
+
+  const { verificationToken: _verificationToken, ...feedbackData } = parsed.data;
+  const feedback = await prisma.visitorFeedback.create({
+    data: {
+      ...feedbackData,
+      userId: req.user?.id ?? null,
+      geofenceDistanceMeters: verification.distanceMeters,
+      geofenceAccuracyMeters: verification.accuracyMeters,
+      locationVerifiedAt: new Date(verification.verifiedAt)
+    }
+  });
   res.status(201).json({ feedback, message: "Thank you. Your feedback has been submitted." });
 }));
 
@@ -295,7 +399,15 @@ app.patch("/api/admin/homepage", ...admin, asyncRoute(async (req, res) => {
   res.json({ content: Object.fromEntries((await prisma.homepageContent.findMany()).map((item) => [item.key, item.value])) });
 }));
 app.get("/api/admin/feedback", ...admin, asyncRoute(async (_req, res) => {
-  res.json({ items: await prisma.visitorFeedback.findMany({ orderBy: { createdAt: "desc" }, include: { user: { select: { firstName: true, lastName: true, email: true } } } }) });
+  res.json({
+    items: await prisma.visitorFeedback.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: { select: { firstName: true, lastName: true, email: true } },
+        location: { select: { name: true, address: true } }
+      }
+    })
+  });
 }));
 app.patch("/api/admin/feedback/:id", ...admin, asyncRoute(async (req, res) => {
   const parsed = z.object({ status: z.enum(["NEW", "REVIEWED", "RESOLVED"]) }).safeParse(req.body);
@@ -324,7 +436,7 @@ app.post("/api/admin/media", ...admin, upload.single("image"), asyncRoute(async 
 }));
 app.get("/api/admin/locations", ...admin, asyncRoute(async (_req, res) => res.json({ items: await prisma.location.findMany({ orderBy: { name: "asc" } }) })));
 app.post("/api/admin/locations", ...admin, asyncRoute(async (req, res) => {
-  const parsed = z.object({ name: z.string().min(2).max(180), address: z.string().max(500).optional(), description: z.string().max(5000).optional(), latitude: z.number().min(-90).max(90).nullable().optional(), longitude: z.number().min(-180).max(180).nullable().optional(), verified: z.boolean().optional() }).safeParse(req.body);
+  const parsed = z.object({ name: z.string().min(2).max(180), address: z.string().max(500).optional(), description: z.string().max(5000).optional(), latitude: z.number().min(-90).max(90).nullable().optional(), longitude: z.number().min(-180).max(180).nullable().optional(), verified: z.boolean().optional(), feedbackRadiusMeters: z.number().int().min(25).max(MAX_FEEDBACK_RADIUS_METERS).optional() }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid location details.", details: parsed.error.flatten() });
   res.status(201).json({ item: await prisma.location.create({ data: parsed.data }) });
 }));

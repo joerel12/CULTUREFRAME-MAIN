@@ -42,4 +42,26 @@ describe("API validation and access control", () => {
     expect(response.status).toBe(400);
     expect(response.body.error).toMatch(/feedback form/i);
   });
+
+  it("rejects malformed GPS verification without querying the database", async () => {
+    const response = await request(app).post("/api/visitor/location-verification").send({
+      locationId: "site-1",
+      latitude: "not-a-coordinate"
+    });
+    expect(response.status).toBe(400);
+    expect(response.body.error).toMatch(/gps reading/i);
+  });
+
+  it("does not accept feedback without a server-signed location verification", async () => {
+    const response = await request(app).post("/api/visitor/feedback").send({
+      category: "On-site visit",
+      subject: "Heritage visit",
+      rating: 5,
+      message: "A meaningful visit to this cultural location.",
+      locationId: "site-1",
+      verificationToken: "not-a-valid-geofence-token"
+    });
+    expect(response.status).toBe(403);
+    expect(response.body.error).toMatch(/verification/i);
+  });
 });

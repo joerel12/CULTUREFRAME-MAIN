@@ -36,6 +36,22 @@ async function main() {
       create: entry
     });
   }
+
+  const buktotBeach = {
+    name: "Buktot Beach",
+    address: "Barangay Manaul, Mansalay, Oriental Mindoro",
+    description: "A pristine white-sand beach in Barangay Manaul. Coordinates verified from the Provincial Tourism Office destination listing.",
+    latitude: 12.44872704,
+    longitude: 121.4203594,
+    feedbackRadiusMeters: 150,
+    verified: true
+  };
+  const existingBuktotBeach = await prisma.location.findFirst({ where: { name: buktotBeach.name } });
+  if (existingBuktotBeach) {
+    await prisma.location.update({ where: { id: existingBuktotBeach.id }, data: buktotBeach });
+  } else {
+    await prisma.location.create({ data: buktotBeach });
+  }
 }
 
 main().finally(() => prisma.$disconnect());

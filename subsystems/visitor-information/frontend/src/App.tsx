@@ -9,6 +9,17 @@ import { api, apiAssetUrl, ApiError } from "./api";
 type User = { id: string; firstName: string; lastName: string; email: string; role: "ADMIN" };
 type RecordItem = { id: string; kind: string; title: string; slug: string; summary: string; description: string; culturalSignificance?: string; historicalBackground?: string; payload?: Record<string, unknown>; publicationStatus?: string; featured?: boolean };
 type ListResult = { items: RecordItem[]; total?: number; pages?: number; page?: number };
+type LocationItem = { id: string; name: string; address: string; description: string; latitude: number | null; longitude: number | null; verified: boolean; feedbackRadiusMeters: number };
+type GeofenceResult = {
+  allowed: boolean;
+  verificationToken?: string;
+  location?: { id: string; name: string };
+  distanceMeters?: number;
+  accuracyMeters?: number;
+  radiusMeters?: number;
+  expiresAt?: string;
+  message: string;
+};
 const menu = [
   ["Heritage", "/heritage"], ["Historical sites", "/historical-sites"], ["Traditions", "/traditions"],
   ["Events", "/events"], ["Attractions", "/attractions"], ["Festivals", "/festivals"],
@@ -253,7 +264,7 @@ function GalleryPage() {
 }
 
 function LocationsPage() {
-  const { data, isLoading, error } = useQuery({ queryKey: ["locations"], queryFn: () => api<{ items: Array<{ id: string; name: string; address: string; description: string; latitude: number | null; longitude: number | null; verified: boolean }> }>("/locations") });
+  const { data, isLoading, error } = useQuery({ queryKey: ["locations"], queryFn: () => api<{ items: LocationItem[] }>("/locations") });
   const mapped = data?.items.filter((place) => place.verified && place.latitude != null && place.longitude != null) ?? [];
   return <main className="page-shell"><div className="page-hero compact"><div className="section-kicker">Explore the area</div><h1>Locations</h1><p>Only coordinates verified or provided by an administrator are shown on the map.</p></div>
     {isLoading ? <Loading/> : error ? <ErrorPanel message={(error as Error).message}/> : <>
@@ -261,7 +272,7 @@ function LocationsPage() {
         <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
         {mapped.map((place) => <Marker key={place.id} position={[place.latitude!, place.longitude!]}><Popup><strong>{place.name}</strong><br/>{place.address}</Popup></Marker>)}
       </MapContainer></div>}
-      <div className="location-list">{data?.items.map((place) => <article className="location-card glass" key={place.id}><MapPin/><div><h3>{place.name}</h3><p>{place.address}</p><p>{place.description}</p>{place.verified && place.latitude != null && place.longitude != null ? <a target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/?mlat=${place.latitude}&mlon=${place.longitude}#map=15/${place.latitude}/${place.longitude}`}>Open map <ArrowRight size={14}/></a> : <span className="muted">Map coordinates not verified</span>}</div></article>)}</div>
+      <div className="location-list">{data?.items.map((place) => <article className="location-card glass" key={place.id}><MapPin/><div><h3>{place.name}</h3><p>{place.address}</p><p>{place.description}</p>{place.verified && place.latitude != null && place.longitude != null ? <div className="location-actions"><a target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/?mlat=${place.latitude}&mlon=${place.longitude}#map=15/${place.latitude}/${place.longitude}`}>Open map <ArrowRight size={14}/></a><Link to={`/visitor/feedback?location=${encodeURIComponent(place.id)}`}>Rate this place <ArrowRight size={14}/></Link></div> : <span className="muted">Map coordinates not verified</span>}</div></article>)}</div>
       {!data?.items.length && <div className="empty-state glass"><MapPin/><h3>No verified locations yet</h3><p>Verified locations added by administrators will be listed here.</p></div>}
     </>}</main>;
 }
@@ -307,16 +318,89 @@ function ResetPage({ mode }: { mode: "forgot" | "reset" }) {
 function FeedbackPage() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const [checkingLocation, setCheckingLocation] = useState(false);
+  const [verification, setVerification] = useState<GeofenceResult | null>(null);
+  const [searchParams] = useSearchParams();
+  const [locationId, setLocationId] = useState(searchParams.get("location") ?? "");
+  const { data: locations, isLoading: loadingLocations, error: locationsError } = useQuery({
+    queryKey: ["locations", "feedback"],
+    queryFn: () => api<{ items: LocationItem[] }>("/locations")
+  });
+  const eligibleLocations = locations?.items.filter((location) =>
+    location.verified && location.latitude != null && location.longitude != null
+  ) ?? [];
+
+  const verifyLocation = async () => {
+    setError(""); setMessage(""); setVerification(null);
+    if (!locationId) return setError("Choose the heritage site or attraction you are visiting.");
+    if (!window.isSecureContext) return setError("GPS verification requires HTTPS, except when using localhost for development.");
+    if (!navigator.geolocation) return setError("This browser does not support GPS location.");
+    setCheckingLocation(true);
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 15_000
+        });
+      });
+      const result = await api<GeofenceResult>("/visitor/location-verification", {
+        method: "POST",
+        body: JSON.stringify({
+          locationId,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+          accuracyMeters: position.coords.accuracy,
+          capturedAt: position.timestamp
+        })
+      });
+      if (!result.allowed || !result.verificationToken) {
+        setError(result.message);
+        return;
+      }
+      setVerification(result);
+      setMessage(result.message);
+    } catch (issue) {
+      if (typeof issue === "object" && issue !== null && "code" in issue) {
+        const geoIssue = issue as GeolocationPositionError;
+        const reason = geoIssue.code === geoIssue.PERMISSION_DENIED
+          ? "Location permission was denied. Allow precise location access and try again."
+          : geoIssue.code === geoIssue.TIMEOUT
+            ? "GPS verification timed out. Move outdoors and try again."
+            : "Your current GPS position is unavailable. Enable location services and try again.";
+        setError(reason);
+      } else {
+        setError((issue as Error).message);
+      }
+    } finally {
+      setCheckingLocation(false);
+    }
+  };
+
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault(); setMessage(""); setError("");
+    if (!verification?.verificationToken) return setError("Verify that you are at the selected location before submitting feedback.");
     const formElement = e.currentTarget;
     const form = Object.fromEntries(new FormData(formElement).entries());
     try {
-      const result = await api<{ message: string }>("/visitor/feedback", { method: "POST", body: JSON.stringify({ ...form, rating: Number(form.rating) }) });
-      setMessage(result.message); formElement.reset();
+      const result = await api<{ message: string }>("/visitor/feedback", {
+        method: "POST",
+        body: JSON.stringify({
+          ...form,
+          category: "On-site visit",
+          rating: Number(form.rating),
+          locationId,
+          verificationToken: verification.verificationToken
+        })
+      });
+      setMessage(result.message);
+      formElement.reset();
+      setLocationId("");
+      setVerification(null);
     } catch (issue) { setError((issue as Error).message); }
   };
-  return <main className="page-shell form-shell"><div className="section-kicker">Your voice matters</div><h1>Share feedback</h1><p>Tell us about your experience with CultureFrame.</p><form className="glass content-form" onSubmit={submit}><label className="field"><span>Feedback category *</span><select name="category" required><option value="">Choose one</option><option>Website experience</option><option>Content correction</option><option>Accessibility</option><option>Other</option></select></label><Field label="Subject" name="subject" required/><label className="field"><span>Rating *</span><select name="rating" required defaultValue="5"><option value="5">5 — Excellent</option><option value="4">4 — Good</option><option value="3">3 — Average</option><option value="2">2 — Needs improvement</option><option value="1">1 — Poor</option></select></label><label className="field"><span>Message *</span><textarea name="message" rows={6} minLength={10} required/></label>{error && <div className="form-error">{error}</div>}{message && <div className="form-success">{message}</div>}<button className="button button-dark">Submit feedback <ArrowRight size={16}/></button></form></main>;
+  const canSubmit = Boolean(verification?.allowed && verification.verificationToken);
+  return <main className="page-shell form-shell"><div className="section-kicker">Verified site visit</div><h1>Rate a place you visited.</h1><p>To keep ratings trustworthy, feedback is available only while you are physically at a verified Mansalay site.</p><form className="glass content-form geofence-form" onSubmit={submit}><section className="geofence-panel"><div className="geofence-heading"><span className="geofence-icon"><MapPin/></span><div><h2>Verify your current location</h2><p>Select the place, then allow precise GPS access. Verification expires after five minutes.</p></div></div><label className="field"><span>Heritage site or attraction *</span><select value={locationId} onChange={(event) => { setLocationId(event.target.value); setVerification(null); setMessage(""); setError(""); }} required disabled={loadingLocations}><option value="">{loadingLocations ? "Loading verified locations…" : "Choose the place you are visiting"}</option>{eligibleLocations.map((location) => <option value={location.id} key={location.id}>{location.name}{location.address ? ` — ${location.address}` : ""}</option>)}</select></label>{locationsError && <div className="form-error">{(locationsError as Error).message}</div>}{!loadingLocations && !locationsError && eligibleLocations.length === 0 && <div className="form-error">No GPS-enabled locations are available. Ask an administrator to verify site coordinates.</div>}<button type="button" className="button button-location" onClick={verifyLocation} disabled={checkingLocation || !locationId}>{checkingLocation ? "Checking GPS…" : "Verify my location"} <Compass size={17}/></button>{verification?.allowed && <div className="location-verified"><Check size={18}/><div><strong>On-site location confirmed</strong><span>{Math.round(verification.distanceMeters ?? 0)} m from the site · GPS accuracy ±{Math.round(verification.accuracyMeters ?? 0)} m</span></div></div>}<p className="privacy-note"><ShieldCheck size={14}/> Your exact coordinates are used only for this verification and are not stored. The system keeps the site, distance, GPS accuracy, and verification time.</p></section><fieldset className="feedback-fields" disabled={!canSubmit}><Field label="Feedback subject" name="subject" required/><label className="field"><span>Rating *</span><select name="rating" required defaultValue="5"><option value="5">5 — Excellent</option><option value="4">4 — Good</option><option value="3">3 — Average</option><option value="2">2 — Needs improvement</option><option value="1">1 — Poor</option></select></label><label className="field"><span>Comment *</span><textarea name="message" rows={6} minLength={10} required placeholder="Share what you experienced at this place."/></label></fieldset>{error && <div className="form-error" role="alert">{error}</div>}{message && <div className="form-success" role="status">{message}</div>}<button className="button button-dark" disabled={!canSubmit}>Submit verified feedback <ArrowRight size={16}/></button></form></main>;
 }
 function AdminPage() {
   const location = useLocation();
@@ -396,7 +480,13 @@ function AdminRows({ rows, section, refresh, notice }: { rows:Array<Record<strin
       notice("Status updated."); refresh();
     } catch(issue) { notice((issue as Error).message); }
   };
-  return <div className="admin-record-list">{rows.map((row) => <div className="table-row" key={String(row.id)}><div><strong>{String(row.subject??row.email??row.action??row.name??"Record")}</strong><small>{String(row.message??row.entity??row.status??"")}</small></div><span>{String(row.createdAt??"")}</span>{section==="feedback" && <button className="danger-link" onClick={()=>toggle(row)}>{row.status==="NEW"?"Mark reviewed":"Resolve"}</button>}</div>)}{!rows.length&&<p className="muted table-empty">No {section} to show.</p>}</div>;
+  return <div className="admin-record-list">{rows.map((row) => {
+    const feedbackLocation = row.location as { name?: string } | null | undefined;
+    const feedbackMeta = section === "feedback" && feedbackLocation?.name
+      ? `${feedbackLocation.name} · ${Math.round(Number(row.geofenceDistanceMeters ?? 0))} m from site · GPS ±${Math.round(Number(row.geofenceAccuracyMeters ?? 0))} m`
+      : "";
+    return <div className="table-row" key={String(row.id)}><div><strong>{String(row.subject??row.email??row.action??row.name??"Record")}</strong><small>{feedbackMeta || String(row.message??row.entity??row.status??"")}</small>{feedbackMeta && <small>{String(row.message??"")}</small>}</div><span>{String(row.createdAt??"")}</span>{section==="feedback" && <button className="danger-link" onClick={()=>toggle(row)}>{row.status==="NEW"?"Mark reviewed":"Resolve"}</button>}</div>;
+  })}{!rows.length&&<p className="muted table-empty">No {section} to show.</p>}</div>;
 }
 function MediaManager({ rows, refresh, notice }: { rows:Array<Record<string,unknown>>; refresh:()=>void; notice:(s:string)=>void }) {
   const submit=async(e:FormEvent<HTMLFormElement>)=>{
@@ -409,14 +499,14 @@ function MediaManager({ rows, refresh, notice }: { rows:Array<Record<string,unkn
 function LocationManager({ rows, refresh, notice }: { rows:Array<Record<string,unknown>>; refresh:()=>void; notice:(s:string)=>void }) {
   const submit=async(e:FormEvent<HTMLFormElement>)=>{
     e.preventDefault(); const formElement=e.currentTarget; const raw=Object.fromEntries(new FormData(formElement).entries());
-    try { await api("/admin/locations",{method:"POST",body:JSON.stringify({...raw,latitude:raw.latitude?Number(raw.latitude):null,longitude:raw.longitude?Number(raw.longitude):null,verified:raw.verified==="on"})}); notice("Location saved.");formElement.reset();refresh(); }
+    try { await api("/admin/locations",{method:"POST",body:JSON.stringify({...raw,latitude:raw.latitude?Number(raw.latitude):null,longitude:raw.longitude?Number(raw.longitude):null,feedbackRadiusMeters:raw.feedbackRadiusMeters?Number(raw.feedbackRadiusMeters):150,verified:raw.verified==="on"})}); notice("Location saved.");formElement.reset();refresh(); }
     catch(issue){notice((issue as Error).message);}
   };
-  return <><form className="glass content-form" onSubmit={submit}><h2>Add a verified location</h2><Field label="Name" name="name" required/><Field label="Address" name="address"/><label className="field"><span>Description</span><textarea name="description"/></label><div className="form-row"><Field label="Latitude" name="latitude" type="number"/><Field label="Longitude" name="longitude" type="number"/></div><label className="check-label"><input type="checkbox" name="verified"/> Coordinates have been verified</label><button className="button button-dark">Save location</button></form><AdminRows rows={rows} section="locations" refresh={refresh} notice={notice}/></>;
+  return <><form className="glass content-form" onSubmit={submit}><h2>Add a verified location</h2><Field label="Name" name="name" required/><Field label="Address" name="address"/><label className="field"><span>Description</span><textarea name="description"/></label><div className="form-row"><label className="field"><span>Latitude</span><input name="latitude" type="number" step="any" min="-90" max="90"/></label><label className="field"><span>Longitude</span><input name="longitude" type="number" step="any" min="-180" max="180"/></label></div><label className="field"><span>Feedback GPS radius (meters)</span><input name="feedbackRadiusMeters" type="number" min="25" max="2000" step="25" defaultValue="150"/><small>Visitors must be inside this radius with GPS accuracy of 100 meters or better.</small></label><label className="check-label"><input type="checkbox" name="verified"/> Coordinates have been verified</label><button className="button button-dark">Save location</button></form><AdminRows rows={rows} section="locations" refresh={refresh} notice={notice}/></>;
 }
 
 function PolicyPage({title}:{title:string}) {
-  return <main className="page-shell"><div className="page-hero compact"><div className="section-kicker">CultureFrame</div><h1>{title}</h1><p>This starter policy page must be reviewed and customized by the organization before public launch.</p></div><article className="policy-copy"><h2>Data and community knowledge</h2><p>CultureFrame stores administrator account information needed to operate the system. Public visitor feedback is available to authorized administrators. Do not upload sensitive cultural materials without permission.</p><h2>Images and attribution</h2><p>Uploaded media is not publicly displayed until its permission status is approved. The organization is responsible for confirming licenses, attribution, and appropriate cultural permissions.</p><h2>Contact</h2><p>Contact details should be added by a CultureFrame administrator before launch.</p></article></main>;
+  return <main className="page-shell"><div className="page-hero compact"><div className="section-kicker">CultureFrame</div><h1>{title}</h1><p>This starter policy page must be reviewed and customized by the organization before public launch.</p></div><article className="policy-copy"><h2>Data and community knowledge</h2><p>CultureFrame stores administrator account information needed to operate the system. Public visitor feedback is available to authorized administrators. Do not upload sensitive cultural materials without permission.</p><h2>Location verification</h2><p>When a visitor chooses to rate a site, the browser shares a fresh GPS reading to confirm that the visitor is within the administrator-approved site radius. Exact visitor coordinates are not stored. The selected site, calculated distance, GPS accuracy, and verification time are retained with the feedback submission.</p><h2>Images and attribution</h2><p>Uploaded media is not publicly displayed until its permission status is approved. The organization is responsible for confirming licenses, attribution, and appropriate cultural permissions.</p><h2>Contact</h2><p>Contact details should be added by a CultureFrame administrator before launch.</p></article></main>;
 }
 function Loading(){return <div className="loading-state"><span className="spinner"/> Loading CultureFrame…</div>}
 function ErrorPanel({message}:{message:string}){return <div className="error-panel" role="alert"><strong>Could not load this information.</strong><p>{message}</p><p>Confirm the API and database are running, then try again.</p></div>}
