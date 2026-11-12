@@ -40,6 +40,15 @@ async function main() {
     });
   }
 
+  const destinationImageUrls: Record<string, string> = {
+    "Buktot Beach": "https://www.travelorientalmindoro.ph/uploads/places/184/gallery/20251211030638_a75fad4b.jpg",
+    "Casabangan Beach and Marine Protected Area": "https://www.travelorientalmindoro.ph/uploads/places/222/gallery/20251211053518_09274ecb.jpg",
+    "Mansalay Eco Park": "https://www.travelorientalmindoro.ph/uploads/places/491/gallery/20251212034452_dd8222a1.jpg",
+    "Mt. Abenlay Eco Tour Monkey Trail": "https://www.travelorientalmindoro.ph/uploads/places/527/gallery/20251212060630_2235c978.jpg",
+    "Mangyan Burial Cave": "https://www.travelorientalmindoro.ph/uploads/places/484/gallery/20251212033035_9b8a6587.jpg",
+    "Oriental Mindoro Heritage and Cultural Center": "/images/experiences/heritage-center-art.png",
+    "Mangyan Villages of Panaytayan": "/images/experiences/hanunuo-weaving-art.png"
+  };
   const destinations = [
     {
       name: "Buktot Beach",
@@ -132,7 +141,7 @@ async function main() {
       slug: destination.name.toLowerCase().replace(/&/g, "and").replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, ""),
       summary: destination.description,
       description: `${destination.description} The destination is listed by the Provincial Tourism Office of Oriental Mindoro. Check current access conditions and follow local safety and cultural guidance before visiting.`,
-      payload: { location: destination.address, sourceUrl: destination.sourceUrl },
+      payload: { location: destination.address, sourceUrl: destination.sourceUrl, imageUrl: destinationImageUrls[destination.name] },
       publicationStatus: PublicationStatus.PUBLISHED,
       featured: false
     })),
@@ -144,7 +153,8 @@ async function main() {
       description: "The center presents symbols and works of Mangyan culture and helps communicate and celebrate the cultural heritage of Oriental Mindoro.",
       payload: {
         location: "Barangay B. del Mundo, Mansalay, Oriental Mindoro",
-        sourceUrl: "https://www.travelorientalmindoro.ph/place/oriental-mindoro-heritage-and-cultural-center"
+        sourceUrl: "https://www.travelorientalmindoro.ph/place/oriental-mindoro-heritage-and-cultural-center",
+        imageUrl: "/images/experiences/heritage-center-art.png"
       },
       publicationStatus: PublicationStatus.PUBLISHED,
       featured: true
@@ -160,7 +170,7 @@ async function main() {
         location: "Mansalay Municipal Grounds, Mansalay, Oriental Mindoro",
         eventDate: "Every November 25",
         sourceUrl: "https://www.travelorientalmindoro.ph/festival/mangyan-festival",
-        imageUrl: "https://www.travelorientalmindoro.ph/uploads/events/10/gallery/20260209073544_cacbbcf1.png"
+        imageUrl: "/images/experiences/mangyan-festival-art.png"
       },
       publicationStatus: PublicationStatus.PUBLISHED,
       featured: true
@@ -177,7 +187,7 @@ async function main() {
         location: "Mansalay, Oriental Mindoro",
         eventDate: "Traditionally the third week of October",
         sourceUrl: "https://aroundph.com/festivals/pamuguan-festival",
-        imageUrl: "https://www.travelorientalmindoro.ph/uploads/events/10/gallery/20260209073544_cacbbcf1.png"
+        imageUrl: "/images/experiences/pamuguan-market-art.png"
       },
       publicationStatus: PublicationStatus.PUBLISHED,
       featured: true
@@ -192,7 +202,7 @@ async function main() {
       payload: {
         location: "Mangyan Villages, Barangay Panaytayan, Mansalay, Oriental Mindoro",
         sourceUrl: "https://www.travelorientalmindoro.ph/place/mangyan-villages",
-        imageUrl: "https://www.travelorientalmindoro.ph/uploads/places/488/gallery/20251212033811_fa20c30b.jpg"
+        imageUrl: "/images/experiences/hanunuo-weaving-art.png"
       },
       publicationStatus: PublicationStatus.PUBLISHED,
       featured: true
@@ -222,7 +232,8 @@ async function main() {
       historicalBackground: "Mansalay became an independent town on July 24, 1928 under Act No. 3498. The anniversary remains an important point for civic history and local identity.",
       payload: {
         location: "Poblacion, Mansalay, Oriental Mindoro",
-        sourceUrl: "https://www.travelorientalmindoro.ph/municipality/mansalay/history"
+        sourceUrl: "https://www.travelorientalmindoro.ph/municipality/mansalay/history",
+        imageUrl: "/images/experiences/mansalay-history-art.png"
       },
       publicationStatus: PublicationStatus.PUBLISHED,
       featured: true
@@ -236,7 +247,8 @@ async function main() {
       culturalSignificance: "The games turn cultural celebration into active participation and provide a welcoming way for younger generations to learn through community experience.",
       payload: {
         location: "Mansalay, Oriental Mindoro",
-        sourceUrl: "https://aroundph.com/festivals/pamuguan-festival"
+        sourceUrl: "https://aroundph.com/festivals/pamuguan-festival",
+        imageUrl: "/images/experiences/palaro-ng-lahi-art.png"
       },
       publicationStatus: PublicationStatus.PUBLISHED,
       featured: false
@@ -250,7 +262,8 @@ async function main() {
       culturalSignificance: "Responsible cultural commerce should preserve maker attribution, fair pricing, consent, and honest descriptions of materials and meaning.",
       payload: {
         location: "Mansalay, Oriental Mindoro",
-        sourceUrl: "https://aroundph.com/festivals/pamuguan-festival"
+        sourceUrl: "https://aroundph.com/festivals/pamuguan-festival",
+        imageUrl: "/images/experiences/pamuguan-market-art.png"
       },
       publicationStatus: PublicationStatus.PUBLISHED,
       featured: false
@@ -266,7 +279,7 @@ async function main() {
         location: "Mansalay, Oriental Mindoro",
         eventDate: "Traditionally the third week of October",
         sourceUrl: "https://aroundph.com/festivals/pamuguan-festival",
-        imageUrl: "https://www.travelorientalmindoro.ph/uploads/events/10/gallery/20260209073544_cacbbcf1.png"
+        imageUrl: "/images/experiences/pamuguan-market-art.png"
       },
       publicationStatus: PublicationStatus.PUBLISHED,
       featured: true
@@ -282,7 +295,7 @@ async function main() {
         location: "Mansalay Municipal Grounds",
         eventDate: "Every November 25",
         sourceUrl: "https://www.travelorientalmindoro.ph/festival/mangyan-festival",
-        imageUrl: "https://www.travelorientalmindoro.ph/uploads/events/10/gallery/20260209073544_cacbbcf1.png"
+        imageUrl: "/images/experiences/mangyan-festival-art.png"
       },
       publicationStatus: PublicationStatus.PUBLISHED,
       featured: true
@@ -297,7 +310,8 @@ async function main() {
       payload: {
         location: "Mansalay, Oriental Mindoro",
         eventDate: "Every July 24",
-        sourceUrl: "https://www.travelorientalmindoro.ph/municipality/mansalay/history"
+        sourceUrl: "https://www.travelorientalmindoro.ph/municipality/mansalay/history",
+        imageUrl: "/images/experiences/mansalay-history-art.png"
       },
       publicationStatus: PublicationStatus.PUBLISHED,
       featured: true

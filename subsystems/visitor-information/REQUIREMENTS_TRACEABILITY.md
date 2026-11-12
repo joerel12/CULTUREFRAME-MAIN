@@ -1,6 +1,6 @@
 # Requirements traceability
 
-The source diagrams in `GREGORIO BEA DIAGRAM.docx` were not available in the workspace. The following reflects the pasted requirements as updated by the owner: visitors browse anonymously, and only administrators authenticate; visitor registration/profile flows are out of scope.
+The source diagrams in `GREGORIO BEA DIAGRAM.docx` were not available in the workspace. The following reflects the integrated CultureFrame requirements: everyone can browse, while feedback, saved places, shopping, and account features use the shared customer/visitor identity from the main system.
 
 | Workflow | Routes / implementation | Data/API | Validation and tests | Status / remaining |
 |---|---|---|---|---|
@@ -18,7 +18,7 @@ The source diagrams in `GREGORIO BEA DIAGRAM.docx` were not available in the wor
 | 12 Locations | `/locations`, visitor homepage, main landing page, and Discover homepage destination cards with map and `Rate this place` links | `GET /api/locations`; `GET /api/home`; admin location create with category, source, and GPS radius | Coordinate bounds, 25–2,000 m radius, source URL validation, and explicit verified flag | Five tourism-office-sourced GPS-ready destinations are seeded; admin edit/delete remain |
 | 13 Festivals | `/festivals`, detail route | Content records of festival kind | Published-only query | Implemented |
 | 14 Local products | `/local-products`, detail route | Content records of local-product kind | Published-only query | Implemented as informational content, not commerce |
-| 15 Visitor feedback | Public `/visitor/feedback`; no account required | `POST /api/visitor/location-verification` issues a signed five-minute token; `POST /api/visitor/feedback` requires it | Fresh GPS reading, ≤100 m accuracy, server-side Haversine radius check, signed token, required fields/rating range, and IP rate limits | Implemented; outside, stale, inaccurate, missing, tampered, or expired location proofs cannot submit feedback |
+| 15 Visitor feedback | Protected `/visitor/feedback`; shared customer/visitor account required | `POST /api/visitor/location-verification` issues a signed five-minute token; `POST /api/visitor/feedback` requires it | Signed-in visitor, fresh GPS reading, ≤500 m reported accuracy, strict server-side Haversine radius check, signed token, required fields/rating range, and IP rate limits | Implemented; outside, stale, inaccurate, missing, tampered, or expired location proofs cannot submit feedback |
 | 16 Administrator logout | Header sign-out confirmation | `POST /api/auth/logout`, session table | Server invalidates session, cookie cleared | Implemented; anonymous visitors have no session to log out of |
 
 ## Cross-cutting coverage

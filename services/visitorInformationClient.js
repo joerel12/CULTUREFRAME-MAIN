@@ -1,10 +1,10 @@
 const MODULE_DEFINITIONS = [
-  { segment: "heritage", label: "Cultural Heritage", icon: "fa-landmark", imageUrl: "https://www.travelorientalmindoro.ph/uploads/places/571/gallery/20251213075615_1cbf3edf.png", description: "Stories, knowledge, and identity documented by the community." },
-  { segment: "historical-sites", label: "Historical Sites", icon: "fa-building-columns", imageUrl: "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Mansalay_road_and_public_market.jpg/960px-Mansalay_road_and_public_market.jpg", description: "Places that preserve a visible record of Mansalay's past." },
-  { segment: "traditions", label: "Traditions", icon: "fa-hands", imageUrl: "https://www.travelorientalmindoro.ph/uploads/places/488/gallery/20251212033811_fa20c30b.jpg", description: "Practices and knowledge carried across generations." },
-  { segment: "events", label: "Cultural Events", icon: "fa-calendar-days", imageUrl: "https://www.travelorientalmindoro.ph/uploads/events/10/gallery/20260209073544_cacbbcf1.png", description: "Community gatherings, programs, and cultural activities." },
+  { segment: "heritage", label: "Cultural Heritage", icon: "fa-landmark", imageUrl: "/images/experiences/heritage-center-art.png", description: "Stories, knowledge, and identity documented by the community." },
+  { segment: "historical-sites", label: "Historical Sites", icon: "fa-building-columns", imageUrl: "/images/experiences/mansalay-history-art.png", description: "Places that preserve a visible record of Mansalay's past." },
+  { segment: "traditions", label: "Traditions", icon: "fa-hands", imageUrl: "/images/experiences/hanunuo-weaving-art.png", description: "Practices and knowledge carried across generations." },
+  { segment: "events", label: "Cultural Events", icon: "fa-calendar-days", imageUrl: "/images/experiences/palaro-ng-lahi-art.png", description: "Community gatherings, programs, and cultural activities." },
   { segment: "attractions", label: "Attractions", icon: "fa-map-location-dot", imageUrl: "https://www.travelorientalmindoro.ph/uploads/places/184/gallery/20251211030638_a75fad4b.jpg", description: "Landscapes and destinations to explore responsibly." },
-  { segment: "festivals", label: "Festivals", icon: "fa-masks-theater", imageUrl: "https://www.travelorientalmindoro.ph/uploads/events/10/gallery/20260209073544_cacbbcf1.png", description: "Celebrations rooted in local history and identity." },
+  { segment: "festivals", label: "Festivals", icon: "fa-masks-theater", imageUrl: "/images/experiences/mangyan-festival-art.png", description: "Celebrations rooted in local history and identity." },
   { segment: "local-products", label: "Local Products", icon: "fa-basket-shopping", imageUrl: "/images/products/ramit-textile.jpg", description: "Local craft and livelihood presented with cultural context." }
 ];
 

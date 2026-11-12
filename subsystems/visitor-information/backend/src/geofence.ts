@@ -2,7 +2,10 @@ import crypto from "node:crypto";
 
 export const DEFAULT_FEEDBACK_RADIUS_METERS = 150;
 export const MAX_FEEDBACK_RADIUS_METERS = 2_000;
-export const MAX_LOCATION_ACCURACY_METERS = 100;
+// Consumer phones and desktop Wi-Fi positioning can legitimately report a
+// few hundred metres of uncertainty. The radius check below compensates for
+// that uncertainty instead of rejecting an otherwise overlapping reading.
+export const MAX_LOCATION_ACCURACY_METERS = 500;
 export const LOCATION_READING_MAX_AGE_MS = 2 * 60 * 1000;
 export const GEOFENCE_TOKEN_TTL_MS = 5 * 60 * 1000;
 

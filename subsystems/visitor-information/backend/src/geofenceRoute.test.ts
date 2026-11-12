@@ -94,6 +94,37 @@ describe("GPS-gated visitor feedback routes", () => {
     expect(response.body.verificationToken).toBeUndefined();
   });
 
+  it("accepts a moderately uncertain reading only when its coordinate is inside the site", async () => {
+    vi.spyOn(prisma.authSession, "findUnique").mockResolvedValue(visitorSession as never);
+    vi.spyOn(prisma.location, "findUnique").mockResolvedValue(location);
+    const response = await authenticatedPost("/api/visitor/location-verification").send({
+      locationId: location.id,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      accuracyMeters: 180,
+      capturedAt: Date.now()
+    });
+    expect(response.status).toBe(200);
+    expect(response.body.allowed).toBe(true);
+    expect(response.body.verificationToken).toEqual(expect.any(String));
+  });
+
+  it("keeps feedback locked when the detected coordinate is outside even with broad accuracy", async () => {
+    vi.spyOn(prisma.authSession, "findUnique").mockResolvedValue(visitorSession as never);
+    vi.spyOn(prisma.location, "findUnique").mockResolvedValue(location);
+    const response = await authenticatedPost("/api/visitor/location-verification").send({
+      locationId: location.id,
+      latitude: location.latitude + 0.002,
+      longitude: location.longitude,
+      accuracyMeters: 180,
+      capturedAt: Date.now()
+    });
+    expect(response.status).toBe(200);
+    expect(response.body.allowed).toBe(false);
+    expect(response.body.reason).toBe("OUTSIDE_GEOFENCE");
+    expect(response.body.verificationToken).toBeUndefined();
+  });
+
   it("stores verification evidence without storing the visitor's exact coordinates", async () => {
     vi.spyOn(prisma.authSession, "findUnique").mockResolvedValue(visitorSession as never);
     vi.spyOn(prisma.location, "findUnique").mockResolvedValue(location);

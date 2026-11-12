@@ -387,7 +387,7 @@ app.post("/api/visitor/location-verification", geofenceLimiter, requireVisitor, 
       message: "GPS accuracy is too low. Move outdoors, enable precise location, and try again."
     });
   }
-  if (distance > radiusMeters) {
+  if (distanceMeters > radiusMeters) {
     return res.json({
       allowed: false,
       reason: "OUTSIDE_GEOFENCE",

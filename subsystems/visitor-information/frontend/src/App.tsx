@@ -3,7 +3,7 @@ import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams, use
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowDown, ArrowRight, BookOpen, Bookmark, BookmarkCheck, CalendarDays, Camera, Check, ChevronDown, Compass, Feather, Globe2, Leaf, MapPin, Menu, Search, ShieldCheck, ShoppingBag, Sparkles, UserRound, X } from "lucide-react";
-import { FullscreenControl, LngLatBounds, Map as MapLibreMap, Marker as MapLibreMarker, NavigationControl, Popup as MapLibrePopup, TerrainControl, setWorkerUrl } from "maplibre-gl";
+import { FullscreenControl, LngLatBounds, Map as MapLibreMap, Marker as MapLibreMarker, NavigationControl, Popup as MapLibrePopup, TerrainControl, setWorkerUrl, type StyleSpecification } from "maplibre-gl";
 import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { api, apiAssetUrl, ApiError } from "./api";
@@ -129,37 +129,59 @@ const destinationPhotos: Record<string, SourcedPhoto> = {
     sourceUrl: "https://www.travelorientalmindoro.ph/place/mt-abenlay-eco-tour-monkey-trail"
   }
 };
+const experienceArt = {
+  heritageCenter: "/images/experiences/heritage-center-art.png",
+  mansalayHistory: "/images/experiences/mansalay-history-art.png",
+  hanunuoWeaving: "/images/experiences/hanunuo-weaving-art.png",
+  mangyanFestival: "/images/experiences/mangyan-festival-art.png",
+  pamuguanMarket: "/images/experiences/pamuguan-market-art.png",
+  palaroNgLahi: "/images/experiences/palaro-ng-lahi-art.png"
+} as const;
 const fallbackImages: Record<string, string> = {
-  HERITAGE: "https://www.travelorientalmindoro.ph/uploads/places/571/gallery/20251213075615_1cbf3edf.png",
-  HISTORICAL_SITE: "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Mansalay_road_and_public_market.jpg/960px-Mansalay_road_and_public_market.jpg",
-  TRADITION: "https://www.travelorientalmindoro.ph/uploads/places/488/gallery/20251212033811_fa20c30b.jpg",
-  EVENT: "https://www.travelorientalmindoro.ph/uploads/events/10/gallery/20260209073544_cacbbcf1.png",
+  HERITAGE: experienceArt.heritageCenter,
+  HISTORICAL_SITE: experienceArt.mansalayHistory,
+  TRADITION: experienceArt.hanunuoWeaving,
+  EVENT: experienceArt.palaroNgLahi,
   ATTRACTION: destinationPhotos["buktot beach"].image,
-  FESTIVAL: "https://www.travelorientalmindoro.ph/uploads/events/10/gallery/20260209073544_cacbbcf1.png",
+  FESTIVAL: experienceArt.mangyanFestival,
   LOCAL_PRODUCT: "/images/products/ramit-textile.jpg"
 };
-const recordImage = (item: RecordItem) => typeof item.payload?.imageUrl === "string" && item.payload.imageUrl
-  ? item.payload.imageUrl
-  : fallbackImages[item.kind] ?? "/images/placeholders/record-placeholder.svg";
+const recordArtwork: Record<string, string> = {
+  "oriental-mindoro-heritage-and-cultural-center": experienceArt.heritageCenter,
+  "mansalay-town-formation-and-founding": experienceArt.mansalayHistory,
+  "mansalay-founding-anniversary": experienceArt.mansalayHistory,
+  "hanunuo-mangyan-weaving": experienceArt.hanunuoWeaving,
+  "mangyan-festival": experienceArt.mangyanFestival,
+  "mangyan-festival-cultural-program": experienceArt.mangyanFestival,
+  "pamugu-an-festival": experienceArt.pamuguanMarket,
+  "pamugu-an-cultural-week": experienceArt.pamuguanMarket,
+  "palaro-ng-lahi-mansalay": experienceArt.palaroNgLahi,
+  "barakalan-native-products-market": experienceArt.pamuguanMarket
+};
+const recordImage = (item: RecordItem) => recordArtwork[item.slug]
+  ?? destinationPhotos[item.title.toLowerCase()]?.image
+  ?? (typeof item.payload?.imageUrl === "string" && item.payload.imageUrl ? item.payload.imageUrl : undefined)
+  ?? fallbackImages[item.kind]
+  ?? "/images/placeholders/record-placeholder.svg";
 const categoryImages: Record<string, string> = {
-  "/heritage": fallbackImages.HERITAGE,
-  "/historical-sites": fallbackImages.HISTORICAL_SITE,
-  "/traditions": fallbackImages.TRADITION,
-  "/events": fallbackImages.EVENT,
-  "/attractions": fallbackImages.ATTRACTION,
-  "/festivals": fallbackImages.FESTIVAL,
-  "/local-products": fallbackImages.LOCAL_PRODUCT,
-  "/gallery": heritagePhotos[0].image
+  "/heritage": experienceArt.heritageCenter,
+  "/historical-sites": experienceArt.mansalayHistory,
+  "/traditions": experienceArt.hanunuoWeaving,
+  "/events": experienceArt.palaroNgLahi,
+  "/attractions": destinationPhotos["buktot beach"].image,
+  "/festivals": experienceArt.mangyanFestival,
+  "/local-products": "/images/products/ramit-textile.jpg",
+  "/gallery": heritagePhotos[1].image
 };
 const culturePromotions = [
   {
     eyebrow: "Traditionally the third week of October",
     title: "Pamugu-an Festival",
     copy: "Learn about the Mangyan community reunion, Palaro ng Lahi, cultural presentations, product demonstrations, and Barakalan native-products market.",
-    image: "https://thumb.wikimedia.org/wikipedia/commons/thumb/e/e1/Mansalay_road_and_public_market.jpg/960px-Mansalay_road_and_public_market.jpg",
-    alt: "A road in Mansalay with the public market in the background",
-    credit: "Hariboneagle927 · CC BY-SA 4.0",
-    sourceUrl: "https://commons.wikimedia.org/wiki/File:Mansalay_road_and_public_market.jpg",
+    image: experienceArt.pamuguanMarket,
+    alt: "Illustration of a Pamugu-an native-products market and community gathering",
+    credit: "CultureFrame original artwork",
+    sourceUrl: experienceArt.pamuguanMarket,
     to: "/festivals/pamugu-an-festival",
     cta: "Read the introduction"
   },
@@ -167,10 +189,10 @@ const culturePromotions = [
     eyebrow: "Every November 25",
     title: "Mangyan Festival",
     copy: "Celebrate Mansalay's official festival through indigenous dances, traditional crafts, tribal rituals, and community heritage presentations.",
-    image: "https://www.travelorientalmindoro.ph/uploads/events/10/gallery/20260209073544_cacbbcf1.png",
-    alt: "Mangyan Festival float and cultural performers in Mansalay",
-    credit: "Travel Oriental Mindoro",
-    sourceUrl: "https://www.travelorientalmindoro.ph/festival/mangyan-festival",
+    image: experienceArt.mangyanFestival,
+    alt: "Illustration of Mangyan Festival dancers and community celebration",
+    credit: "CultureFrame original artwork",
+    sourceUrl: experienceArt.mangyanFestival,
     to: "/festivals",
     cta: "Explore festivals"
   },
@@ -178,10 +200,10 @@ const culturePromotions = [
     eyebrow: "Living tradition",
     title: "Hanunuo Mangyan weaving",
     copy: "Meet the living knowledge behind ramit textiles and support the skill, patience, and identity carried through generations of local makers.",
-    image: "https://www.travelorientalmindoro.ph/uploads/places/488/gallery/20251212033811_fa20c30b.jpg",
-    alt: "A Hanunuo Mangyan artisan weaving in Barangay Panaytayan, Mansalay",
-    credit: "Travel Oriental Mindoro",
-    sourceUrl: "https://www.travelorientalmindoro.ph/place/mangyan-villages",
+    image: experienceArt.hanunuoWeaving,
+    alt: "Illustration of Hanunuo Mangyan ramit weaving",
+    credit: "CultureFrame original artwork",
+    sourceUrl: experienceArt.hanunuoWeaving,
     to: "/traditions",
     cta: "Discover traditions"
   },
@@ -189,10 +211,10 @@ const culturePromotions = [
     eyebrow: "Culture and learning",
     title: "Heritage & Cultural Center",
     copy: "Visit a Mansalay landmark dedicated to preserving and presenting the art, works, and cultural heritage of Mindoro's Mangyan communities.",
-    image: "https://www.travelorientalmindoro.ph/uploads/places/571/gallery/20251213075615_1cbf3edf.png",
-    alt: "Mangyan garments displayed at the Oriental Mindoro Heritage and Cultural Center in Mansalay",
-    credit: "Travel Oriental Mindoro",
-    sourceUrl: "https://www.travelorientalmindoro.ph/place/oriental-mindoro-heritage-and-cultural-center",
+    image: experienceArt.heritageCenter,
+    alt: "Illustration of a Mansalay heritage center exhibition",
+    credit: "CultureFrame original artwork",
+    sourceUrl: experienceArt.heritageCenter,
     to: "/heritage",
     cta: "Explore heritage"
   }
@@ -490,7 +512,7 @@ function RecordGrid({ items, empty }: { items: RecordItem[]; empty: string }) {
   if (!items.length) return <div className="empty-state glass"><BookOpen/><h3>The archive is taking shape</h3><p>{empty}</p><Link className="text-link" to="/about">About this project <ArrowRight size={15}/></Link></div>;
   return <div className="record-grid">{items.map((item) => {
     const imageUrl = recordImage(item);
-    return <Link to={`/${Object.keys(kindForPath).find((key) => kindForPath[key] === item.kind) ?? "heritage"}/${item.slug}`} className="record-card glass" key={item.id}><div className="record-art record-art-photo"><img src={imageUrl} alt={item.title} loading="lazy" decoding="async" onError={(event) => { event.currentTarget.src = "/images/placeholders/record-placeholder.svg"; }}/><span>{fmtKind(item.kind)}</span></div><div className="record-body"><div className="record-kind">{fmtKind(item.kind)}</div><h3>{item.title}</h3><p>{item.summary || item.description.slice(0, 140)}</p><span className="text-link">Read more <ArrowRight size={14}/></span></div></Link>;
+    return <Link to={`/${Object.keys(kindForPath).find((key) => kindForPath[key] === item.kind) ?? "heritage"}/${item.slug}`} className="record-card glass" key={item.id}><div className="record-art record-art-photo"><img src={imageUrl} alt={item.title} loading="eager" decoding="async" onError={(event) => { event.currentTarget.src = "/images/placeholders/record-placeholder.svg"; }}/><span>{fmtKind(item.kind)}</span></div><div className="record-body"><div className="record-kind">{fmtKind(item.kind)}</div><h3>{item.title}</h3><p>{item.summary || item.description.slice(0, 140)}</p><span className="text-link">Read more <ArrowRight size={14}/></span></div></Link>;
   })}</div>;
 }
 
@@ -529,46 +551,72 @@ function GalleryPage() {
 
 function Places3DMap({ places, focusId }: { places: LocationItem[]; focusId: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const mapRef = useRef<MapLibreMap | null>(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [mapIssue, setMapIssue] = useState("");
   useEffect(() => {
     if (!containerRef.current || places.length === 0) return;
+    setMapReady(false);
+    setMapIssue("");
     const focused = places.find((place) => place.id === focusId) ?? places[0];
+    const mapStyle: StyleSpecification = {
+      version: 8,
+      sources: {
+        "carto-basemap": {
+          type: "raster",
+          tiles: ["https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png"],
+          tileSize: 256,
+          attribution: "© OpenStreetMap contributors © CARTO"
+        }
+      },
+      layers: [{ id: "carto-basemap", type: "raster", source: "carto-basemap", minzoom: 0, maxzoom: 20 }]
+    };
     const map = new MapLibreMap({
       container: containerRef.current,
-      style: "https://tiles.openfreemap.org/styles/liberty",
+      style: mapStyle,
       center: [focused.longitude!, focused.latitude!],
-      zoom: focusId ? 15.2 : 11.6,
-      pitch: 58,
-      bearing: -18,
+      zoom: focusId ? 15.4 : 11.6,
+      pitch: 67,
+      bearing: -24,
       maxPitch: 85,
       cooperativeGestures: true,
       canvasContextAttributes: { antialias: true }
     });
+    mapRef.current = map;
+    const loadingTimer = window.setTimeout(() => {
+      if (!map.loaded()) setMapIssue("Live map tiles are taking too long. The illustrated Mansalay terrain remains available below.");
+    }, 12_000);
     map.addControl(new NavigationControl({ visualizePitch: true }), "top-right");
     map.addControl(new FullscreenControl(), "top-right");
+    map.once("idle", () => { window.clearTimeout(loadingTimer); setMapReady(true); });
+    map.on("error", (event) => {
+      const sourceId = (event as unknown as { sourceId?: string }).sourceId;
+      if (sourceId === "carto-basemap") setMapIssue("The live basemap could not load. Check your internet connection and retry.");
+    });
     map.on("load", () => {
       try {
-        map.addSource("mansalay-terrain", { type: "raster-dem", url: "https://tiles.mapterhorn.com/tilejson.json" });
-        map.setTerrain({ source: "mansalay-terrain", exaggeration: 1.15 });
-        map.addControl(new TerrainControl({ source: "mansalay-terrain", exaggeration: 1.15 }), "top-right");
-      } catch { /* The vector map and markers remain usable if terrain is unavailable. */ }
-      try {
-        const labelLayer = map.getStyle().layers.find((layer) => layer.type === "symbol" && Boolean(layer.layout?.["text-field"]))?.id;
-        map.addSource("openfreemap-buildings", { type: "vector", url: "https://tiles.openfreemap.org/planet" });
+        map.addSource("mansalay-terrain", {
+          type: "raster-dem",
+          tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
+          tileSize: 256,
+          maxzoom: 15,
+          encoding: "terrarium",
+          attribution: "Elevation data © Mapzen and contributors"
+        });
+        map.setTerrain({ source: "mansalay-terrain", exaggeration: 1.75 });
         map.addLayer({
-          id: "mansalay-3d-buildings",
-          source: "openfreemap-buildings",
-          "source-layer": "building",
-          type: "fill-extrusion",
-          minzoom: 14,
-          filter: ["!=", ["get", "hide_3d"], true],
+          id: "mansalay-hillshade",
+          source: "mansalay-terrain",
+          type: "hillshade",
           paint: {
-            "fill-extrusion-color": "#d6c49f",
-            "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 14, 0, 16, ["get", "render_height"]],
-            "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 14, 0, 16, ["get", "render_min_height"]],
-            "fill-extrusion-opacity": 0.78
+            "hillshade-exaggeration": 0.42,
+            "hillshade-shadow-color": "#193e32",
+            "hillshade-highlight-color": "#f2dfad",
+            "hillshade-accent-color": "#55775f"
           }
-        }, labelLayer);
-      } catch { /* Some styles already provide buildings or omit the building layer. */ }
+        });
+        map.addControl(new TerrainControl({ source: "mansalay-terrain", exaggeration: 1.75 }), "top-right");
+      } catch { /* The basemap and markers remain usable if elevation tiles are unavailable. */ }
     });
     places.forEach((place, index) => {
       const marker = document.createElement("button");
@@ -583,17 +631,24 @@ function Places3DMap({ places, focusId }: { places: LocationItem[]; focusId: str
       const address = document.createElement("span");
       address.textContent = place.address;
       popup.append(title, address);
-      marker.addEventListener("click", () => map.flyTo({ center: [place.longitude!, place.latitude!], zoom: 15.2, pitch: 66, bearing: -22, duration: 900 }));
+      marker.addEventListener("click", () => map.flyTo({ center: [place.longitude!, place.latitude!], zoom: 15.4, pitch: 70, bearing: -28, duration: 900 }));
       new MapLibreMarker({ element: marker }).setLngLat([place.longitude!, place.latitude!]).setPopup(new MapLibrePopup({ offset: 24 }).setDOMContent(popup)).addTo(map);
     });
     if (!focusId && places.length > 1) {
       const bounds = new LngLatBounds();
       places.forEach((place) => bounds.extend([place.longitude!, place.latitude!]));
-      map.fitBounds(bounds, { padding: 72, maxZoom: 12.5, pitch: 48, duration: 0 });
+      map.fitBounds(bounds, { padding: 72, maxZoom: 12.5, pitch: 58, bearing: -20, duration: 0 });
     }
-    return () => map.remove();
+    return () => { window.clearTimeout(loadingTimer); mapRef.current = null; map.remove(); };
   }, [focusId, places]);
-  return <div className="map-frame map-frame-3d" id="mansalay-3d-map"><div ref={containerRef} className="maplibre-host"/><div className="map-3d-badge"><Globe2 size={15}/> Interactive 3D terrain</div></div>;
+  const setPerspective = (threeDimensional: boolean) => mapRef.current?.easeTo({ pitch: threeDimensional ? 70 : 0, bearing: threeDimensional ? -28 : 0, duration: 700 });
+  return <div className={`map-frame map-frame-3d${mapIssue ? " map-has-error" : ""}`} id="mansalay-3d-map">
+    <div className="map-fallback" aria-hidden="true"/>
+    <div ref={containerRef} className="maplibre-host"/>
+    <div className="map-3d-badge"><Globe2 size={15}/>{mapReady ? "Interactive 3D terrain" : "Loading 3D terrain…"}</div>
+    <div className="map-view-switch" aria-label="Map perspective"><button type="button" onClick={() => setPerspective(true)}>3D terrain</button><button type="button" onClick={() => setPerspective(false)}>Top view</button></div>
+    {mapIssue && <div className="map-load-notice" role="status">{mapIssue}</div>}
+  </div>;
 }
 
 function LocationsPage({ user }: { user: User | null }) {
@@ -611,7 +666,7 @@ function LocationsPage({ user }: { user: User | null }) {
       {mapped.length > 0 && <Places3DMap places={mapped} focusId={focusId}/>}
       <div className="location-list">{data?.items.map((place) => {
         const photo = destinationPhotos[place.name.toLowerCase()] ?? buktotPhoto;
-        return <article className="location-card glass" key={place.id}><img className="location-card-image" src={photo.image} alt={photo.alt} loading="lazy" onError={(event) => { event.currentTarget.src = "/images/placeholders/record-placeholder.svg"; }}/><div className="location-card-copy"><span className="location-category">{place.category}</span><h3>{place.name}</h3><p className="destination-address"><MapPin size={14}/>{place.address}</p><p>{place.description}</p><SavePlaceButton place={place} saved={saved.savedIds.has(place.id)} busy={saved.savingId === place.id} onToggle={saved.toggle}/>{place.verified && place.latitude != null && place.longitude != null ? <div className="location-actions"><button type="button" onClick={() => focusOnMap(place)}>View in 3D <ArrowRight size={14}/></button><Link to={`/visitor/feedback?location=${encodeURIComponent(place.id)}`}>{user?.role === "VISITOR" ? "Verify & rate" : "Sign in to verify"} <ArrowRight size={14}/></Link>{place.sourceUrl && <a target="_blank" rel="noreferrer" href={place.sourceUrl}>Tourism source <ArrowRight size={14}/></a>}</div> : <span className="muted">Map coordinates not verified</span>}</div></article>;
+        return <article className="location-card glass" key={place.id}><img className="location-card-image" src={photo.image} alt={photo.alt} loading="eager" onError={(event) => { event.currentTarget.src = "/images/placeholders/record-placeholder.svg"; }}/><div className="location-card-copy"><span className="location-category">{place.category}</span><h3>{place.name}</h3><p className="destination-address"><MapPin size={14}/>{place.address}</p><p>{place.description}</p><SavePlaceButton place={place} saved={saved.savedIds.has(place.id)} busy={saved.savingId === place.id} onToggle={saved.toggle}/>{place.verified && place.latitude != null && place.longitude != null ? <div className="location-actions"><button type="button" onClick={() => focusOnMap(place)}>View in 3D <ArrowRight size={14}/></button><Link to={`/visitor/feedback?location=${encodeURIComponent(place.id)}`}>{user?.role === "VISITOR" ? "Verify & rate" : "Sign in to verify"} <ArrowRight size={14}/></Link>{place.sourceUrl && <a target="_blank" rel="noreferrer" href={place.sourceUrl}>Tourism source <ArrowRight size={14}/></a>}</div> : <span className="muted">Map coordinates not verified</span>}</div></article>;
       })}</div>
       {!data?.items.length && <div className="empty-state glass"><MapPin/><h3>No verified locations yet</h3><p>Verified locations added by administrators will be listed here.</p></div>}
     </>}</main>;
@@ -650,8 +705,8 @@ function FeedbackPage({ user }: { user: User | null }) {
       const position = await new Promise<GeolocationPosition>((resolve, reject) => {
         navigator.geolocation.getCurrentPosition(resolve, reject, {
           enableHighAccuracy: true,
-          maximumAge: 0,
-          timeout: 15_000
+          maximumAge: 30_000,
+          timeout: 20_000
         });
       });
       const result = await api<GeofenceResult>("/visitor/location-verification", {
@@ -710,7 +765,24 @@ function FeedbackPage({ user }: { user: User | null }) {
     } catch (issue) { setError((issue as Error).message); }
   };
   const canSubmit = Boolean(verification?.allowed && verification.verificationToken);
-  return <main className="page-shell form-shell"><div className="section-kicker">Verified site visit</div><h1>Rate a place you visited.</h1><p>To keep ratings trustworthy, feedback is available only while you are physically at a verified Mansalay site.</p><form className="glass content-form geofence-form" onSubmit={submit}><section className="geofence-panel"><div className="geofence-heading"><span className="geofence-icon"><MapPin/></span><div><h2>Verify your current location</h2><p>Select the place, then allow precise GPS access. Verification expires after five minutes.</p></div></div><label className="field"><span>Heritage site or attraction *</span><select value={locationId} onChange={(event) => { setLocationId(event.target.value); setVerification(null); setMessage(""); setError(""); }} required disabled={loadingLocations}><option value="">{loadingLocations ? "Loading verified locations…" : "Choose the place you are visiting"}</option>{eligibleLocations.map((location) => <option value={location.id} key={location.id}>{location.name}{location.address ? ` — ${location.address}` : ""}</option>)}</select></label>{locationsError && <div className="form-error">{(locationsError as Error).message}</div>}{!loadingLocations && !locationsError && eligibleLocations.length === 0 && <div className="form-error">No GPS-enabled locations are available. Ask an administrator to verify site coordinates.</div>}<button type="button" className="button button-location" onClick={verifyLocation} disabled={checkingLocation || !locationId}>{checkingLocation ? "Checking GPS…" : "Verify my location"} <Compass size={17}/></button>{verification?.allowed && <div className="location-verified"><Check size={18}/><div><strong>On-site location confirmed</strong><span>{Math.round(verification.distanceMeters ?? 0)} m from the site · GPS accuracy ±{Math.round(verification.accuracyMeters ?? 0)} m</span></div></div>}<p className="privacy-note"><ShieldCheck size={14}/> Your exact coordinates are used only for this verification and are not stored. The system keeps the site, distance, GPS accuracy, and verification time.</p></section><fieldset className="feedback-fields" disabled={!canSubmit}><Field label="Feedback subject" name="subject" required/><label className="field"><span>Rating *</span><select name="rating" required defaultValue="5"><option value="5">5 — Excellent</option><option value="4">4 — Good</option><option value="3">3 — Average</option><option value="2">2 — Needs improvement</option><option value="1">1 — Poor</option></select></label><label className="field"><span>Comment *</span><textarea name="message" rows={6} minLength={10} required placeholder="Share what you experienced at this place."/></label></fieldset>{error && <div className="form-error" role="alert">{error}</div>}{message && <div className="form-success" role="status">{message}</div>}<button className="button button-dark" disabled={!canSubmit}>Submit verified feedback <ArrowRight size={16}/></button></form></main>;
+  return <main className="page-shell form-shell">
+    <div className="section-kicker">Verified site visit</div><h1>Rate a place you visited.</h1>
+    <p>To keep ratings trustworthy, feedback is available only while you are physically at a verified Mansalay site.</p>
+    <form className="glass content-form geofence-form" onSubmit={submit}>
+      <section className="geofence-panel">
+        <div className="geofence-heading"><span className="geofence-icon"><MapPin/></span><div><h2>Verify your current location</h2><p>Select the place, then allow GPS access. Verification expires after five minutes. If the detected coordinate is outside the site's allowed radius, feedback remains locked.</p></div></div>
+        <label className="field"><span>Heritage site or attraction *</span><select value={locationId} onChange={(event) => { setLocationId(event.target.value); setVerification(null); setMessage(""); setError(""); }} required disabled={loadingLocations}><option value="">{loadingLocations ? "Loading verified locations…" : "Choose the place you are visiting"}</option>{eligibleLocations.map((location) => <option value={location.id} key={location.id}>{location.name}{location.address ? ` — ${location.address}` : ""}</option>)}</select></label>
+        {locationsError && <div className="form-error">{(locationsError as Error).message}</div>}
+        {!loadingLocations && !locationsError && eligibleLocations.length === 0 && <div className="form-error">No GPS-enabled locations are available. Ask an administrator to verify site coordinates.</div>}
+        <button type="button" className="button button-location" onClick={verifyLocation} disabled={checkingLocation || !locationId}>{checkingLocation ? "Checking GPS…" : "Verify my location"} <Compass size={17}/></button>
+        {verification?.allowed && <div className="location-verified"><Check size={18}/><div><strong>On-site location confirmed</strong><span>{Math.round(verification.distanceMeters ?? 0)} m from the site · GPS accuracy ±{Math.round(verification.accuracyMeters ?? 0)} m</span></div></div>}
+        <p className="privacy-note"><ShieldCheck size={14}/> Your exact coordinates are used only for this verification and are not stored. The system keeps the site, distance, GPS accuracy, and verification time.</p>
+      </section>
+      <fieldset className="feedback-fields" disabled={!canSubmit}><Field label="Feedback subject" name="subject" required/><label className="field"><span>Rating *</span><select name="rating" required defaultValue="5"><option value="5">5 — Excellent</option><option value="4">4 — Good</option><option value="3">3 — Average</option><option value="2">2 — Needs improvement</option><option value="1">1 — Poor</option></select></label><label className="field"><span>Comment *</span><textarea name="message" rows={6} minLength={10} required placeholder="Share what you experienced at this place."/></label></fieldset>
+      {error && <div className="form-error" role="alert">{error}</div>}{message && <div className="form-success" role="status">{message}</div>}
+      <button className="button button-dark" disabled={!canSubmit}>Submit verified feedback <ArrowRight size={16}/></button>
+    </form>
+  </main>;
 }
 
 function ConnectAccount({ onUser }: { onUser: (user: User) => void }) {
