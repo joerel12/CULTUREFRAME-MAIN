@@ -47,6 +47,39 @@
       </div>
     </section>
 
+    {{#if destinations.length}}
+    <section class="mt-14">
+      <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-7">
+        <div>
+          <p class="text-emerald-600 font-semibold text-sm uppercase tracking-wider">Plan an on-site visit</p>
+          <h2 class="text-3xl font-extrabold text-gray-900 mt-1">Popular Mansalay destinations</h2>
+        </div>
+        <p class="text-sm text-gray-500 max-w-md">Coordinates and place information are sourced from the Provincial Tourism Office listings.</p>
+      </div>
+      <div class="cf-place-grid">
+        {{#each destinations}}
+        <article class="cf-place-card">
+          <div class="cf-place-art">
+            <span>{{this.category}}</span>
+            <i class="fas fa-compass" aria-hidden="true"></i>
+            <small><i class="fas fa-location-crosshairs"></i> On-site feedback</small>
+          </div>
+          <div class="cf-place-body">
+            <h3>{{this.name}}</h3>
+            <p class="cf-place-address"><i class="fas fa-map-pin"></i>{{this.address}}</p>
+            <p>{{this.description}}</p>
+            <div class="cf-place-actions">
+              <a href="{{this.feedbackUrl}}" class="cf-place-primary">Verify & rate <i class="fas fa-arrow-right"></i></a>
+              <a href="{{this.mapUrl}}" target="_blank" rel="noopener noreferrer">Map</a>
+              {{#if this.sourceUrl}}<a href="{{this.sourceUrl}}" target="_blank" rel="noopener noreferrer">Source</a>{{/if}}
+            </div>
+          </div>
+        </article>
+        {{/each}}
+      </div>
+    </section>
+    {{/if}}
+
     {{#if upcoming.length}}
     <section class="mt-14">
       <div class="flex items-center justify-between gap-4 mb-6">

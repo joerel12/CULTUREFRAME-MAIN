@@ -62,6 +62,41 @@
       </div>
     </section>
 
+    {{#if destinations.length}}
+    <section class="cf-section cf-destinations-section">
+      <div class="cf-shell">
+        <div class="cf-section-heading">
+          <div>
+            <span class="cf-eyebrow">Explore Mansalay</span>
+            <h2>Beaches, nature, and cultural places worth discovering.</h2>
+          </div>
+          <p>These sourced destinations connect directly to the Visitor Information map and GPS-verified on-site feedback.</p>
+        </div>
+        <div class="cf-place-grid">
+          {{#each destinations}}
+          <article class="cf-place-card">
+            <div class="cf-place-art">
+              <span>{{this.category}}</span>
+              <i class="fas fa-location-dot" aria-hidden="true"></i>
+              <small><i class="fas fa-shield-check"></i> GPS verified</small>
+            </div>
+            <div class="cf-place-body">
+              <h3>{{this.name}}</h3>
+              <p class="cf-place-address"><i class="fas fa-map-pin"></i>{{this.address}}</p>
+              <p>{{this.description}}</p>
+              <div class="cf-place-actions">
+                <a href="{{this.feedbackUrl}}" class="cf-place-primary">Rate on site <i class="fas fa-arrow-right"></i></a>
+                <a href="{{this.mapUrl}}" target="_blank" rel="noopener noreferrer">Map</a>
+              </div>
+            </div>
+          </article>
+          {{/each}}
+        </div>
+        <div class="cf-destinations-footer"><a href="/discover/attractions" class="cf-button cf-button-outline">Explore all attractions <i class="fas fa-arrow-right"></i></a></div>
+      </div>
+    </section>
+    {{/if}}
+
     <section class="cf-section">
       <div class="cf-shell">
         <div class="cf-section-heading">

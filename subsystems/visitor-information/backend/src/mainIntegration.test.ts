@@ -28,6 +28,7 @@ describe("CultureFrame main / Visitor Information contract", () => {
       { id: "hero", key: "heroTitle", value: "Connected Visitor Information", updatedAt: new Date() }
     ]);
     const records = vi.spyOn(prisma.contentRecord, "findMany").mockResolvedValue([record] as never);
+    vi.spyOn(prisma.location, "findMany").mockResolvedValue([]);
     const detail = vi.spyOn(prisma.contentRecord, "findFirst").mockResolvedValue(record as never);
     vi.spyOn(prisma.contentRecord, "count").mockResolvedValue(1);
     server = app.listen(0, "127.0.0.1");

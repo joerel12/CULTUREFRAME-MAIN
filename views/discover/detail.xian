@@ -38,6 +38,13 @@
         </section>
         {{/if}}
 
+        {{#if item.sourceUrl}}
+        <section>
+          <h2 class="cf-section-title text-xl mb-4">Official source</h2>
+          <a href="{{item.sourceUrl}}" target="_blank" rel="noopener noreferrer" class="cf-btn cf-btn-outline">View Provincial Tourism Office listing <i class="fas fa-up-right-from-square"></i></a>
+        </section>
+        {{/if}}
+
         <aside class="border-t border-gray-100 pt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <p class="text-sm text-gray-500"><i class="fas fa-circle-check text-emerald-600 mr-2"></i>Published and maintained by the Visitor Information system.</p>
           {{#if portalUrl}}<a href="{{portalUrl}}" target="_blank" rel="noopener noreferrer" class="cf-btn cf-btn-outline">Full visitor portal <i class="fas fa-up-right-from-square"></i></a>{{/if}}

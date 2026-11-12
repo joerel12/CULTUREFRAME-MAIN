@@ -42,7 +42,7 @@ npm run db:seed
 
 ## Features implemented
 
-- Public landing/about pages and responsive navigation
+- Public landing/about pages, a sourced popular-destinations showcase, and responsive navigation
 - Public browse/detail routes for heritage, historical sites, traditions, events, attractions, festivals, and local products
 - Published-only server-side search with pagination
 - Administrator login, session invalidation, and forgot/reset password token flow
@@ -53,7 +53,7 @@ npm run db:seed
 - Media allowlist, upload size limit, permission-gated public gallery, secure HTTP-only session cookie, hashed passwords/session tokens, authentication rate limiting, and admin API authorization
 - Docker Compose PostgreSQL, Prisma schema/seed, backend validation/access tests
 
-There is no public registration endpoint or visitor account flow. Administrators are provisioned with the seed command, which upserts the configured account and resets its password to the current `ADMIN_PASSWORD`. Password reset delivery is intentionally not connected to an email provider. In development the reset URL is printed by the API; production requires integrating a trusted mail delivery service before enabling account recovery.
+There is no public registration endpoint or visitor account flow. When both `ADMIN_EMAIL` and `ADMIN_PASSWORD` are configured, the seed command upserts that administrator and resets its password. Without both values, public destination/content data is still seeded and administrator accounts are left unchanged. Password reset delivery is intentionally not connected to an email provider. In development the reset URL is printed by the API; production requires integrating a trusted mail delivery service before enabling account recovery.
 
 The location view maps verified administrator-entered coordinates and links each
 eligible place to its GPS-gated feedback form. Administrators set a feedback
@@ -62,9 +62,16 @@ must be 100 meters or better. Exact visitor coordinates are evaluated in memory
 and are not stored. The selected location, calculated distance, accuracy, and
 verification time are stored with accepted feedback.
 
-The seed includes Buktot Beach at `12.44872704, 121.4203594` with a 150-meter
-feedback radius, based on the Provincial Tourism Office destination listing.
-Administrators can add and configure more verified sites from **Admin > Locations**.
+The seed includes GPS-ready entries for Buktot Beach, Casabangan Beach and
+Marine Protected Area, Mansalay Eco Park, Mt. Abenlay Eco Tour Monkey Trail,
+and the Mangyan Burial Cave. Names, descriptions, addresses, and map points are
+based on their Provincial Tourism Office destination listings. The Mangyan
+Burial Cave is identified as a sacred site and must be approached only with
+local guidance, permission, and respect for cultural protocols. The Oriental
+Mindoro Heritage and Cultural Center is also seeded as a sourced, published
+cultural record; it is not enabled for GPS feedback until an administrator
+confirms an exact map point. Administrators can add and configure more verified
+sites from **Admin > Locations**.
 
 Browser geolocation is a practical presence check, not tamper-proof proof: a
 technically capable visitor can spoof device coordinates. Stronger assurance

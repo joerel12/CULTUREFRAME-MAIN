@@ -1,4 +1,6 @@
 
+import { visitorInformationClient } from "../services/visitorInformationClient.js";
+
     /*
     MIT License
     
@@ -23,7 +25,7 @@
     OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     SOFTWARE.
     */
-    export const homePage = (req, res) => {
+    export const homePage = async (req, res) => {
   // If user is authenticated, redirect to their dashboard
   if (req.session.isAuthenticated) {
     if (req.session.userRole === 'admin') {
@@ -35,9 +37,18 @@
     }
   }
   
+  let destinations = [];
+  try {
+    const visitorHome = await visitorInformationClient.getHome({ timeoutMs: 2000 });
+    destinations = visitorHome.destinations;
+  } catch (error) {
+    console.warn("Visitor destinations are unavailable on the main landing page:", error.message);
+  }
+
   // If user is not authenticated, show the home page
   res.render('home', {
     title: 'CultureFrame - Mansalay Heritage Platform',
+    destinations,
     user: {
       isAuthenticated: false
     }

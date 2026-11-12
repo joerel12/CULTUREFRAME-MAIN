@@ -52,7 +52,17 @@ test("loads and normalizes the Visitor Information homepage", async () => {
           description: "Documented by the community.",
           featured: true
         }],
-        upcoming: []
+        upcoming: [],
+        destinations: [{
+          id: "site-1",
+          name: "Buktot Beach",
+          category: "Beach & Island",
+          address: "Barangay Manaul, Mansalay",
+          description: "A sourced coastal destination.",
+          sourceUrl: "https://www.travelorientalmindoro.ph/place/buktot-beach",
+          latitude: 12.44872704,
+          longitude: 121.4203594
+        }]
       });
     }
   });
@@ -61,6 +71,10 @@ test("loads and normalizes the Visitor Information homepage", async () => {
   assert.equal(result.content.heroTitle, "Living Mansalay");
   assert.equal(result.featured.length, 1);
   assert.equal(result.featured[0].url, "/discover/heritage/hanunuo-mangyan-writing");
+  assert.equal(result.destinations.length, 1);
+  assert.equal(result.destinations[0].name, "Buktot Beach");
+  assert.equal(result.destinations[0].feedbackUrl, "http://127.0.0.1:5174/visitor/feedback?location=site-1");
+  assert.match(result.destinations[0].mapUrl, /^https:\/\/www\.openstreetmap\.org\//);
 });
 
 test("uses only allowlisted category paths and encodes list filters", async () => {
@@ -147,6 +161,7 @@ test("all Discover templates compile with the application partials", () => {
     modules: [],
     featured: [],
     upcoming: [],
+    destinations: [],
     items: [],
     item: { segment: "heritage", categoryLabel: "Heritage", title: "Test record" },
     module: { segment: "heritage", label: "Heritage", icon: "fa-landmark", description: "Records" },

@@ -129,6 +129,7 @@ function normalizeItem(item) {
     historicalBackground: cleanText(item.historicalBackground, 10000),
     location: cleanText(payload.location, 500),
     eventDate: cleanText(payload.eventDate || payload.startDate || payload.date, 100),
+    sourceUrl: safeExternalUrl(payload.sourceUrl),
     featured: item.featured === true,
     url: `/discover/${segment}/${encodeURIComponent(slug)}`
   };
@@ -137,6 +138,45 @@ function normalizeItem(item) {
 function normalizeItems(items) {
   if (!Array.isArray(items)) return [];
   return items.map(normalizeItem).filter(Boolean).slice(0, 30);
+}
+
+function safeExternalUrl(value) {
+  try {
+    const url = new URL(cleanText(value, 1000));
+    return ["http:", "https:"].includes(url.protocol) ? url.toString() : "";
+  } catch {
+    return "";
+  }
+}
+
+function normalizeDestinations(items, portalUrl) {
+  if (!Array.isArray(items)) return [];
+  return items.map(item => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) return null;
+    const id = cleanText(item.id, 100);
+    const name = cleanText(item.name, 180);
+    const latitude = Number(item.latitude);
+    const longitude = Number(item.longitude);
+    if (!id || !name || !Number.isFinite(latitude) || !Number.isFinite(longitude)
+      || latitude < -90 || latitude > 90 || longitude < -180 || longitude > 180) return null;
+
+    const feedbackUrl = new URL("/visitor/feedback", portalUrl);
+    feedbackUrl.searchParams.set("location", id);
+    const mapUrl = new URL("https://www.openstreetmap.org/");
+    mapUrl.searchParams.set("mlat", String(latitude));
+    mapUrl.searchParams.set("mlon", String(longitude));
+    mapUrl.hash = `map=15/${latitude}/${longitude}`;
+    return {
+      id,
+      name,
+      category: cleanText(item.category, 100) || "Sightseeing",
+      address: cleanText(item.address, 500),
+      description: cleanText(item.description, 1000),
+      sourceUrl: safeExternalUrl(item.sourceUrl),
+      mapUrl: mapUrl.toString(),
+      feedbackUrl: feedbackUrl.toString()
+    };
+  }).filter(Boolean).slice(0, 6);
 }
 
 async function requestJson(pathname, query = {}, options = {}) {
@@ -227,7 +267,8 @@ export const visitorInformationClient = {
         about: cleanText(content.about, 1000)
       },
       featured: normalizeItems(data?.featured),
-      upcoming: normalizeItems(data?.upcoming)
+      upcoming: normalizeItems(data?.upcoming),
+      destinations: normalizeDestinations(data?.destinations, portalUrl)
     };
   },
 

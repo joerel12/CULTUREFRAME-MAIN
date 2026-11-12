@@ -156,12 +156,17 @@ function contentFilter(kind?: ContentKind, publicOnly = true) {
   return { ...(kind ? { kind } : {}), ...(publicOnly ? { publicationStatus: PublicationStatus.PUBLISHED } : {}) };
 }
 app.get("/api/home", asyncRoute(async (_req, res) => {
-  const [values, featured, upcoming] = await Promise.all([
+  const [values, featured, upcoming, destinations] = await Promise.all([
     prisma.homepageContent.findMany(),
     prisma.contentRecord.findMany({ where: { ...contentFilter(undefined), featured: true }, take: 6, orderBy: { updatedAt: "desc" } }),
-    prisma.contentRecord.findMany({ where: { ...contentFilter(ContentKind.EVENT), featured: true }, take: 3, orderBy: { createdAt: "desc" } })
+    prisma.contentRecord.findMany({ where: { ...contentFilter(ContentKind.EVENT), featured: true }, take: 3, orderBy: { createdAt: "desc" } }),
+    prisma.location.findMany({
+      where: { verified: true, latitude: { not: null }, longitude: { not: null } },
+      take: 6,
+      orderBy: { name: "asc" }
+    })
   ]);
-  res.json({ content: Object.fromEntries(values.map((item) => [item.key, item.value])), featured, upcoming });
+  res.json({ content: Object.fromEntries(values.map((item) => [item.key, item.value])), featured, upcoming, destinations });
 }));
 app.get("/api/search", asyncRoute(async (req, res) => {
   const q = String(req.query.q ?? "").trim();
@@ -436,7 +441,13 @@ app.post("/api/admin/media", ...admin, upload.single("image"), asyncRoute(async 
 }));
 app.get("/api/admin/locations", ...admin, asyncRoute(async (_req, res) => res.json({ items: await prisma.location.findMany({ orderBy: { name: "asc" } }) })));
 app.post("/api/admin/locations", ...admin, asyncRoute(async (req, res) => {
-  const parsed = z.object({ name: z.string().min(2).max(180), address: z.string().max(500).optional(), description: z.string().max(5000).optional(), latitude: z.number().min(-90).max(90).nullable().optional(), longitude: z.number().min(-180).max(180).nullable().optional(), verified: z.boolean().optional(), feedbackRadiusMeters: z.number().int().min(25).max(MAX_FEEDBACK_RADIUS_METERS).optional() }).safeParse(req.body);
+  const parsed = z.object({
+    name: z.string().min(2).max(180), category: z.string().min(2).max(100).optional(),
+    address: z.string().max(500).optional(), description: z.string().max(5000).optional(),
+    sourceUrl: z.string().url().max(1000).refine((value) => /^https?:\/\//i.test(value), "Source URL must use HTTP or HTTPS.").nullable().optional(),
+    latitude: z.number().min(-90).max(90).nullable().optional(), longitude: z.number().min(-180).max(180).nullable().optional(),
+    verified: z.boolean().optional(), feedbackRadiusMeters: z.number().int().min(25).max(MAX_FEEDBACK_RADIUS_METERS).optional()
+  }).safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: "Invalid location details.", details: parsed.error.flatten() });
   res.status(201).json({ item: await prisma.location.create({ data: parsed.data }) });
 }));

@@ -128,8 +128,10 @@ model MediaAsset {
 model Location {
   id                    String            @id @default(cuid())
   name                  String
+  category              String            @default("Sightseeing")
   address               String            @default("")
   description           String            @default("")
+  sourceUrl             String?           @map("source_url")
   latitude              Float?
   longitude             Float?
   verified              Boolean           @default(false)

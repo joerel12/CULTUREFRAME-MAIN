@@ -6,8 +6,10 @@ const now = new Date();
 const location = {
   id: "mansalay-site-1",
   name: "Verified Mansalay Site",
+  category: "Sightseeing",
   address: "Mansalay, Oriental Mindoro",
   description: "A verified test location.",
+  sourceUrl: null,
   latitude: 12.5201,
   longitude: 121.4381,
   verified: true,

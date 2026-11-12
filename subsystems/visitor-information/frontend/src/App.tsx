@@ -9,7 +9,7 @@ import { api, apiAssetUrl, ApiError } from "./api";
 type User = { id: string; firstName: string; lastName: string; email: string; role: "ADMIN" };
 type RecordItem = { id: string; kind: string; title: string; slug: string; summary: string; description: string; culturalSignificance?: string; historicalBackground?: string; payload?: Record<string, unknown>; publicationStatus?: string; featured?: boolean };
 type ListResult = { items: RecordItem[]; total?: number; pages?: number; page?: number };
-type LocationItem = { id: string; name: string; address: string; description: string; latitude: number | null; longitude: number | null; verified: boolean; feedbackRadiusMeters: number };
+type LocationItem = { id: string; name: string; category: string; address: string; description: string; sourceUrl: string | null; latitude: number | null; longitude: number | null; verified: boolean; feedbackRadiusMeters: number };
 type GeofenceResult = {
   allowed: boolean;
   verificationToken?: string;
@@ -135,7 +135,7 @@ function Protected({ user, children }: { user: User | null; children: ReactNode 
 }
 
 function Home() {
-  const { data, error } = useQuery({ queryKey: ["home"], queryFn: () => api<{ content: Record<string, string>; featured: RecordItem[]; upcoming: RecordItem[] }>("/home") });
+  const { data, error } = useQuery({ queryKey: ["home"], queryFn: () => api<{ content: Record<string, string>; featured: RecordItem[]; upcoming: RecordItem[]; destinations: LocationItem[] }>("/home") });
   return <main>
     <section className="hero">
       <div className="hero-shape shape-one"/><div className="hero-shape shape-two"/>
@@ -169,6 +169,29 @@ function Home() {
         const IconComponent = Icon as typeof BookOpen;
         return <Link to={link as string} className="category-card glass" key={number as string}><span className="category-number">{number as string}</span><IconComponent className="category-icon"/><h3>{title as string}</h3><p>{copy as string}</p><span className="card-arrow"><ArrowRight size={16}/></span></Link>;
       })}</div>
+    </section>
+    <section className="section destinations-section">
+      <div className="section-heading">
+        <div><div className="section-kicker">Beaches, nature and culture</div><h2>Popular places<br/><em>around Mansalay</em></h2></div>
+        <Link to="/locations" className="text-link">View the destination map <ArrowRight size={16}/></Link>
+      </div>
+      <p className="destinations-intro">Plan a visit using destinations listed by the Provincial Tourism Office. GPS-ready places can be rated only after CultureFrame confirms that you are on site.</p>
+      <div className="destination-grid">
+        {(data?.destinations ?? []).map((place, index) => <article className="destination-card" key={place.id}>
+          <div className={`destination-visual destination-tone-${index % 5}`}>
+            <span className="destination-category">{place.category}</span>
+            <Compass aria-hidden="true"/>
+            <span className="destination-verified"><ShieldCheck size={13}/> GPS verified</span>
+          </div>
+          <div className="destination-copy">
+            <h3>{place.name}</h3>
+            <p className="destination-address"><MapPin size={14}/>{place.address}</p>
+            <p>{place.description}</p>
+            <div className="destination-actions"><Link to={`/visitor/feedback?location=${encodeURIComponent(place.id)}`}>Rate on site <ArrowRight size={14}/></Link>{place.sourceUrl && <a href={place.sourceUrl} target="_blank" rel="noreferrer">Official listing</a>}</div>
+          </div>
+        </article>)}
+      </div>
+      {!data?.destinations?.length && <div className="empty-state glass"><MapPin/><h3>Destination guide coming soon</h3><p>Verified places will appear here after their coordinates and source information are reviewed.</p></div>}
     </section>
     <section className="feature-section"><div className="feature-image"><span className="image-placeholder-label">Community-contributed image<br/>awaiting verified media</span><span className="photo-caption">Mansalay · Oriental Mindoro</span></div><div className="feature-copy"><div className="section-kicker">Explore responsibly</div><h2>Every story deserves<br/><em>its source.</em></h2><p>CultureFrame is a growing information portal. Records are shared with their sources and publication status; culturally sensitive materials are included only with appropriate permission.</p><Link className="button button-dark" to="/locations">Explore locations <ArrowRight size={16}/></Link></div></section>
     <section className="section photo-showcase">
@@ -222,7 +245,7 @@ function DetailPage({ segment }: { segment: string }) {
   if (!data?.item) return <NotFound message="This published record could not be found."/>;
   const item = data.item;
   const payload = item.payload ?? {};
-  return <main className="page-shell detail-shell"><div className="detail-meta"><Link to={`/${segment}`}>← Back to {titleForPath[segment]}</Link><span>{fmtKind(item.kind)}</span></div><article className="detail-article"><div className="section-kicker">{titleForPath[segment]}</div><h1>{item.title}</h1>{item.summary && <p className="detail-summary">{item.summary}</p>}<div className="detail-divider"/><p className="detail-body">{item.description || "Additional information for this record has not yet been added."}</p>{item.culturalSignificance && <section><h2>Cultural significance</h2><p>{item.culturalSignificance}</p></section>}{item.historicalBackground && <section><h2>Historical background</h2><p>{item.historicalBackground}</p></section>}{typeof payload.location === "string" && <section><h2>Location</h2><p>{payload.location}</p></section>}</article></main>;
+  return <main className="page-shell detail-shell"><div className="detail-meta"><Link to={`/${segment}`}>← Back to {titleForPath[segment]}</Link><span>{fmtKind(item.kind)}</span></div><article className="detail-article"><div className="section-kicker">{titleForPath[segment]}</div><h1>{item.title}</h1>{item.summary && <p className="detail-summary">{item.summary}</p>}<div className="detail-divider"/><p className="detail-body">{item.description || "Additional information for this record has not yet been added."}</p>{item.culturalSignificance && <section><h2>Cultural significance</h2><p>{item.culturalSignificance}</p></section>}{item.historicalBackground && <section><h2>Historical background</h2><p>{item.historicalBackground}</p></section>}{typeof payload.location === "string" && <section><h2>Location</h2><p>{payload.location}</p></section>}{typeof payload.sourceUrl === "string" && <section><h2>Source</h2><p><a className="text-link" href={payload.sourceUrl} target="_blank" rel="noreferrer">View the Provincial Tourism Office listing <ArrowRight size={14}/></a></p></section>}</article></main>;
 }
 
 function RecordGrid({ items, empty }: { items: RecordItem[]; empty: string }) {
@@ -272,7 +295,7 @@ function LocationsPage() {
         <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"/>
         {mapped.map((place) => <Marker key={place.id} position={[place.latitude!, place.longitude!]}><Popup><strong>{place.name}</strong><br/>{place.address}</Popup></Marker>)}
       </MapContainer></div>}
-      <div className="location-list">{data?.items.map((place) => <article className="location-card glass" key={place.id}><MapPin/><div><h3>{place.name}</h3><p>{place.address}</p><p>{place.description}</p>{place.verified && place.latitude != null && place.longitude != null ? <div className="location-actions"><a target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/?mlat=${place.latitude}&mlon=${place.longitude}#map=15/${place.latitude}/${place.longitude}`}>Open map <ArrowRight size={14}/></a><Link to={`/visitor/feedback?location=${encodeURIComponent(place.id)}`}>Rate this place <ArrowRight size={14}/></Link></div> : <span className="muted">Map coordinates not verified</span>}</div></article>)}</div>
+      <div className="location-list">{data?.items.map((place) => <article className="location-card glass" key={place.id}><MapPin/><div><span className="location-category">{place.category}</span><h3>{place.name}</h3><p>{place.address}</p><p>{place.description}</p>{place.verified && place.latitude != null && place.longitude != null ? <div className="location-actions"><a target="_blank" rel="noreferrer" href={`https://www.openstreetmap.org/?mlat=${place.latitude}&mlon=${place.longitude}#map=15/${place.latitude}/${place.longitude}`}>Open map <ArrowRight size={14}/></a><Link to={`/visitor/feedback?location=${encodeURIComponent(place.id)}`}>Rate this place <ArrowRight size={14}/></Link>{place.sourceUrl && <a target="_blank" rel="noreferrer" href={place.sourceUrl}>Tourism source <ArrowRight size={14}/></a>}</div> : <span className="muted">Map coordinates not verified</span>}</div></article>)}</div>
       {!data?.items.length && <div className="empty-state glass"><MapPin/><h3>No verified locations yet</h3><p>Verified locations added by administrators will be listed here.</p></div>}
     </>}</main>;
 }
@@ -499,10 +522,10 @@ function MediaManager({ rows, refresh, notice }: { rows:Array<Record<string,unkn
 function LocationManager({ rows, refresh, notice }: { rows:Array<Record<string,unknown>>; refresh:()=>void; notice:(s:string)=>void }) {
   const submit=async(e:FormEvent<HTMLFormElement>)=>{
     e.preventDefault(); const formElement=e.currentTarget; const raw=Object.fromEntries(new FormData(formElement).entries());
-    try { await api("/admin/locations",{method:"POST",body:JSON.stringify({...raw,latitude:raw.latitude?Number(raw.latitude):null,longitude:raw.longitude?Number(raw.longitude):null,feedbackRadiusMeters:raw.feedbackRadiusMeters?Number(raw.feedbackRadiusMeters):150,verified:raw.verified==="on"})}); notice("Location saved.");formElement.reset();refresh(); }
+    try { await api("/admin/locations",{method:"POST",body:JSON.stringify({...raw,sourceUrl:raw.sourceUrl||null,latitude:raw.latitude?Number(raw.latitude):null,longitude:raw.longitude?Number(raw.longitude):null,feedbackRadiusMeters:raw.feedbackRadiusMeters?Number(raw.feedbackRadiusMeters):150,verified:raw.verified==="on"})}); notice("Location saved.");formElement.reset();refresh(); }
     catch(issue){notice((issue as Error).message);}
   };
-  return <><form className="glass content-form" onSubmit={submit}><h2>Add a verified location</h2><Field label="Name" name="name" required/><Field label="Address" name="address"/><label className="field"><span>Description</span><textarea name="description"/></label><div className="form-row"><label className="field"><span>Latitude</span><input name="latitude" type="number" step="any" min="-90" max="90"/></label><label className="field"><span>Longitude</span><input name="longitude" type="number" step="any" min="-180" max="180"/></label></div><label className="field"><span>Feedback GPS radius (meters)</span><input name="feedbackRadiusMeters" type="number" min="25" max="2000" step="25" defaultValue="150"/><small>Visitors must be inside this radius with GPS accuracy of 100 meters or better.</small></label><label className="check-label"><input type="checkbox" name="verified"/> Coordinates have been verified</label><button className="button button-dark">Save location</button></form><AdminRows rows={rows} section="locations" refresh={refresh} notice={notice}/></>;
+  return <><form className="glass content-form" onSubmit={submit}><h2>Add a verified location</h2><div className="form-row"><Field label="Name" name="name" required/><Field label="Category" name="category" required defaultValue="Sightseeing"/></div><Field label="Address" name="address"/><Field label="Official source URL" name="sourceUrl" type="url"/><label className="field"><span>Description</span><textarea name="description"/></label><div className="form-row"><label className="field"><span>Latitude</span><input name="latitude" type="number" step="any" min="-90" max="90"/></label><label className="field"><span>Longitude</span><input name="longitude" type="number" step="any" min="-180" max="180"/></label></div><label className="field"><span>Feedback GPS radius (meters)</span><input name="feedbackRadiusMeters" type="number" min="25" max="2000" step="25" defaultValue="150"/><small>Visitors must be inside this radius with GPS accuracy of 100 meters or better.</small></label><label className="check-label"><input type="checkbox" name="verified"/> Coordinates have been verified</label><button className="button button-dark">Save location</button></form><AdminRows rows={rows} section="locations" refresh={refresh} notice={notice}/></>;
 }
 
 function PolicyPage({title}:{title:string}) {

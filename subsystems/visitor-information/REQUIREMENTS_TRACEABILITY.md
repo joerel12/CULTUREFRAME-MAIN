@@ -15,7 +15,7 @@ The source diagrams in `GREGORIO BEA DIAGRAM.docx` were not available in the wor
 | 09 Search and browse | `/search` | `GET /api/search` | Server-side term/category/page support; unpublished exclusion | Keyword, content-type filter, URL-persisted query, and pagination connected |
 | 10 Heritage detail | `/heritage/:slug` and other content details | `GET /api/{module}/:slug` | Missing/unpublished returns 404; test included | Implemented |
 | 11 Images and gallery | `/gallery`, lightbox | `GET /api/gallery`, admin upload | MIME/size limits; approved-only public list | Implemented; thumbnails, image processing, zoom and keyboard gallery navigation remain |
-| 12 Locations | `/locations`; map and `Rate this place` links | `GET /api/locations`; admin location create with GPS radius | Coordinate bounds, 25–2,000 m radius, and explicit verified flag | Map and feedback entry points render only for verified coordinates; admin edit/delete remain |
+| 12 Locations | `/locations`, visitor homepage, main landing page, and Discover homepage destination cards with map and `Rate this place` links | `GET /api/locations`; `GET /api/home`; admin location create with category, source, and GPS radius | Coordinate bounds, 25–2,000 m radius, source URL validation, and explicit verified flag | Five tourism-office-sourced GPS-ready destinations are seeded; admin edit/delete remain |
 | 13 Festivals | `/festivals`, detail route | Content records of festival kind | Published-only query | Implemented |
 | 14 Local products | `/local-products`, detail route | Content records of local-product kind | Published-only query | Implemented as informational content, not commerce |
 | 15 Visitor feedback | Public `/visitor/feedback`; no account required | `POST /api/visitor/location-verification` issues a signed five-minute token; `POST /api/visitor/feedback` requires it | Fresh GPS reading, ≤100 m accuracy, server-side Haversine radius check, signed token, required fields/rating range, and IP rate limits | Implemented; outside, stale, inaccurate, missing, tampered, or expired location proofs cannot submit feedback |
@@ -30,14 +30,15 @@ The source diagrams in `GREGORIO BEA DIAGRAM.docx` were not available in the wor
 | Security | Password hashing, hashed random session tokens, HTTP-only/SameSite cookies, role checks, rate limits, Zod validation, Helmet, MIME/size allowlist | Email delivery, CSRF token strategy for cross-site deployment, image content inspection, upload scanning, production security review |
 | Design/accessibility | Responsive glassmorphism-inspired styles, labels, keyboard-operable controls, reduced motion | Formal WCAG audit and automated browser/accessibility suite |
 | Tests | Registration endpoint disabled, malformed administrator login/feedback validation, unauthenticated admin endpoint, GPS distance/token unit tests, inside/outside geofence route tests, location-evidence persistence test, API-client error handling | Live database migration test, complete workflow matrix, Playwright geolocation/ responsive/auth/admin suite |
-| Cultural media/content | Attribution and permission fields; publication gating | No authentic media or researched cultural records supplied/verified; add only with documented source/license/consent |
+| Cultural media/content | Attribution and permission fields; publication gating; sourced destination records from the Provincial Tourism Office | Additional authentic media still requires documented licenses and cultural consent |
 
 ## Test report
 
-Latest verification: the backend suite passes 17 tests across API validation,
-main-system contracts, GPS distance and token behavior, inside/outside geofences,
-and privacy-preserving feedback persistence. The frontend API-client test passes,
-and production builds pass for both packages. The frontend build reports a
-bundle-size advisory for its main JavaScript chunk.
+Latest verification: the backend suite passes 18 tests across API validation,
+homepage destinations, main-system contracts, GPS distance and token behavior,
+inside/outside geofences, and privacy-preserving feedback persistence. The
+frontend API-client test and 20 consolidated-platform integration tests pass,
+and production builds pass for both visitor packages. The frontend build
+reports a bundle-size advisory for its main JavaScript chunk.
 
 The Docker PostgreSQL service could not be started because Docker Desktop's engine was unavailable, and the local PostgreSQL service rejected the sample credentials. The test suite therefore does not verify database persistence or administrator login against PostgreSQL. Start PostgreSQL with usable credentials, apply migrations, run the seed command, and add integration/Playwright tests before treating those workflows as verified.
