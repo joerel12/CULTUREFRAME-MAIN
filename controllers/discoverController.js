@@ -22,6 +22,19 @@ function pagination(result) {
   };
 }
 
+function discoverCarousel(home) {
+  const seen = new Set();
+  return [...(home.upcoming || []), ...(home.featured || [])]
+    .filter(item => {
+      const key = item.url || `${item.categoryLabel}:${item.title}`;
+      if (!item.imageUrl || seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 6)
+    .map((item, index) => ({ ...item, active: index === 0, slideNumber: index + 1 }));
+}
+
 function renderServiceError(res, error) {
   const knownError = error instanceof VisitorInformationError;
   if (!knownError) console.error("Visitor Information integration error:", error);
@@ -40,6 +53,7 @@ export const discoverController = {
       return res.render("discover/index", {
         title: "Discover Mansalay - CultureFrame",
         modules: visitorModules,
+        carouselItems: discoverCarousel(home),
         ...home
       });
     } catch (error) {

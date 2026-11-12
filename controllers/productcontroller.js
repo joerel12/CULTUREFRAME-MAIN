@@ -27,10 +27,20 @@ import { ProductCategory } from "../models/ProductCategory.js";
 import { Order } from "../models/Order.js";
 import { OrderItem } from "../models/Orderitem.js";
 
+function tagsForProduct(product) {
+  const text = `${product.name || ""} ${product.category || ""} ${product.description || ""}`.toLowerCase();
+  const tags = [String(product.category || "Local product").replace(/(^|\s)\S/g, letter => letter.toUpperCase())];
+  if (/(craft|handicraft|basket|bead|weav|textile|souvenir|keepsake)/.test(text)) tags.push("Crafts");
+  if (product.free_shipping) tags.push("Free shipping");
+  if (product.is_featured) tags.push("Featured");
+  if (Number(product.stocks) > 0 && Number(product.stocks) <= 5) tags.push("Limited stock");
+  return [...new Set(tags)];
+}
+
 const productcontroller = {
   shop: async (req, res) => {
     // --- FILTERS & SORTING ---
-    const { price_min, price_max, sort = "popular", free_shipping, in_stock, category, search } = req.query;
+    const { price_min, price_max, sort = "popular", free_shipping, in_stock, category, search, tag } = req.query;
     const requestedPage = Math.max(1, Number.parseInt(req.query.page, 10) || 1);
     const pageSize = 12;
     
@@ -65,6 +75,20 @@ const productcontroller = {
     if (in_stock) {
       where.stocks = { [Op.gt]: 0 };
       console.log('[Shop] In stock filter: ON');
+    }
+    if (tag === "crafts") {
+      const craftOperator = sequelize.getDialect() === "postgres" ? Op.iLike : Op.like;
+      where[Op.and] = [{
+        [Op.or]: ["name", "category", "description"].map(field => ({
+          [field]: { [craftOperator]: "%craft%" }
+        })).concat([
+          { category: { [craftOperator]: "%handicraft%" } },
+          { description: { [craftOperator]: "%weav%" } },
+          { description: { [craftOperator]: "%basket%" } },
+          { description: { [craftOperator]: "%bead%" } },
+          { description: { [craftOperator]: "%textile%" } }
+        ])
+      }];
     }
     if (search) {
       // Keep text search portable: PostgreSQL needs ILIKE while SQLite/MySQL use LIKE.
@@ -119,6 +143,7 @@ const productcontroller = {
     } else {
       products = products.map(p => ({ ...p, ordered_status: null }));
     }
+    products = products.map(product => ({ ...product, tags: tagsForProduct(product) }));
 
     // Cart/Wishlist count for header
     let cartCount = 0, wishlistCount = 0;

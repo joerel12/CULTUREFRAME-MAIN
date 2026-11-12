@@ -10,7 +10,7 @@
             <h1 class="text-3xl font-extrabold text-gray-900">Welcome, {{seller.business_name}}</h1>
             <p class="mt-1 text-gray-500">Manage your CultureFrame inventory and storefront listings.</p>
           </div>
-          <a href="/seller/products/add" class="cf-btn cf-btn-primary">Add product</a>
+          <div class="flex gap-2"><a href="/seller/walk-in" class="cf-btn cf-btn-outline"><i class="fas fa-cash-register"></i>Walk-in sale</a><a href="/seller/products/add" class="cf-btn cf-btn-primary">Add product</a></div>
         </div>
 
         {{#if success_msg}}<div class="mb-5 rounded-xl bg-emerald-100 px-4 py-3 text-emerald-800">{{success_msg}}</div>{{/if}}

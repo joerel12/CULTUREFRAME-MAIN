@@ -1,0 +1,69 @@
+{{>head}}
+<body class="bg-gray-50">
+  <div class="min-h-screen lg:flex">
+    {{> seller-sidebar}}
+    <main class="flex-1 p-5 lg:p-8">
+      <div class="mx-auto max-w-6xl">
+        <div class="mb-7">
+          <p class="text-sm font-semibold text-emerald-600">Point of sale</p>
+          <h1 class="text-3xl font-extrabold text-gray-900">Walk-in transaction</h1>
+          <p class="mt-1 text-gray-500">Record an in-person cash or GCash sale and update stock immediately.</p>
+        </div>
+        {{#if success_msg}}<div class="mb-5 rounded-xl bg-emerald-100 px-4 py-3 text-emerald-800"><i class="fas fa-circle-check mr-2"></i>{{success_msg}}</div>{{/if}}
+        {{#if error_msg}}<div class="mb-5 rounded-xl bg-red-100 px-4 py-3 text-red-800"><i class="fas fa-circle-exclamation mr-2"></i>{{error_msg}}</div>{{/if}}
+
+        <form method="post" action="/seller/walk-in" id="walkInForm" class="grid gap-6 xl:grid-cols-[1fr_360px]">
+          <section class="cf-card overflow-hidden">
+            <div class="border-b px-5 py-4"><h2 class="font-bold text-gray-900">Select products</h2><p class="text-sm text-gray-500">Prices are taken securely from the current catalog.</p></div>
+            <div class="divide-y">
+              {{#each products}}
+              <label class="grid grid-cols-[58px_1fr_90px] items-center gap-4 px-5 py-4 hover:bg-emerald-50">
+                <img src="{{#if image_url}}{{image_url}}{{else}}/images/cultureframe-logo.svg{{/if}}" alt="" class="h-14 w-14 rounded-xl border object-cover" />
+                <span><strong class="block text-gray-900">{{name}}</strong><small class="text-gray-500">PHP {{price}} · {{stocks}} available · {{category}}</small></span>
+                <input type="number" name="quantities[{{id}}]" min="0" max="{{stocks}}" value="0" data-price="{{price}}" aria-label="Quantity for {{name}}" class="w-full rounded-xl border-2 border-emerald-100 p-3 text-center font-bold focus:border-emerald-500" />
+              </label>
+              {{else}}
+              <div class="px-5 py-12 text-center text-gray-500">No active products are currently in stock.</div>
+              {{/each}}
+            </div>
+          </section>
+
+          <aside class="cf-card h-max p-5 xl:sticky xl:top-5">
+            <h2 class="text-xl font-extrabold text-emerald-950">Payment</h2>
+            <label class="mt-5 block text-sm font-bold text-gray-700">Customer name (optional)<input name="customer_name" maxlength="120" placeholder="Walk-in Customer" class="mt-2 w-full rounded-xl border-2 border-emerald-100 p-3 focus:border-emerald-500" /></label>
+            <label class="mt-4 block text-sm font-bold text-gray-700">Payment method<select name="payment_method" id="walkInPayment" required class="mt-2 w-full rounded-xl border-2 border-emerald-100 bg-white p-3"><option value="cash">Cash</option><option value="gcash">GCash</option></select></label>
+            <label id="cashField" class="mt-4 block text-sm font-bold text-gray-700">Cash tendered<input type="number" name="cash_tendered" min="0" step="0.01" class="mt-2 w-full rounded-xl border-2 border-emerald-100 p-3" /></label>
+            <label id="gcashField" class="mt-4 hidden text-sm font-bold text-gray-700">GCash reference<input name="reference_number" minlength="6" maxlength="100" class="mt-2 w-full rounded-xl border-2 border-emerald-100 p-3" /></label>
+            <div class="my-5 flex items-center justify-between border-y py-4"><span class="font-semibold text-gray-600">Total</span><strong id="walkInTotal" class="text-2xl text-emerald-800">PHP 0.00</strong></div>
+            <button type="submit" class="cf-btn cf-btn-primary w-full justify-center"><i class="fas fa-check"></i>Complete paid sale</button>
+            <p class="mt-3 text-xs leading-5 text-gray-500"><i class="fas fa-shield-halved mr-1"></i>The server rechecks stock, seller ownership, prices, and payment before saving.</p>
+          </aside>
+        </form>
+      </div>
+    </main>
+  </div>
+  <script>
+    (() => {
+      const quantities = [...document.querySelectorAll('[data-price]')];
+      const total = document.getElementById('walkInTotal');
+      const payment = document.getElementById('walkInPayment');
+      const cash = document.getElementById('cashField');
+      const gcash = document.getElementById('gcashField');
+      const updateTotal = () => {
+        const amount = quantities.reduce((sum, input) => sum + (Number(input.value) || 0) * Number(input.dataset.price), 0);
+        total.textContent = `PHP ${amount.toFixed(2)}`;
+      };
+      const updateMethod = () => {
+        const usesGcash = payment.value === 'gcash';
+        cash.classList.toggle('hidden', usesGcash);
+        gcash.classList.toggle('hidden', !usesGcash);
+        cash.querySelector('input').required = !usesGcash;
+        gcash.querySelector('input').required = usesGcash;
+      };
+      quantities.forEach(input => input.addEventListener('input', updateTotal));
+      payment.addEventListener('change', updateMethod);
+      updateMethod(); updateTotal();
+    })();
+  </script>
+</body>
+</html>

@@ -67,12 +67,13 @@ are not cached, and password resets invalidate existing Visitor sessions.
 
 Visitor content administrators also enter through the main CultureFrame Admin side. The legacy local login URL redirects to the main administrator handoff, keeping a single visible administrator workspace and credential path.
 
-For production, configure the same random `CULTUREFRAME_SSO_SECRET` of at least 32 characters in both applications and set `VITE_MAIN_SYSTEM_URL` to the public main-system origin. Local development uses the documented localhost defaults.
+For production, configure the same random `CULTUREFRAME_SSO_SECRET` of at least 32 characters in both applications and set `VITE_MAIN_SYSTEM_URL` to the public main-system origin. Local development uses the documented localhost defaults. To enable the interactive Google Maps 3D hybrid view, enable Maps JavaScript API for a billing-enabled Google Cloud project, restrict its browser key to the deployed visitor origin, and set `VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env`. Without a key, the same page automatically shows a Google satellite/place preview and an external Google Maps link.
 
 The location view maps verified administrator-entered coordinates and links each
 eligible place to its GPS-gated feedback form. Administrators set a feedback
-radius from 25 to 2,000 meters; the default is 150 meters and browser accuracy
-must be 100 meters or better. Exact visitor coordinates are evaluated in memory
+radius from 25 to 2,000 meters; the default is 150 meters. Browser readings up
+to 500 meters reported accuracy are accepted for evaluation, but the reported
+coordinate itself must still be inside the place radius. Exact visitor coordinates are evaluated in memory
 and are not stored. The selected location, calculated distance, accuracy, and
 verification time are stored with accepted feedback.
 

@@ -29,6 +29,38 @@
   </section>
 
   <main class="max-w-7xl mx-auto px-4 py-12">
+    {{#if carouselItems.length}}
+    <section class="mb-14" aria-labelledby="discover-highlights-title">
+      <div class="flex items-end justify-between gap-5 mb-6">
+        <div>
+          <p class="text-emerald-600 font-semibold text-sm uppercase tracking-wider">Discover highlights</p>
+          <h2 id="discover-highlights-title" class="text-3xl font-extrabold text-gray-900 mt-1">Stories, celebrations, and places</h2>
+        </div>
+        <div class="flex gap-2">
+          <button type="button" data-carousel-previous aria-label="Previous highlight" class="h-11 w-11 rounded-full border border-emerald-200 bg-white text-emerald-800 hover:bg-emerald-50"><i class="fas fa-arrow-left"></i></button>
+          <button type="button" data-carousel-next aria-label="Next highlight" class="h-11 w-11 rounded-full bg-emerald-800 text-white hover:bg-emerald-700"><i class="fas fa-arrow-right"></i></button>
+        </div>
+      </div>
+      <div data-discover-carousel class="relative min-h-[430px] overflow-hidden rounded-3xl bg-emerald-950 shadow-2xl" aria-roledescription="carousel">
+        {{#each carouselItems}}
+        <article data-carousel-slide class="absolute inset-0 transition-opacity duration-700 {{#unless this.active}}opacity-0 pointer-events-none{{/unless}}" aria-hidden="{{#unless this.active}}true{{else}}false{{/unless}}">
+          <img src="{{this.imageUrl}}" alt="{{this.imageAlt}}" class="h-full w-full object-cover" loading="{{#if this.active}}eager{{else}}lazy{{/if}}" onerror="this.onerror=null;this.src='/images/placeholders/record-placeholder.svg'" />
+          <div class="absolute inset-0 bg-gradient-to-r from-emerald-950 via-emerald-950/70 to-transparent"></div>
+          <div class="absolute inset-x-0 bottom-0 p-7 sm:p-10 text-white max-w-3xl">
+            <span class="inline-flex rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wider backdrop-blur">{{this.categoryLabel}}</span>
+            <h3 class="mt-4 text-3xl sm:text-5xl font-extrabold leading-tight">{{this.title}}</h3>
+            <p class="mt-3 max-w-2xl text-emerald-50 leading-relaxed line-clamp-3">{{#if this.summary}}{{this.summary}}{{else}}{{this.description}}{{/if}}</p>
+            <a href="{{this.url}}" class="mt-6 inline-flex items-center gap-2 rounded-xl bg-amber-400 px-5 py-3 font-bold text-emerald-950 hover:bg-amber-300">Explore this story <i class="fas fa-arrow-right"></i></a>
+          </div>
+        </article>
+        {{/each}}
+        <div class="absolute right-5 bottom-5 z-10 flex gap-2" aria-label="Choose a highlight">
+          {{#each carouselItems}}<button type="button" data-carousel-dot="{{@index}}" aria-label="Show highlight {{this.slideNumber}}" class="h-2.5 rounded-full bg-white/70 transition-all {{#if this.active}}w-8{{else}}w-2.5{{/if}}"></button>{{/each}}
+        </div>
+      </div>
+    </section>
+    {{/if}}
+
     <section>
       <div class="flex flex-col md:flex-row md:items-end md:justify-between gap-3 mb-7">
         <div>
@@ -145,5 +177,49 @@
   </main>
 
   {{>footer}}
+  <script>
+    (() => {
+      const carousel = document.querySelector('[data-discover-carousel]');
+      if (!carousel) return;
+      const slides = [...carousel.querySelectorAll('[data-carousel-slide]')];
+      const dots = [...carousel.querySelectorAll('[data-carousel-dot]')];
+      const previous = document.querySelector('[data-carousel-previous]');
+      const next = document.querySelector('[data-carousel-next]');
+      let current = 0;
+      let timer;
+      const show = index => {
+        current = (index + slides.length) % slides.length;
+        slides.forEach((slide, itemIndex) => {
+          const active = itemIndex === current;
+          slide.classList.toggle('opacity-0', !active);
+          slide.classList.toggle('pointer-events-none', !active);
+          slide.setAttribute('aria-hidden', String(!active));
+        });
+        dots.forEach((dot, itemIndex) => {
+          dot.classList.toggle('w-8', itemIndex === current);
+          dot.classList.toggle('w-2.5', itemIndex !== current);
+        });
+      };
+      const stop = () => window.clearInterval(timer);
+      const start = () => {
+        stop();
+        if (!window.matchMedia('(prefers-reduced-motion: reduce)').matches && slides.length > 1) {
+          timer = window.setInterval(() => show(current + 1), 5500);
+        }
+      };
+      previous?.addEventListener('click', () => { show(current - 1); start(); });
+      next?.addEventListener('click', () => { show(current + 1); start(); });
+      dots.forEach(dot => dot.addEventListener('click', () => { show(Number(dot.dataset.carouselDot)); start(); }));
+      carousel.addEventListener('mouseenter', stop);
+      carousel.addEventListener('mouseleave', start);
+      carousel.addEventListener('focusin', stop);
+      carousel.addEventListener('focusout', start);
+      carousel.addEventListener('keydown', event => {
+        if (event.key === 'ArrowLeft') show(current - 1);
+        if (event.key === 'ArrowRight') show(current + 1);
+      });
+      start();
+    })();
+  </script>
 </body>
 </html>

@@ -3,12 +3,7 @@ import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams, use
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowDown, ArrowRight, BookOpen, Bookmark, BookmarkCheck, CalendarDays, Camera, Check, ChevronDown, Compass, Feather, Globe2, Leaf, MapPin, Menu, Search, ShieldCheck, ShoppingBag, Sparkles, UserRound, X } from "lucide-react";
-import { FullscreenControl, LngLatBounds, Map as MapLibreMap, Marker as MapLibreMarker, NavigationControl, Popup as MapLibrePopup, TerrainControl, setWorkerUrl, type StyleSpecification } from "maplibre-gl";
-import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
-import "maplibre-gl/dist/maplibre-gl.css";
 import { api, apiAssetUrl, ApiError } from "./api";
-
-setWorkerUrl(maplibreWorkerUrl);
 
 type User = { id: string; firstName: string; lastName: string; email: string; role: "ADMIN" | "VISITOR" };
 type RecordItem = { id: string; kind: string; title: string; slug: string; summary: string; description: string; culturalSignificance?: string; historicalBackground?: string; payload?: Record<string, unknown>; publicationStatus?: string; featured?: boolean };
@@ -551,103 +546,63 @@ function GalleryPage() {
 
 function Places3DMap({ places, focusId }: { places: LocationItem[]; focusId: string }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const mapRef = useRef<MapLibreMap | null>(null);
-  const [mapReady, setMapReady] = useState(false);
-  const [mapIssue, setMapIssue] = useState("");
+  const [mapState, setMapState] = useState<"loading" | "ready" | "fallback" | "error">("loading");
+  const googleMapsApiKey = String(import.meta.env.VITE_GOOGLE_MAPS_API_KEY ?? "").trim();
+  const focused = places.find((place) => place.id === focusId) ?? places[0];
   useEffect(() => {
-    if (!containerRef.current || places.length === 0) return;
-    setMapReady(false);
-    setMapIssue("");
-    const focused = places.find((place) => place.id === focusId) ?? places[0];
-    const mapStyle: StyleSpecification = {
-      version: 8,
-      sources: {
-        "carto-basemap": {
-          type: "raster",
-          tiles: ["https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png"],
-          tileSize: 256,
-          attribution: "© OpenStreetMap contributors © CARTO"
-        }
-      },
-      layers: [{ id: "carto-basemap", type: "raster", source: "carto-basemap", minzoom: 0, maxzoom: 20 }]
+    const host = containerRef.current;
+    if (!host || focused?.latitude == null || focused?.longitude == null) return;
+    host.replaceChildren();
+    if (!googleMapsApiKey) { setMapState("fallback"); return; }
+    setMapState("loading");
+    let cancelled = false;
+    const initialize = async () => {
+      let script = document.querySelector<HTMLScriptElement>('script[data-cultureframe-google-maps="true"]');
+      if (!script) {
+        script = document.createElement("script");
+        script.dataset.cultureframeGoogleMaps = "true";
+        script.async = true;
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(googleMapsApiKey)}&v=beta&libraries=maps3d&loading=async`;
+        document.head.append(script);
+      }
+      if (!customElements.get("gmp-map-3d")) {
+        await new Promise<void>((resolve, reject) => {
+          const timeout = window.setTimeout(() => reject(new Error("Google Maps 3D timed out.")), 15_000);
+          customElements.whenDefined("gmp-map-3d").then(() => { window.clearTimeout(timeout); resolve(); }, reject);
+          script!.addEventListener("error", () => { window.clearTimeout(timeout); reject(new Error("Google Maps could not load.")); }, { once: true });
+        });
+      }
+      if (cancelled) return;
+      const map = document.createElement("gmp-map-3d");
+      map.setAttribute("center", `${focused.latitude},${focused.longitude},80`);
+      map.setAttribute("range", focusId ? "1100" : "2600");
+      map.setAttribute("tilt", "67");
+      map.setAttribute("heading", "28");
+      map.setAttribute("mode", "hybrid");
+      map.setAttribute("gesture-handling", "greedy");
+      map.setAttribute("description", `Google 3D view of ${focused.name}`);
+      map.className = "google-map-element";
+      const marker = document.createElement("gmp-marker-3d");
+      marker.setAttribute("position", `${focused.latitude},${focused.longitude},0`);
+      marker.setAttribute("altitude-mode", "RELATIVE_TO_GROUND");
+      marker.setAttribute("title", focused.name);
+      map.append(marker);
+      host.replaceChildren(map);
+      setMapState("ready");
     };
-    const map = new MapLibreMap({
-      container: containerRef.current,
-      style: mapStyle,
-      center: [focused.longitude!, focused.latitude!],
-      zoom: focusId ? 15.4 : 11.6,
-      pitch: 67,
-      bearing: -24,
-      maxPitch: 85,
-      cooperativeGestures: true,
-      canvasContextAttributes: { antialias: true }
-    });
-    mapRef.current = map;
-    const loadingTimer = window.setTimeout(() => {
-      if (!map.loaded()) setMapIssue("Live map tiles are taking too long. The illustrated Mansalay terrain remains available below.");
-    }, 12_000);
-    map.addControl(new NavigationControl({ visualizePitch: true }), "top-right");
-    map.addControl(new FullscreenControl(), "top-right");
-    map.once("idle", () => { window.clearTimeout(loadingTimer); setMapReady(true); });
-    map.on("error", (event) => {
-      const sourceId = (event as unknown as { sourceId?: string }).sourceId;
-      if (sourceId === "carto-basemap") setMapIssue("The live basemap could not load. Check your internet connection and retry.");
-    });
-    map.on("load", () => {
-      try {
-        map.addSource("mansalay-terrain", {
-          type: "raster-dem",
-          tiles: ["https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"],
-          tileSize: 256,
-          maxzoom: 15,
-          encoding: "terrarium",
-          attribution: "Elevation data © Mapzen and contributors"
-        });
-        map.setTerrain({ source: "mansalay-terrain", exaggeration: 1.75 });
-        map.addLayer({
-          id: "mansalay-hillshade",
-          source: "mansalay-terrain",
-          type: "hillshade",
-          paint: {
-            "hillshade-exaggeration": 0.42,
-            "hillshade-shadow-color": "#193e32",
-            "hillshade-highlight-color": "#f2dfad",
-            "hillshade-accent-color": "#55775f"
-          }
-        });
-        map.addControl(new TerrainControl({ source: "mansalay-terrain", exaggeration: 1.75 }), "top-right");
-      } catch { /* The basemap and markers remain usable if elevation tiles are unavailable. */ }
-    });
-    places.forEach((place, index) => {
-      const marker = document.createElement("button");
-      marker.className = "map-place-marker";
-      marker.type = "button";
-      marker.textContent = String(index + 1);
-      marker.setAttribute("aria-label", `Show ${place.name}`);
-      const popup = document.createElement("div");
-      popup.className = "map-place-popup";
-      const title = document.createElement("strong");
-      title.textContent = place.name;
-      const address = document.createElement("span");
-      address.textContent = place.address;
-      popup.append(title, address);
-      marker.addEventListener("click", () => map.flyTo({ center: [place.longitude!, place.latitude!], zoom: 15.4, pitch: 70, bearing: -28, duration: 900 }));
-      new MapLibreMarker({ element: marker }).setLngLat([place.longitude!, place.latitude!]).setPopup(new MapLibrePopup({ offset: 24 }).setDOMContent(popup)).addTo(map);
-    });
-    if (!focusId && places.length > 1) {
-      const bounds = new LngLatBounds();
-      places.forEach((place) => bounds.extend([place.longitude!, place.latitude!]));
-      map.fitBounds(bounds, { padding: 72, maxZoom: 12.5, pitch: 58, bearing: -20, duration: 0 });
-    }
-    return () => { window.clearTimeout(loadingTimer); mapRef.current = null; map.remove(); };
-  }, [focusId, places]);
-  const setPerspective = (threeDimensional: boolean) => mapRef.current?.easeTo({ pitch: threeDimensional ? 70 : 0, bearing: threeDimensional ? -28 : 0, duration: 700 });
-  return <div className={`map-frame map-frame-3d${mapIssue ? " map-has-error" : ""}`} id="mansalay-3d-map">
-    <div className="map-fallback" aria-hidden="true"/>
-    <div ref={containerRef} className="maplibre-host"/>
-    <div className="map-3d-badge"><Globe2 size={15}/>{mapReady ? "Interactive 3D terrain" : "Loading 3D terrain…"}</div>
-    <div className="map-view-switch" aria-label="Map perspective"><button type="button" onClick={() => setPerspective(true)}>3D terrain</button><button type="button" onClick={() => setPerspective(false)}>Top view</button></div>
-    {mapIssue && <div className="map-load-notice" role="status">{mapIssue}</div>}
+    initialize().catch(() => { if (!cancelled) setMapState("error"); });
+    return () => { cancelled = true; host.replaceChildren(); };
+  }, [focusId, focused?.id, focused?.latitude, focused?.longitude, focused?.name, googleMapsApiKey]);
+  const embedUrl = `https://www.google.com/maps?q=${encodeURIComponent(`${focused.latitude},${focused.longitude}`)}&z=16&output=embed&layer=s`;
+  const externalUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${focused.latitude},${focused.longitude}`)}`;
+  return <div className="map-frame map-frame-3d google-map-frame" id="mansalay-3d-map">
+    {mapState !== "ready" && <iframe className="google-map-fallback" src={embedUrl} title={`Google Maps view of ${focused.name}`} loading="eager" referrerPolicy="no-referrer-when-downgrade"/>}
+    <div ref={containerRef} className="google-map-host"/>
+    <div className="map-3d-badge"><Globe2 size={15}/>{mapState === "ready" ? "Google Maps 3D · Hybrid" : `Google Maps · ${focused.name}`}</div>
+    <a className="google-map-open" href={externalUrl} target="_blank" rel="noreferrer">Open in Google Maps <ArrowRight size={14}/></a>
+    {mapState === "loading" && <div className="map-load-notice" role="status">Loading Google Maps 3D…</div>}
+    {mapState === "fallback" && <div className="map-load-notice" role="status">Satellite preview shown. Add <code>VITE_GOOGLE_MAPS_API_KEY</code> to enable interactive Google 3D.</div>}
+    {mapState === "error" && <div className="map-load-notice" role="alert">Google 3D could not load. The satellite place preview remains available.</div>}
   </div>;
 }
 

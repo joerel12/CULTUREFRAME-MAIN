@@ -16,6 +16,7 @@
   <nav class="space-y-2 text-sm font-semibold">
     <a href="/seller/dashboard" class="block rounded-xl px-4 py-3 {{#if (eq sellerPage 'dashboard')}}bg-emerald-600{{else}}hover:bg-emerald-900{{/if}}">Dashboard</a>
     <a href="/seller/products" class="block rounded-xl px-4 py-3 {{#if (eq sellerPage 'products')}}bg-emerald-600{{else}}hover:bg-emerald-900{{/if}}">My Products</a>
+    <a href="/seller/walk-in" class="block rounded-xl px-4 py-3 {{#if (eq sellerPage 'walk-in')}}bg-emerald-600{{else}}hover:bg-emerald-900{{/if}}"><i class="fas fa-cash-register mr-2"></i>Walk-in Sale</a>
     <a href="/seller/categories" class="block rounded-xl px-4 py-3 {{#if (eq sellerPage 'categories')}}bg-emerald-600{{else}}hover:bg-emerald-900{{/if}}">Categories</a>
     <a href="/shop" class="block rounded-xl px-4 py-3 hover:bg-emerald-900">View Storefront</a>
     <a href="/logout" class="block rounded-xl px-4 py-3 text-red-200 hover:bg-red-950/50">Sign Out</a>

@@ -3,9 +3,13 @@ import path from "path";
 import { Op } from "sequelize";
 import { Product } from "../models/Product.js";
 import { ProductCategory } from "../models/ProductCategory.js";
+import { Order } from "../models/Order.js";
 import { OrderItem } from "../models/Orderitem.js";
+import { Payment } from "../models/Payment.js";
+import { sequelize } from "../models/db.js";
 
 const DEFAULT_CATEGORIES = [
+  ["crafts", "Handmade crafts, weaving, beadwork, basketry, and artisan goods"],
   ["handicraft", "Locally made crafts and traditional artisan products"],
   ["food", "Local delicacies, ingredients, and packaged food"],
   ["souvenir", "Cultural keepsakes and visitor souvenirs"],
@@ -112,6 +116,113 @@ export const dashboardPage = async (req, res, next) => {
       recentProducts: recentProducts.map(product => product.get({ plain: true }))
     });
   } catch (error) {
+    next(error);
+  }
+};
+
+export const walkInPage = async (req, res, next) => {
+  try {
+    const products = await Product.findAll({
+      where: { seller_id: req.seller.id, status: "active", stocks: { [Op.gt]: 0 } },
+      order: [["name", "ASC"]]
+    });
+    res.render("seller/walk-in", {
+      title: "Walk-in Transaction",
+      sellerPage: "walk-in",
+      products: products.map(product => product.get({ plain: true }))
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createWalkInSale = async (req, res, next) => {
+  try {
+    const quantities = req.body.quantities && typeof req.body.quantities === "object" ? req.body.quantities : {};
+    const selections = Object.entries(quantities)
+      .map(([id, quantity]) => ({ id: Number(id), quantity: Number(quantity) }))
+      .filter(item => Number.isInteger(item.id) && Number.isInteger(item.quantity) && item.quantity > 0 && item.quantity <= 100);
+    const paymentMethod = req.body.payment_method === "gcash" ? "gcash" : req.body.payment_method === "cash" ? "cash" : "";
+    const customerName = String(req.body.customer_name || "Walk-in Customer").trim().slice(0, 120) || "Walk-in Customer";
+    const referenceNumber = String(req.body.reference_number || "").trim().slice(0, 100);
+    const cashTendered = Number(req.body.cash_tendered);
+
+    if (!selections.length) {
+      req.flash("error_msg", "Select at least one available product and quantity.");
+      return res.redirect("/seller/walk-in");
+    }
+    if (!paymentMethod || (paymentMethod === "gcash" && referenceNumber.length < 6)) {
+      req.flash("error_msg", paymentMethod === "gcash" ? "Enter a valid GCash reference number." : "Select cash or GCash payment.");
+      return res.redirect("/seller/walk-in");
+    }
+
+    const result = await sequelize.transaction(async transaction => {
+      const items = [];
+      let totalCents = 0;
+      for (const selection of selections) {
+        const product = await Product.findOne({
+          where: { id: selection.id, seller_id: req.seller.id, status: "active" },
+          transaction,
+          lock: transaction.LOCK.UPDATE
+        });
+        if (!product || product.stocks < selection.quantity) {
+          throw new Error(`Insufficient stock for product ${selection.id}. Refresh and try again.`);
+        }
+        const priceCents = Math.round(Number(product.price) * 100);
+        totalCents += priceCents * selection.quantity;
+        items.push({ product, quantity: selection.quantity, priceCents });
+      }
+      const total = totalCents / 100;
+      if (paymentMethod === "cash" && (!Number.isFinite(cashTendered) || cashTendered < total)) {
+        throw new Error(`Cash tendered must be at least PHP ${total.toFixed(2)}.`);
+      }
+
+      const order = await Order.create({
+        user_id: null,
+        customer_name: customerName,
+        customer_email: `walkin+seller-${req.seller.id}@cultureframe.local`,
+        customer_phone: req.seller.phone || "Not provided",
+        shipping_address: `Collected at ${req.seller.business_name} (walk-in sale)`,
+        total_amount: total.toFixed(2),
+        status: "completed",
+        payment_status: "paid",
+        payment_method: `walk_in_${paymentMethod}`
+      }, { transaction });
+
+      for (const item of items) {
+        await OrderItem.create({
+          order_id: order.id,
+          product_id: item.product.id,
+          product_name: item.product.name,
+          quantity: item.quantity,
+          price: (item.priceCents / 100).toFixed(2)
+        }, { transaction });
+        item.product.stocks -= item.quantity;
+        await item.product.save({ transaction });
+      }
+
+      const change = paymentMethod === "cash" ? Math.max(0, cashTendered - total) : 0;
+      await Payment.create({
+        order_id: order.id,
+        customer_name: customerName,
+        customer_email: order.customer_email,
+        amount: total.toFixed(2),
+        method: `walk_in_${paymentMethod}`,
+        status: "paid",
+        reference_number: paymentMethod === "gcash" ? referenceNumber : `CASH-${order.id}`,
+        notes: JSON.stringify({ channel: "walk-in", seller_id: req.seller.id, cash_tendered: paymentMethod === "cash" ? cashTendered : null, change }),
+        paid_at: new Date()
+      }, { transaction });
+      return { orderId: order.id, total, change };
+    });
+
+    req.flash("success_msg", `Walk-in sale #${result.orderId} completed: PHP ${result.total.toFixed(2)}${result.change ? ` · Change PHP ${result.change.toFixed(2)}` : ""}.`);
+    return res.redirect("/seller/walk-in");
+  } catch (error) {
+    if (/Insufficient stock|Cash tendered/.test(error.message)) {
+      req.flash("error_msg", error.message);
+      return res.redirect("/seller/walk-in");
+    }
     next(error);
   }
 };

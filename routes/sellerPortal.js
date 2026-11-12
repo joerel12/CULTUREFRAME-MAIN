@@ -6,12 +6,14 @@ import {
   addProduct,
   addProductPage,
   categoriesPage,
+  createWalkInSale,
   dashboardPage,
   deleteCategory,
   deleteProduct,
   editProduct,
   editProductPage,
-  productsPage
+  productsPage,
+  walkInPage
 } from "../controllers/sellerPortalController.js";
 
 const router = express.Router();
@@ -19,6 +21,8 @@ const router = express.Router();
 router.use(requireSeller);
 router.get("/", (_req, res) => res.redirect("/seller/dashboard"));
 router.get("/dashboard", dashboardPage);
+router.get("/walk-in", walkInPage);
+router.post("/walk-in", createWalkInSale);
 router.get("/products", productsPage);
 router.get("/products/add", addProductPage);
 router.post("/products/add", uploadProductImage, addProduct);
