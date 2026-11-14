@@ -67,7 +67,9 @@ are not cached, and password resets invalidate existing Visitor sessions.
 
 Visitor content administrators also enter through the main CultureFrame Admin side. The legacy local login URL redirects to the main administrator handoff, keeping a single visible administrator workspace and credential path.
 
-For production, configure the same random `CULTUREFRAME_SSO_SECRET` of at least 32 characters in both applications and set `VITE_MAIN_SYSTEM_URL` to the public main-system origin. Local development uses the documented localhost defaults. To enable the interactive Google Maps 3D hybrid view, enable Maps JavaScript API for a billing-enabled Google Cloud project, restrict its browser key to the deployed visitor origin, and set `VITE_GOOGLE_MAPS_API_KEY` in `frontend/.env`. Without a key, the same page automatically shows a Google satellite/place preview and an external Google Maps link.
+For production, configure the same random `CULTUREFRAME_SSO_SECRET` of at least 32 characters in both applications and set `VITE_MAIN_SYSTEM_URL` to the public main-system origin. Local development uses the documented localhost defaults.
+
+To try the interactive Google Maps 3D view locally, obtain a [Maps Demo Key](https://developers.google.com/maps/documentation/javascript/demo-key) with a personal Google Account. This no-cost key supports 3D map rendering for prototypes and has limited quotas; it is not intended for production. Copy `frontend/.env.example` to `frontend/.env`, set `VITE_GOOGLE_MAPS_API_KEY` there, and restart the frontend. The `.env` file is ignored by Git. For production, enable Maps JavaScript API on a billing-enabled Google Cloud project and restrict its browser key to the deployed visitor origins. Without a key, the location page shows a Google satellite/place preview and an external Google Maps link.
 
 The location view maps verified administrator-entered coordinates and links each
 eligible place to its GPS-gated feedback form. Administrators set a feedback
