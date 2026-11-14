@@ -584,16 +584,18 @@ function Places3DMap({ places, focusId }: { places: LocationItem[]; focusId: str
       map.setAttribute("description", `Google 3D view of ${focused.name}`);
       map.className = "google-map-element";
       let failed = false;
-      const showFallback = () => {
-        if (cancelled || failed) return;
+      let rendered = false;
+      const showFallback = (force = false) => {
+        if (cancelled || failed || (rendered && !force)) return;
         failed = true;
         window.clearTimeout(renderTimeout);
         host.replaceChildren();
         setMapState("error");
       };
-      map.addEventListener("gmp-error", showFallback);
+      map.addEventListener("gmp-error", () => showFallback(true));
       map.addEventListener("gmp-steadychange", (event) => {
         if (cancelled || failed || !(event as Event & { isSteady?: boolean }).isSteady) return;
+        rendered = true;
         window.clearTimeout(renderTimeout);
         setMapState("ready");
       });
@@ -602,8 +604,8 @@ function Places3DMap({ places, focusId }: { places: LocationItem[]; focusId: str
       marker.setAttribute("altitude-mode", "CLAMP_TO_GROUND");
       marker.setAttribute("label", focused.name);
       map.append(marker);
+      renderTimeout = window.setTimeout(() => showFallback(), 30_000);
       host.replaceChildren(map);
-      renderTimeout = window.setTimeout(showFallback, 30_000);
     };
     initialize().catch(() => { if (!cancelled) setMapState("error"); });
     return () => { cancelled = true; window.clearTimeout(renderTimeout); host.replaceChildren(); };
