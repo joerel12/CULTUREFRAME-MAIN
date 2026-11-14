@@ -556,6 +556,7 @@ function Places3DMap({ places, focusId }: { places: LocationItem[]; focusId: str
     if (!googleMapsApiKey) { setMapState("fallback"); return; }
     setMapState("loading");
     let cancelled = false;
+    let renderTimeout: number | undefined;
     const initialize = async () => {
       let script = document.querySelector<HTMLScriptElement>('script[data-cultureframe-google-maps="true"]');
       if (!script) {
@@ -578,30 +579,44 @@ function Places3DMap({ places, focusId }: { places: LocationItem[]; focusId: str
       map.setAttribute("range", focusId ? "1100" : "2600");
       map.setAttribute("tilt", "67");
       map.setAttribute("heading", "28");
-      map.setAttribute("mode", "hybrid");
+      map.setAttribute("mode", "HYBRID");
       map.setAttribute("gesture-handling", "greedy");
       map.setAttribute("description", `Google 3D view of ${focused.name}`);
       map.className = "google-map-element";
+      let failed = false;
+      const showFallback = () => {
+        if (cancelled || failed) return;
+        failed = true;
+        window.clearTimeout(renderTimeout);
+        host.replaceChildren();
+        setMapState("error");
+      };
+      map.addEventListener("gmp-error", showFallback);
+      map.addEventListener("gmp-steadychange", (event) => {
+        if (cancelled || failed || !(event as Event & { isSteady?: boolean }).isSteady) return;
+        window.clearTimeout(renderTimeout);
+        setMapState("ready");
+      });
       const marker = document.createElement("gmp-marker-3d");
       marker.setAttribute("position", `${focused.latitude},${focused.longitude},0`);
-      marker.setAttribute("altitude-mode", "RELATIVE_TO_GROUND");
-      marker.setAttribute("title", focused.name);
+      marker.setAttribute("altitude-mode", "CLAMP_TO_GROUND");
+      marker.setAttribute("label", focused.name);
       map.append(marker);
       host.replaceChildren(map);
-      setMapState("ready");
+      renderTimeout = window.setTimeout(showFallback, 30_000);
     };
     initialize().catch(() => { if (!cancelled) setMapState("error"); });
-    return () => { cancelled = true; host.replaceChildren(); };
+    return () => { cancelled = true; window.clearTimeout(renderTimeout); host.replaceChildren(); };
   }, [focusId, focused?.id, focused?.latitude, focused?.longitude, focused?.name, googleMapsApiKey]);
   const embedUrl = `https://www.google.com/maps?q=${encodeURIComponent(`${focused.latitude},${focused.longitude}`)}&z=16&output=embed&layer=s`;
   const externalUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${focused.latitude},${focused.longitude}`)}`;
   return <div className="map-frame map-frame-3d google-map-frame" id="mansalay-3d-map">
     {mapState !== "ready" && <iframe className="google-map-fallback" src={embedUrl} title={`Google Maps view of ${focused.name}`} loading="eager" referrerPolicy="no-referrer-when-downgrade"/>}
-    <div ref={containerRef} className="google-map-host"/>
+    <div ref={containerRef} className={`google-map-host${mapState === "ready" ? " is-ready" : ""}`}/>
     <div className="map-3d-badge"><Globe2 size={15}/>{mapState === "ready" ? "Google Maps 3D · Hybrid" : `Google Maps · ${focused.name}`}</div>
     <a className="google-map-open" href={externalUrl} target="_blank" rel="noreferrer">Open in Google Maps <ArrowRight size={14}/></a>
     {mapState === "loading" && <div className="map-load-notice" role="status">Loading Google Maps 3D…</div>}
-    {mapState === "fallback" && <div className="map-load-notice" role="status">Satellite preview shown. Add <code>VITE_GOOGLE_MAPS_API_KEY</code> to enable interactive Google 3D.</div>}
+    {mapState === "fallback" && <div className="map-load-notice" role="status">Explore the place in the satellite map. Interactive 3D is temporarily unavailable.</div>}
     {mapState === "error" && <div className="map-load-notice" role="alert">Google 3D could not load. The satellite place preview remains available.</div>}
   </div>;
 }
