@@ -67,3 +67,40 @@
 /* Google Maps 3D loading and fallback presentation */
 .map-load-notice{position:absolute;z-index:4;left:50%;bottom:17px;max-width:min(620px,calc(100% - 32px));transform:translateX(-50%);padding:11px 15px;border:1px solid #ffffff52;border-radius:12px;background:#0b3028e8;color:#fff;font-size:10px;line-height:1.5;text-align:center;box-shadow:0 10px 28px #09251d52;backdrop-filter:blur(10px)}.map-load-notice code{font-weight:700;color:#f1c66f}
 @media(max-width:600px){.map-3d-badge{left:12px;right:auto}.google-map-open{right:12px;bottom:12px}.map-load-notice{bottom:58px}}
+
+/* Shared landing and signed-in visitor home */
+.account-home{padding-top:0;padding-left:clamp(22px,7vw,110px);padding-right:clamp(22px,7vw,110px)}
+.account-home .account-workspace-hero{position:relative;isolation:isolate;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:0 36px;min-height:clamp(650px,88svh,820px);max-width:none;margin:0 calc(-1 * clamp(22px,7vw,110px));padding:145px clamp(24px,11vw,168px) 112px;border-radius:0;background:linear-gradient(90deg,rgba(7,34,27,.96) 0%,rgba(12,52,42,.79) 48%,rgba(10,43,34,.35) 100%),linear-gradient(0deg,rgba(7,31,25,.60),transparent 58%),url("https://thumb.wikimedia.org/wikipedia/commons/thumb/9/96/Buktot_Beach%2C_Mansalay_in_the_afternoon_%28The_Wandering_Angel%29_-_Flickr.jpg/1280px-Buktot_Beach%2C_Mansalay_in_the_afternoon_%28The_Wandering_Angel%29_-_Flickr.jpg") center 58%/cover no-repeat;box-shadow:none}
+.account-home .account-workspace-hero>div:first-child{align-self:end;max-width:690px}
+.account-home .account-workspace-hero h1{font-size:clamp(48px,6.1vw,82px);line-height:1.06;letter-spacing:-2px}
+.account-home .account-workspace-hero>div>p{max-width:530px;font-size:16px;line-height:1.8;color:#e2e9e1}
+.account-home .account-hero-actions{grid-column:1;grid-row:2;align-self:start;margin-top:8px}
+.account-home .account-identity{grid-column:2;grid-row:1/3;align-self:center;max-width:330px;background:#082c23ba;border-color:#ffffff57;backdrop-filter:blur(16px);box-shadow:0 18px 42px #061d174d}
+.account-home .hero-photo-credit{right:clamp(22px,5.4vw,82px);bottom:24px}
+.account-home .discover-highlights-section{margin:0 calc(-1 * clamp(22px,7vw,110px))}
+.account-home .discover-highlights-section+.account-workspace-section{padding-top:70px}
+.discover-highlights-section{background:#f9f7f1;padding-top:95px;padding-bottom:100px}
+.discover-highlights-heading{max-width:1400px;margin-left:auto;margin-right:auto}
+.discover-carousel-controls{display:flex;gap:9px;flex:0 0 auto}
+.discover-carousel-controls button{display:grid;place-items:center;width:46px;height:46px;border:1px solid #bbd0c0;border-radius:50%;background:#fff;color:#174735;cursor:pointer;transition:background .2s,transform .2s}
+.discover-carousel-controls button:last-child{background:#174735;color:#fff;border-color:#174735}
+.discover-carousel-controls button:hover{transform:translateY(-2px);background:#d5a54a;color:#173d32;border-color:#d5a54a}
+.discover-carousel{position:relative;height:clamp(430px,48vw,570px);max-width:1400px;margin:0 auto;overflow:hidden;border-radius:28px;background:#123e33;box-shadow:0 25px 55px #103d2f30;outline-offset:5px}
+.discover-carousel-slide{position:absolute;inset:0;animation:discover-slide-in .5s ease both}
+.discover-carousel-slide>img{width:100%;height:100%;object-fit:cover}
+.discover-carousel-slide:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,#092b24ef 0%,#0b3026c7 44%,#0d342947 100%),linear-gradient(0deg,#071d19ab,transparent 55%)}
+.discover-carousel-content{position:absolute;z-index:1;left:clamp(25px,5vw,72px);bottom:clamp(47px,6vw,78px);width:min(650px,calc(100% - 70px));color:#fff}
+.discover-carousel-label{display:inline-block;padding:8px 12px;border:1px solid #ffffff75;border-radius:99px;background:#ffffff19;font-size:10px;font-weight:700;letter-spacing:1.3px;text-transform:uppercase;backdrop-filter:blur(8px)}
+.discover-carousel-content h3{max-width:670px;margin:16px 0 12px;font:500 clamp(39px,5vw,65px)/1.08 "Playfair Display",serif;letter-spacing:-1.2px}
+.discover-carousel-content p{max-width:560px;margin:0 0 22px;color:#e0ede3;font-size:14px;line-height:1.75;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.discover-carousel-credit{position:absolute;z-index:2;top:19px;right:22px;max-width:300px;padding:7px 10px;border-radius:99px;background:#082b22a8;color:#e3eae4;font-size:9px;backdrop-filter:blur(8px)}
+.discover-carousel-credit a{text-decoration:underline;text-underline-offset:2px}
+.discover-carousel-pagination{position:absolute;z-index:2;right:28px;bottom:25px;display:flex;align-items:center;gap:18px;color:white;font-size:10px;font-weight:700;letter-spacing:1px}
+.discover-carousel-pagination>div{display:flex;gap:7px;align-items:center}
+.discover-carousel-pagination button{width:10px;height:10px;padding:0;border:0;border-radius:99px;background:#ffffffa8;cursor:pointer;transition:width .2s,background .2s}
+.discover-carousel-pagination button.active{width:31px;background:#d5a54a}
+@keyframes discover-slide-in{from{opacity:.25;transform:scale(1.025)}to{opacity:1;transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.discover-carousel-slide{animation:none}}
+@media(max-width:1050px){.account-home .account-workspace-hero{grid-template-columns:1fr;gap:18px}.account-home .account-workspace-hero>div:first-child{align-self:end}.account-home .account-hero-actions{grid-column:1;grid-row:auto}.account-home .account-identity{grid-column:1;grid-row:auto;justify-self:start;align-self:start}}
+@media(max-width:760px){.account-home .account-workspace-hero{min-height:730px;margin:0 -22px;padding:135px 24px 105px;align-content:center}.account-home .account-workspace-hero h1{font-size:clamp(45px,11vw,60px)}.account-home .account-workspace-hero>div>p{font-size:13px}.account-home .account-hero-actions{gap:9px}.account-home .account-hero-actions .button{min-height:43px}.account-home .account-identity{width:100%;max-width:390px}.account-home .hero-photo-credit{bottom:16px;left:24px;right:24px}.account-home .discover-highlights-section{margin:0 -22px}.account-home .discover-highlights-section+.account-workspace-section{padding-top:50px}.discover-highlights-section{padding:72px 22px 80px}.discover-highlights-heading{align-items:end;flex-direction:row;gap:10px}.discover-highlights-heading h2{font-size:clamp(31px,8vw,43px)}.discover-carousel-controls button{width:40px;height:40px}.discover-carousel{height:530px;border-radius:20px}.discover-carousel-slide:after{background:linear-gradient(0deg,#092b24f5 0%,#0b3026d9 48%,#0d34292d 100%)}.discover-carousel-content{left:22px;bottom:65px;width:calc(100% - 44px)}.discover-carousel-content h3{font-size:clamp(37px,10vw,49px)}.discover-carousel-content p{font-size:12px;line-height:1.6}.discover-carousel-credit{top:12px;right:12px;max-width:calc(100% - 24px)}.discover-carousel-pagination{left:23px;right:23px;bottom:21px;justify-content:space-between}}
+@media(max-width:760px){.account-home .account-workspace-hero,.account-home .discover-highlights-section{margin-left:calc(-1 * clamp(22px,7vw,110px));margin-right:calc(-1 * clamp(22px,7vw,110px))}}

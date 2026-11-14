@@ -1,14 +1,16 @@
-import { FormEvent, ReactNode, useEffect, useRef, useState } from "react";
+import { FormEvent, KeyboardEvent, ReactNode, useEffect, useRef, useState } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowDown, ArrowRight, BookOpen, Bookmark, BookmarkCheck, CalendarDays, Camera, Check, ChevronDown, Compass, Feather, Globe2, Leaf, MapPin, Menu, Search, ShieldCheck, ShoppingBag, Sparkles, UserRound, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, BookOpen, Bookmark, BookmarkCheck, CalendarDays, Camera, Check, ChevronDown, Compass, Feather, Globe2, Leaf, MapPin, Menu, Search, ShieldCheck, ShoppingBag, Sparkles, UserRound, X } from "lucide-react";
 import { api, apiAssetUrl, ApiError } from "./api";
 
 type User = { id: string; firstName: string; lastName: string; email: string; role: "ADMIN" | "VISITOR" };
 type RecordItem = { id: string; kind: string; title: string; slug: string; summary: string; description: string; culturalSignificance?: string; historicalBackground?: string; payload?: Record<string, unknown>; publicationStatus?: string; featured?: boolean };
 type ListResult = { items: RecordItem[]; total?: number; pages?: number; page?: number };
 type LocationItem = { id: string; name: string; category: string; address: string; description: string; sourceUrl: string | null; latitude: number | null; longitude: number | null; verified: boolean; feedbackRadiusMeters: number };
+type HomeData = { content: Record<string, string>; featured: RecordItem[]; upcoming: RecordItem[]; destinations: LocationItem[] };
+type DiscoverHighlight = { id: string; title: string; label: string; description: string; image: string; alt: string; to: string; credit?: string; sourceUrl?: string };
 type GeofenceResult = {
   allowed: boolean;
   verificationToken?: string;
@@ -215,6 +217,42 @@ const culturePromotions = [
   }
 ];
 
+function highlightsForHome(data?: HomeData): DiscoverHighlight[] {
+  const records = [...(data?.upcoming ?? []), ...(data?.featured ?? [])].map((item) => {
+    const image = recordImage(item);
+    const photo = Object.values(destinationPhotos).find((entry) => entry.image === image);
+    const segment = Object.keys(kindForPath).find((key) => kindForPath[key] === item.kind) ?? "heritage";
+    return {
+      id: `record-${item.id}`, title: item.title, label: fmtKind(item.kind),
+      description: item.summary || item.description, image, alt: item.title,
+      to: `/${segment}/${item.slug}`, credit: photo?.credit, sourceUrl: photo?.sourceUrl
+    };
+  });
+  const editorial = culturePromotions.map((feature) => ({
+    id: `story-${feature.title}`, title: feature.title, label: feature.eyebrow,
+    description: feature.copy, image: feature.image, alt: feature.alt,
+    to: feature.to, credit: feature.credit
+  }));
+  const destinations: DiscoverHighlight[] = (data?.destinations ?? []).flatMap((place) => {
+    const photo = destinationPhotos[place.name.toLowerCase()];
+    if (!photo) return [];
+    return [{
+      id: `place-${place.id}`, title: place.name, label: place.category,
+      description: place.description, image: photo.image, alt: photo.alt,
+      to: `/locations?focus=${encodeURIComponent(place.id)}`, credit: photo.credit, sourceUrl: photo.sourceUrl
+    }];
+  });
+  const images = new Set<string>();
+  const titles = new Set<string>();
+  return [...records, ...editorial, ...destinations].filter((item) => {
+    const title = item.title.toLowerCase();
+    if (images.has(item.image) || titles.has(title)) return false;
+    images.add(item.image);
+    titles.add(title);
+    return true;
+  }).slice(0, 6);
+}
+
 function App() {
   const [user, setUser] = useState<User | null>(null);
   const [ready, setReady] = useState(false);
@@ -314,8 +352,45 @@ function SavePlaceButton({ place, saved, busy, onToggle }: { place: LocationItem
   </button>;
 }
 
+function DiscoverCarousel({ data }: { data?: HomeData }) {
+  const slides = highlightsForHome(data);
+  const [active, setActive] = useState(0);
+  const [paused, setPaused] = useState(false);
+  useEffect(() => {
+    if (paused || slides.length < 2 || (typeof window.matchMedia === "function" && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
+    const timer = window.setInterval(() => setActive((current) => (current + 1) % slides.length), 6000);
+    return () => window.clearInterval(timer);
+  }, [paused, slides.length]);
+  if (!slides.length) return null;
+  const index = active % slides.length;
+  const slide = slides[index];
+  const move = (step: number) => setActive((current) => (current + step + slides.length) % slides.length);
+  const onKeys = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      move(event.key === "ArrowRight" ? 1 : -1);
+    }
+  };
+  return <section className="section discover-highlights-section" id="discover-highlights" aria-labelledby="discover-highlights-title">
+    <div className="section-heading discover-highlights-heading">
+      <div><div className="section-kicker">Discover highlights</div><h2 id="discover-highlights-title">Stories, celebrations,<br/><em>and places</em></h2></div>
+      <div className="discover-carousel-controls"><button type="button" onClick={() => move(-1)} aria-label="Previous highlight"><ArrowLeft size={18}/></button><button type="button" onClick={() => move(1)} aria-label="Next highlight"><ArrowRight size={18}/></button></div>
+    </div>
+    <div className="discover-carousel" role="region" aria-roledescription="carousel" aria-label="Discover Mansalay highlights" tabIndex={0} onKeyDown={onKeys}
+      onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocusCapture={() => setPaused(true)} onBlurCapture={(event) => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setPaused(false); }}>
+      <article className="discover-carousel-slide" key={slide.id} role="group" aria-roledescription="slide" aria-label={`${index + 1} of ${slides.length}: ${slide.title}`}>
+        <img src={slide.image} alt={slide.alt} loading="eager" decoding="async" onError={(event) => { event.currentTarget.src = "/images/placeholders/record-placeholder.svg"; }}/>
+        <div className="discover-carousel-content"><span className="discover-carousel-label">{slide.label}</span><h3>{slide.title}</h3><p>{slide.description}</p><Link className="button button-gold" to={slide.to}>Explore this story <ArrowRight size={16}/></Link></div>
+        {slide.credit && <div className="discover-carousel-credit">Image: {slide.sourceUrl ? <a href={slide.sourceUrl} target="_blank" rel="noreferrer">{slide.credit}</a> : slide.credit}</div>}
+      </article>
+      <div className="discover-carousel-pagination"><span>{String(index + 1).padStart(2, "0")} / {String(slides.length).padStart(2, "0")}</span><div>{slides.map((item, itemIndex) => <button type="button" key={item.id} aria-label={`Show ${item.title}`} aria-pressed={itemIndex === index} className={itemIndex === index ? "active" : ""} onClick={() => setActive(itemIndex)}/>)}</div></div>
+    </div>
+  </section>;
+}
+
 function AccountPage({ user }: { user: User | null }) {
   const saved = useSavedLocations(user);
+  const { data: homeData } = useQuery({ queryKey: ["home"], queryFn: () => api<HomeData>("/home"), enabled: user?.role === "VISITOR" });
   if (!user || user.role !== "VISITOR") {
     return <main className="page-shell account-workspace-shell"><section className="account-required glass"><span className="account-required-icon"><UserRound/></span><div className="section-kicker">One Customer and Visitor workspace</div><h1>Use one CultureFrame account for everything.</h1><p>Sign in once to explore Mansalay, shop local products, manage your cart and wishlist, track orders, share moments, and submit GPS-verified ratings.</p><div className="account-required-actions"><a className="button button-gold" href={customerAccessUrl("/account")}>Continue with CultureFrame <ArrowRight size={16}/></a><a className="button button-dark" href={mainSystemUrl("/register")}>Create one account</a></div></section></main>;
   }
@@ -333,11 +408,15 @@ function AccountPage({ user }: { user: User | null }) {
     { title: "Rate a visited place", copy: "Submit feedback only after GPS confirms that you are on site.", to: "/visitor/feedback", icon: ShieldCheck },
   ];
 
-  return <main className="page-shell account-workspace-shell">
+  return <main className="page-shell account-workspace-shell account-home">
     <section className="account-workspace-hero">
       <div><span className="eyebrow"><span/> One account · one workspace</span><h1>Welcome, {user.firstName}.</h1><p>Buy from local makers and explore Mansalay as a visitor without changing accounts or signing in again.</p></div>
+      <div className="account-hero-actions button-row"><Link className="button button-gold" to="/locations">Discover Mansalay <ArrowRight size={16}/></Link><a className="button button-glass" href={mainSystemUrl("/shop")}><ShoppingBag size={16}/> Shop local products</a></div>
       <div className="account-identity"><span className="account-avatar">{user.firstName.slice(0, 1).toUpperCase()}</span><div><strong>{user.firstName} {user.lastName}</strong><small>{user.email}</small></div><a href={mainSystemUrl("/customer/profile/edit")}>Edit profile</a></div>
+      <div className="hero-photo-credit">Buktot Beach photo: <a href={buktotPhoto.sourceUrl} target="_blank" rel="noreferrer">{buktotPhoto.credit}</a> · <a href={buktotPhoto.licenseUrl} target="_blank" rel="noreferrer">{buktotPhoto.license}</a> · cropped for layout</div>
     </section>
+
+    <DiscoverCarousel data={homeData}/>
 
     <section className="account-workspace-section">
       <div className="account-section-heading"><div><span>Shop and manage purchases</span><h2>Your marketplace</h2></div><a href={mainSystemUrl("/shop")}>Browse all products <ArrowRight size={15}/></a></div>
@@ -362,7 +441,7 @@ function AccountPage({ user }: { user: User | null }) {
 }
 
 function Home({ user }: { user: User | null }) {
-  const { data, error } = useQuery({ queryKey: ["home"], queryFn: () => api<{ content: Record<string, string>; featured: RecordItem[]; upcoming: RecordItem[]; destinations: LocationItem[] }>("/home") });
+  const { data, error } = useQuery({ queryKey: ["home"], queryFn: () => api<HomeData>("/home") });
   const saved = useSavedLocations(user);
   return <main>
     <section className="hero">
@@ -375,9 +454,10 @@ function Home({ user }: { user: User | null }) {
         <div className="button-row"><Link className="button button-gold" to="/heritage">Explore heritage <ArrowRight size={17}/></Link><a className="button button-glass" href={mainSystemUrl("/shop")}><ShoppingBag size={16}/> Shop local products</a></div>
       </motion.div>
       <div className="hero-photo-credit">Buktot Beach photo: <a href={buktotPhoto.sourceUrl} target="_blank" rel="noreferrer">{buktotPhoto.credit}</a> <span>·</span> <a href={buktotPhoto.licenseUrl} target="_blank" rel="noreferrer">{buktotPhoto.license}</a> <span>·</span> cropped for layout</div>
-      <div className="hero-bottom"><span>13°31′ N&nbsp; · &nbsp;121°26′ E</span><a href="#intro">Scroll to explore <ArrowDown size={14}/></a></div>
+      <div className="hero-bottom"><span>13°31′ N&nbsp; · &nbsp;121°26′ E</span><a href="#discover-highlights">Scroll to explore <ArrowDown size={14}/></a></div>
     </section>
     {error && <div className="home-api-error"><ErrorPanel message={(error as Error).message}/></div>}
+    <DiscoverCarousel data={data}/>
     <section className="section intro-section" id="intro">
       <div className="section-kicker">A place with stories</div><div className="intro-grid">
         <h2>Rooted in place.<br/><em>Shared with the world.</em></h2>
@@ -386,7 +466,7 @@ function Home({ user }: { user: User | null }) {
     </section>
     <section className="section unified-platform-section">
       <div className="unified-platform-panel">
-        <div className="unified-platform-copy"><div className="section-kicker">One CultureFrame customer account</div><h2>Explore, rate, and shop<br/><em>without another visitor login.</em></h2><p>Your main CultureFrame account now carries into the visitor experience. Use the same account for your profile, cart, orders, wishlist, and verified on-site feedback.</p><a className="button button-gold" href={customerAccessUrl("/visitor/feedback")}>Connect my account <ArrowRight size={16}/></a></div>
+        <div className="unified-platform-copy"><div className="section-kicker">One CultureFrame customer account</div><h2>Explore, rate, and shop<br/><em>without another visitor login.</em></h2><p>Your main CultureFrame account now carries into the visitor experience. Use the same account for your profile, cart, orders, wishlist, and verified on-site feedback.</p>{user?.role === "VISITOR" ? <Link className="button button-gold" to="/account">Open my workspace <ArrowRight size={16}/></Link> : <a className="button button-gold" href={customerAccessUrl("/visitor/feedback")}>Connect my account <ArrowRight size={16}/></a>}</div>
         <div className="unified-platform-actions">
           <Link to="/locations"><span><Compass/></span><div><strong>Plan a visit</strong><small>Explore verified Mansalay destinations</small></div><ArrowRight/></Link>
           <a href={mainSystemUrl("/shop")}><span><ShoppingBag/></span><div><strong>Shop local products</strong><small>Use your main cart, wishlist, and orders</small></div><ArrowRight/></a>
