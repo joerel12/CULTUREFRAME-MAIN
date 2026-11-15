@@ -25,8 +25,14 @@ deploy the latest commit for existing web services that did not redeploy.
    root `render.yaml` on `main`. Review that all five resources have the **Free**
    plan before applying it.
 3. When Render prompts for `ADMIN_INITIAL_PASSWORD`, enter a new password with
-   12–128 characters, uppercase and lowercase letters, a number, and a symbol.
+   12–72 UTF-8 bytes, uppercase and lowercase letters, a number, and a symbol.
    Render shares it with the payment and CultureMetrics bootstrap accounts.
+   If you later correct this secret on the main service, run **Manual sync** on
+   the Blueprint to copy it to the other services. Their next deploy updates a
+   payment account only if its first password change is still required, and a
+   CultureMetrics bootstrap account only if it has never logged in. An
+   administrator can also open CultureMetrics from the main Admin side through
+   the account handoff.
 4. When Render prompts for `VITE_GOOGLE_MAPS_API_KEY`, enter the Maps JavaScript
    API key locally in Render. Allow the visitor service's HTTPS URL in its
    Google Cloud HTTP referrer restrictions. A missing key leaves the satellite

@@ -12,8 +12,20 @@ export async function seed({ samples = true } = {}) {
   const password = process.env.ADMIN_INITIAL_PASSWORD;
   if (!email || !z.string().email().safeParse(email).success) throw new Error('Set a valid ADMIN_EMAIL before provisioning.');
   const existing = await db.adminUser.findUnique({ where: { email } });
-  if (!existing && (!password || password.length < 12 || Buffer.byteLength(password, 'utf8') > 72)) throw new Error('Set ADMIN_INITIAL_PASSWORD (12–72 bytes) in the private environment before initial provisioning.');
+  const validBootstrapPassword = password && password.length >= 12 && Buffer.byteLength(password, 'utf8') <= 72;
+  if (!existing && !validBootstrapPassword) throw new Error('Set ADMIN_INITIAL_PASSWORD (12–72 bytes) in the private environment before initial provisioning.');
   if (!existing) await db.adminUser.create({ data: { email, passwordHash: await bcrypt.hash(password, 12), mustChangePassword: true } });
+  let bootstrapPasswordUpdated = false;
+  if (existing?.mustChangePassword && validBootstrapPassword && !await bcrypt.compare(password, existing.passwordHash)) {
+    await db.$transaction([
+      db.adminUser.update({ where: { id: existing.id }, data: {
+        passwordHash: await bcrypt.hash(password, 12), failedLogins: 0, lockedUntil: null,
+        resetTokenHash: null, resetExpiresAt: null
+      } }),
+      db.adminSession.deleteMany({ where: { adminId: existing.id } })
+    ]);
+    bootstrapPasswordUpdated = true;
+  }
   for (const method of [ { id: 'bank-transfer', name: 'Bank transfer', kind: 'MANUAL', enabled: true }, { id: 'gcash-manual', name: 'GCash · manual verification', kind: 'MANUAL', enabled: true }, { id: 'maya-manual', name: 'Maya · manual verification', kind: 'MANUAL', enabled: true }, { id: 'simulator', name: 'Development simulator', kind: 'SIMULATOR', enabled: config.simulator } ]) await db.paymentMethod.upsert({ where: { id: method.id }, create: method, update: {} });
   for (const [key, value] of Object.entries({ organizationName: 'CultureFrame', contactEmail: email, commissionBps: 500, refundDays: 14, notificationsEnabled: true })) await db.systemSetting.upsert({ where: { key }, create: { key, value: JSON.stringify(value) }, update: {} });
   if (samples && config.simulator && !await db.order.count()) {
@@ -33,9 +45,9 @@ export async function seed({ samples = true } = {}) {
       }
     }
   }
-  return { provisioned: !existing };
+  return { provisioned: !existing, bootstrapPasswordUpdated };
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
-  try { const result = await seed(); console.log(`Database ready. Administrator ${result.provisioned ? 'provisioned' : 'already exists; password unchanged'}. ${config.simulator ? 'Simulator records are clearly labeled.' : 'No sample data created.'}`); }
+  try { const result = await seed(); console.log(`Database ready. Administrator ${result.provisioned ? 'provisioned' : result.bootstrapPasswordUpdated ? 'bootstrap password synchronized' : 'already exists; password unchanged'}. ${config.simulator ? 'Simulator records are clearly labeled.' : 'No sample data created.'}`); }
   finally { await db.$disconnect(); }
 }

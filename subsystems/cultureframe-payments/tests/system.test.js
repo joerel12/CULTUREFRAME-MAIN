@@ -31,6 +31,22 @@ describe('CultureFrame full-stack acceptance and security', { concurrency: false
     await seed({ samples: false }); assert.equal(await db.adminUser.count(), 1);
     const admin = await db.adminUser.findUnique({ where: { email } }); assert.notEqual(admin.passwordHash, password); assert(await bcrypt.compare(password, admin.passwordHash));
   });
+  it('updates an unused bootstrap password when the shared secret changes', async () => {
+    const original = process.env.ADMIN_INITIAL_PASSWORD;
+    const replacement = 'ReplacementTestPassword2026!';
+    try {
+      process.env.ADMIN_INITIAL_PASSWORD = replacement;
+      assert.equal((await seed({ samples: false })).bootstrapPasswordUpdated, true);
+      let admin = await db.adminUser.findUnique({ where: { email } });
+      assert(await bcrypt.compare(replacement, admin.passwordHash));
+      assert.equal((await seed({ samples: false })).bootstrapPasswordUpdated, false);
+    } finally {
+      process.env.ADMIN_INITIAL_PASSWORD = original;
+      await seed({ samples: false });
+    }
+    const restored = await db.adminUser.findUnique({ where: { email } });
+    assert(await bcrypt.compare(original, restored.passwordHash));
+  });
   it('serves public landing and SPA routes without exposing credentials', async () => {
     const response = await request(app).get('/').expect(200); assert.match(response.text, /CultureFrame/); assert(!response.text.includes(process.env.ADMIN_INITIAL_PASSWORD));
     await request(app).get('/login').expect(200); await request(app).get('/privacy').expect(200);
@@ -50,6 +66,13 @@ describe('CultureFrame full-stack acceptance and security', { concurrency: false
     await post('/auth/change-password', { currentPassword: password, password: 'weak' }).expect(400);
     password = 'ChangedTestPassword2026!';
     const changed = await post('/auth/change-password', { currentPassword: process.env.ADMIN_INITIAL_PASSWORD, password }).expect(200); csrf = changed.body.csrfToken; assert.equal(changed.body.user.mustChangePassword, false);
+    const original = process.env.ADMIN_INITIAL_PASSWORD;
+    try {
+      process.env.ADMIN_INITIAL_PASSWORD = 'AnotherBootstrapPassword2026!';
+      assert.equal((await seed({ samples: false })).bootstrapPasswordUpdated, false);
+    } finally { process.env.ADMIN_INITIAL_PASSWORD = original; }
+    const admin = await db.adminUser.findUnique({ where: { email } });
+    assert(await bcrypt.compare(password, admin.passwordHash));
     await get('/dashboard').expect(200);
   });
   it('filters and paginates transaction history with totals for all matching records', async () => {

@@ -40,7 +40,12 @@ async function bootstrap() {
 
     const existing = await Admin.findOne({ where: { username } });
     if (existing) {
-      console.log(`[Bootstrap] Admin "${username}" already exists. No changes made.`);
+      if (existing.role === 'superadmin' && existing.lastLoginAt === null && !await bcrypt.compare(password, existing.passwordHash)) {
+        await existing.update({ passwordHash: await bcrypt.hash(password, 12) });
+        console.log(`[Bootstrap] Unused administrator "${username}" bootstrap password synchronized.`);
+      } else {
+        console.log(`[Bootstrap] Admin "${username}" already exists. No changes made.`);
+      }
       process.exit(0);
     }
 
