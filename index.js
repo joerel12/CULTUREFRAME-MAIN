@@ -34,6 +34,9 @@ import { fileURLToPath } from "url";
 import { dirname } from "path";
 import { createRequire } from 'module';
 import { sameOriginWriteProtection, securityHeaders } from "./middleware/security.js";
+import { DatabaseSessionStore } from "./middleware/databaseSessionStore.js";
+import { StoredFile } from "./models/StoredFile.js";
+import { sequelize } from "./models/db.js";
 const require = createRequire(import.meta.url);
 try { require('dotenv').config(); } catch(e) {}
 
@@ -61,9 +64,24 @@ app.set('trust proxy', 1);
 app.use(securityHeaders);
 app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ extended: true, limit: "100kb", parameterLimit: 100 }));
+app.get('/health', async (_req, res) => {
+  try { await sequelize.authenticate(); res.json({ status: 'ok' }); }
+  catch { res.status(503).json({ status: 'unavailable' }); }
+});
+app.get(/^\/uploads\/(.+)$/, async (req, res, next) => {
+  if (process.env.NODE_ENV !== "production") return next();
+  try {
+    const file = await StoredFile.findByPk(`uploads/${req.params[0]}`);
+    if (!file) return next();
+    res.setHeader("Content-Type", file.mimeType);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    return res.send(file.data);
+  } catch (error) { next(error); }
+});
 app.use(express.static(path.join(process.cwd(), "public"), { dotfiles: "deny", maxAge: "1h" }));
 
 app.use(session({
+  ...(process.env.NODE_ENV === 'production' ? { store: new DatabaseSessionStore() } : {}),
   secret: sessionSecret,
   resave: false,
   saveUninitialized: false,

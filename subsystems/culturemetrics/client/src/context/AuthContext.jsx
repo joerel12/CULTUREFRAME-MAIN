@@ -27,6 +27,12 @@ export function AuthProvider({ children }) {
     return data;
   }, []);
 
+  const connectCultureFrame = useCallback(async (token) => {
+    const data = await authService.connectCultureFrame(token);
+    setAdmin(data.admin);
+    return data;
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await authService.logout();
@@ -36,7 +42,7 @@ export function AuthProvider({ children }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ admin, loading, login, logout, isAuthenticated: !!admin }}>
+    <AuthContext.Provider value={{ admin, loading, login, connectCultureFrame, logout, isAuthenticated: !!admin }}>
       {children}
     </AuthContext.Provider>
   );

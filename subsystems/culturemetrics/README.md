@@ -7,7 +7,7 @@ Mindoro State University — BSIT Capstone Project
 
 ## Overview
 
-CultureMetrics is a standalone analytics dashboard that connects to CultureFrame (https://jennycultureframe-1.onrender.com) through authenticated REST APIs to display sales, product, order, customer, event, and destination analytics.
+CultureMetrics is the admin-only analytics workspace for CultureFrame. Administrators enter through the main CultureFrame Admin side using a short-lived signed handoff; the dashboard connects through authenticated REST APIs to display sales, product, order, customer, event, and destination analytics.
 
 - **Frontend:** React + Vite + Tailwind CSS + Recharts
 - **Backend:** Node.js + Express + PostgreSQL + Sequelize

@@ -16,9 +16,9 @@ if (!DATABASE_URL) {
   process.exit(1);
 }
 
-const requiresSsl = process.env.DATABASE_SSL === 'true' ||
+const requiresSsl = process.env.DATABASE_SSL === 'false' ? false : (process.env.DATABASE_SSL === 'true' ||
   process.env.NODE_ENV === 'production' ||
-  /[?&]sslmode=(?:require|verify-ca|verify-full)(?:&|$)/i.test(DATABASE_URL);
+  /[?&]sslmode=(?:require|verify-ca|verify-full)(?:&|$)/i.test(DATABASE_URL));
 
 export const sequelize = new Sequelize(DATABASE_URL, {
   dialect: "postgres",

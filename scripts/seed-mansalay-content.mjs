@@ -10,8 +10,9 @@ import { Event } from "../models/Event.js";
 
 const databaseUrl = process.env.DATABASE_URL || "";
 const isLocalDatabase = databaseUrl.includes("localhost") || databaseUrl.includes("127.0.0.1");
-if (process.env.NODE_ENV === "production" || !isLocalDatabase) {
-  throw new Error("Mansalay showcase data may only be seeded into a local, non-production database.");
+const productionShowcase = process.env.NODE_ENV === "production" && process.env.ENABLE_SHOWCASE_SEED === "true";
+if (!productionShowcase && (process.env.NODE_ENV === "production" || !isLocalDatabase)) {
+  throw new Error("Mansalay showcase data requires a local database or explicit production opt-in.");
 }
 
 function nextAnnualDate(monthIndex, day) {
@@ -210,20 +211,20 @@ try {
       commission_rate: 8,
       notes: "Local showcase catalog. Confirm artisan identity, consent, attribution and inventory before public deployment."
     });
-  } else if (seller.user_id !== sellerUser.id || seller.status !== "active") {
+  } else if (!productionShowcase && (seller.user_id !== sellerUser.id || seller.status !== "active")) {
     await seller.update({ user_id: sellerUser.id, status: "active" });
   }
 
   const heritageByTitle = {};
   for (const data of heritageRecords) {
     const [record] = await Heritage.findOrCreate({ where: { title: data.title }, defaults: data });
-    await record.update(data);
+    if (!productionShowcase) await record.update(data);
     heritageByTitle[data.title] = record;
   }
 
   for (const data of eventRecords) {
     const [record] = await Event.findOrCreate({ where: { title: data.title }, defaults: data });
-    await record.update(data);
+    if (!productionShowcase) await record.update(data);
   }
 
   for (const name of [...new Set(catalog.map((product) => product.category))]) {
@@ -248,7 +249,7 @@ try {
       heritage_id: heritageByTitle[item.heritage]?.id ?? null
     };
     const [product] = await Product.findOrCreate({ where: { name: item.name }, defaults: data });
-    await product.update(data);
+    if (!productionShowcase) await product.update(data);
   }
 
   const [products, events, heritage] = await Promise.all([

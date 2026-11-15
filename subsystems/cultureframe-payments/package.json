@@ -14,6 +14,8 @@
     "db:setup": "node scripts/ensure-sqlite.mjs && prisma generate --schema prisma/schema.prisma && prisma migrate deploy --schema prisma/schema.prisma && node server/seed.js",
     "db:mysql:generate": "prisma generate --schema prisma/mysql/schema.prisma",
     "db:mysql:deploy": "prisma migrate deploy --schema prisma/mysql/schema.prisma && node server/seed.js",
+    "db:postgres:generate": "prisma generate --schema prisma/postgresql/schema.prisma",
+    "db:postgres:deploy": "prisma migrate deploy --schema prisma/postgresql/schema.prisma && node server/seed.js",
     "db:seed": "node server/seed.js",
     "test": "npm run test:ui && npm run test:dev && npm run test:api",
     "test:ui": "vitest run --configLoader runner",

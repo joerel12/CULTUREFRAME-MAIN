@@ -1,0 +1,154 @@
+databases:
+  - name: cultureframe-joerel-db
+    plan: free
+    region: singapore
+    databaseName: cultureframe_main
+
+services:
+  - type: web
+    name: cultureframe-joerel-main
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --omit=dev
+    startCommand: node scripts/run-render.mjs main
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.23.2
+      - key: NODE_ENV
+        value: production
+      - key: ENABLE_SHOWCASE_SEED
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cultureframe-joerel-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: CULTUREFRAME_SSO_SECRET
+        generateValue: true
+      - key: PAYMENT_INTEGRATION_TOKEN
+        generateValue: true
+      - key: CULTUREMETRICS_INTEGRATION_TOKEN
+        generateValue: true
+      - key: ADMIN_INITIAL_PASSWORD
+        sync: false
+      - key: VISITOR_INFORMATION_URL
+        value: https://cultureframe-joerel-visitor.onrender.com
+      - key: CULTUREMETRICS_SYSTEM_URL
+        value: https://cultureframe-joerel-metrics.onrender.com
+
+  - type: web
+    name: cultureframe-joerel-visitor
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --omit=dev && npm ci --prefix subsystems/visitor-information/backend --include=dev && npm ci --prefix subsystems/visitor-information/frontend --include=dev && npm run db:generate --prefix subsystems/visitor-information/backend && npm run build --prefix subsystems/visitor-information/backend && npm run build --prefix subsystems/visitor-information/frontend
+    startCommand: node scripts/run-render.mjs visitor
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.23.2
+      - key: NODE_ENV
+        value: production
+      - key: COOKIE_SECURE
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cultureframe-joerel-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: CULTUREFRAME_SSO_SECRET
+        fromService:
+          type: web
+          name: cultureframe-joerel-main
+          envVarKey: CULTUREFRAME_SSO_SECRET
+      - key: VITE_GOOGLE_MAPS_API_KEY
+        sync: false
+
+  - type: web
+    name: cultureframe-joerel-metrics
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --omit=dev && npm ci --prefix subsystems/culturemetrics/server --include=dev && npm ci --prefix subsystems/culturemetrics/client --include=dev && npm run build --prefix subsystems/culturemetrics/client
+    startCommand: node scripts/run-render.mjs metrics
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.23.2
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cultureframe-joerel-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: CULTUREFRAME_SSO_SECRET
+        fromService:
+          type: web
+          name: cultureframe-joerel-main
+          envVarKey: CULTUREFRAME_SSO_SECRET
+      - key: CULTUREFRAME_API_URL
+        value: https://cultureframe-joerel-main.onrender.com
+      - key: CULTUREFRAME_API_TOKEN
+        fromService:
+          type: web
+          name: cultureframe-joerel-main
+          envVarKey: CULTUREMETRICS_INTEGRATION_TOKEN
+      - key: CULTUREFRAME_INTEGRATION_ENABLED
+        value: "true"
+      - key: CULTUREMETRICS_DATA_MODE
+        value: live
+      - key: ADMIN_BOOTSTRAP_USERNAME
+        value: admin
+      - key: ADMIN_BOOTSTRAP_EMAIL
+        value: admin@cultureframe.com
+      - key: ADMIN_BOOTSTRAP_PASSWORD
+        fromService:
+          type: web
+          name: cultureframe-joerel-main
+          envVarKey: ADMIN_INITIAL_PASSWORD
+
+  - type: web
+    name: cultureframe-joerel-payments
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --omit=dev && npm ci --prefix subsystems/cultureframe-payments --include=dev && npm run db:postgres:generate --prefix subsystems/cultureframe-payments && npm run build --prefix subsystems/cultureframe-payments
+    startCommand: node scripts/run-render.mjs payments
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.23.2
+      - key: NODE_ENV
+        value: production
+      - key: INTEGRATION_MODE
+        value: live
+      - key: DATABASE_URL
+        fromDatabase:
+          name: cultureframe-joerel-db
+          property: connectionString
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: ADMIN_EMAIL
+        value: admin@cultureframe.com
+      - key: ADMIN_INITIAL_PASSWORD
+        fromService:
+          type: web
+          name: cultureframe-joerel-main
+          envVarKey: ADMIN_INITIAL_PASSWORD
+      - key: CULTUREFRAME_MAIN_URL
+        value: https://cultureframe-joerel-main.onrender.com
+      - key: CULTUREFRAME_API_URL
+        value: https://cultureframe-joerel-main.onrender.com
+      - key: CULTUREFRAME_API_TOKEN
+        fromService:
+          type: web
+          name: cultureframe-joerel-main
+          envVarKey: PAYMENT_INTEGRATION_TOKEN

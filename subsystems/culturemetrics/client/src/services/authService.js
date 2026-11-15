@@ -9,6 +9,12 @@ export const authService = {
     return res.data.data;
   },
 
+  async connectCultureFrame(token) {
+    const res = await api.post('/auth/cultureframe-session', { token });
+    if (res.data?.data?.token) sessionStorage.setItem('cm_token', res.data.data.token);
+    return res.data.data;
+  },
+
   async logout() {
     try {
       await api.post('/auth/logout');

@@ -6,8 +6,10 @@ process.env.JWT_SECRET = 'ephemeral-api-test-secret';
 process.env.SESSION_SECRET = 'ephemeral-api-test-session-secret';
 process.env.DATABASE_URL = '';
 process.env.CULTUREFRAME_INTEGRATION_ENABLED = 'false';
+process.env.CULTUREFRAME_SSO_SECRET = 'cultureframe-ephemeral-sso-test-secret-at-least-32';
 
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const models = require('../src/models');
 const authController = require('../src/controllers/auth.controller');
 const integrationController = require('../src/controllers/integration.controller');
@@ -113,6 +115,23 @@ describe('ephemeral demo controller paths', () => {
     models.activateEphemeralStorage();
     const staleSession = await authenticate(token);
     expect(staleSession.res.statusCode).toBe(401);
+  });
+
+  it('accepts the main CultureFrame administrator handoff without a second password', async () => {
+    const now = Math.floor(Date.now() / 1000);
+    const payload = {
+      iss: 'cultureframe-main', aud: 'culturemetrics', sub: 'main-admin-1',
+      email: 'admin@cultureframe.com', name: 'System Administrator', role: 'admin',
+      iat: now, exp: now + 120, jti: 'ephemeral-sso-test',
+    };
+    const encoded = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const signature = crypto.createHmac('sha256', process.env.CULTUREFRAME_SSO_SECRET).update(encoded).digest('base64url');
+    const connected = await invoke(authController.cultureframeSession, { body: { token: `${encoded}.${signature}` } });
+
+    expect(connected.statusCode).toBe(200);
+    expect(connected.body.data.admin.email).toBe('admin@cultureframe.com');
+    const authenticated = await authenticate(connected.body.data.token);
+    expect(authenticated.nextCalled).toBe(true);
   });
 
   it('serves integration status, skipped connection-test state, sync diagnostics, and overview lastSync', async () => {

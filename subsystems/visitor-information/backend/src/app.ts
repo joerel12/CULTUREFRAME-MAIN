@@ -8,7 +8,6 @@ import { Prisma, PrismaClient, ContentKind, PublicationStatus, UserRole } from "
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
 import path from "node:path";
-import fs from "node:fs";
 import multer from "multer";
 import { z } from "zod";
 import {
@@ -68,6 +67,15 @@ declare global {
 
 const asyncRoute = (handler: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) =>
   (req: Request, res: Response, next: NextFunction) => { void handler(req, res, next).catch(next); };
+app.get("/uploads/:filename", asyncRoute(async (req, res, next) => {
+  if (!/^[0-9a-f-]{36}\.(?:jpg|png|webp)$/.test(req.params.filename)) return next();
+  const saved = await prisma.storedUpload.findUnique({ where: { id: req.params.filename } });
+  if (!saved) return next();
+  res.setHeader("Content-Type", saved.mimeType);
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.send(Buffer.from(saved.data));
+}));
 app.get("/api/health", asyncRoute(async (_req, res) => {
   try {
     await prisma.$queryRaw`SELECT 1`;
@@ -453,17 +461,8 @@ app.post("/api/visitor/feedback", feedbackLimiter, requireVisitor, asyncRoute(as
   res.status(201).json({ feedback, message: "Thank you. Your feedback has been submitted." });
 }));
 
-const uploadDirectory = path.resolve("uploads");
-fs.mkdirSync(uploadDirectory, { recursive: true });
-const storage = multer.diskStorage({
-  destination: uploadDirectory,
-  filename: (_req, file, callback) => {
-    const extensionByMime: Record<string, string> = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp" };
-    callback(null, `${crypto.randomUUID()}${extensionByMime[file.mimetype]}`);
-  }
-});
 const upload = multer({
-  storage, limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 },
   fileFilter: (_req, file, callback) => {
     if (!["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)) return callback(new Error("Only JPG, PNG, and WebP images are allowed."));
     callback(null, true);
@@ -544,12 +543,16 @@ app.post("/api/admin/media", ...admin, upload.single("image"), asyncRoute(async 
     license: z.string().max(120).optional(), permissionStatus: z.enum(["PENDING", "APPROVED", "REJECTED"]).optional()
   }).safeParse(req.body);
   if (!parsed.success) {
-    fs.unlinkSync(req.file.path);
     return res.status(400).json({ error: "Invalid image attribution details.", details: parsed.error.flatten() });
   }
-  const media = await prisma.mediaAsset.create({
-    data: { filePath: `/uploads/${req.file.filename}`, fileName: req.file.originalname, mimeType: req.file.mimetype,
-      fileSize: req.file.size, uploadedById: req.user!.id, ...parsed.data }
+  const extensionByMime: Record<string, string> = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp" };
+  const filename = `${crypto.randomUUID()}${extensionByMime[req.file.mimetype]}`;
+  const media = await prisma.$transaction(async transaction => {
+    await transaction.storedUpload.create({ data: { id: filename, mimeType: req.file!.mimetype, data: Uint8Array.from(req.file!.buffer) } });
+    return transaction.mediaAsset.create({
+      data: { filePath: `/uploads/${filename}`, fileName: req.file!.originalname, mimeType: req.file!.mimetype,
+        fileSize: req.file!.size, uploadedById: req.user!.id, ...parsed.data }
+    });
   });
   res.status(201).json({ item: media });
 }));
@@ -567,6 +570,11 @@ app.post("/api/admin/locations", ...admin, asyncRoute(async (req, res) => {
 }));
 app.get("/api/admin/audit-logs", ...admin, asyncRoute(async (_req, res) => res.json({ items: await prisma.auditLog.findMany({ take: 100, orderBy: { createdAt: "desc" }, include: { user: { select: { email: true } } } }) })));
 
+if (process.env.NODE_ENV === "production") {
+  const frontendDirectory = path.resolve("../frontend/dist");
+  app.use(express.static(frontendDirectory, { index: false, dotfiles: "deny" }));
+  app.get("*", (req, res, next) => /^\/(?:api|uploads)(?:\/|$)/.test(req.path) ? next() : res.sendFile(path.join(frontendDirectory, "index.html")));
+}
 app.use((req, res) => res.status(404).json({ error: `No route for ${req.method} ${req.path}` }));
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (error instanceof multer.MulterError) return res.status(400).json({ error: error.message });

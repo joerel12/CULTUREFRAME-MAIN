@@ -22,6 +22,7 @@ const env = {
   JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || '8h',
   JWT_REFRESH_EXPIRES_IN: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
   SESSION_SECRET: process.env.SESSION_SECRET || (allowEphemeralDefaults ? crypto.randomBytes(64).toString('hex') : ''),
+  CULTUREFRAME_SSO_SECRET: process.env.CULTUREFRAME_SSO_SECRET || (nodeEnv === 'production' ? '' : 'cultureframe-local-sso-secret-change-before-production-2026'),
 
   // These defaults only create the in-memory local demo admin. Normal database
   // mode continues to require the explicit bootstrap-admin CLI operation.
@@ -43,7 +44,7 @@ const env = {
 };
 
 function validateEnv() {
-  const required = ['JWT_SECRET', 'SESSION_SECRET'];
+  const required = ['JWT_SECRET', 'SESSION_SECRET', 'CULTUREFRAME_SSO_SECRET'];
   if (!env.canUseEphemeralStorage()) required.push('DATABASE_URL');
   const missing = required.filter((key) => !env[key]);
   if (missing.length > 0) {
@@ -51,6 +52,9 @@ function validateEnv() {
   }
   if (!['mock', 'live'].includes(env.DATA_MODE)) {
     throw new Error('CULTUREMETRICS_DATA_MODE must be either "mock" or "live".');
+  }
+  if (env.CULTUREFRAME_SSO_SECRET.length < 32) {
+    throw new Error('CULTUREFRAME_SSO_SECRET must contain at least 32 characters.');
   }
   if (env.isProduction() && env.DATA_MODE === 'mock') {
     console.warn('[ENV] WARNING: CULTUREMETRICS_DATA_MODE is "mock" in production. Set to "live" when CultureFrame integration is ready.');

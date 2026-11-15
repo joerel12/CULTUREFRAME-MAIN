@@ -29,6 +29,7 @@ import { CartItem } from "../models/CartItem.js";
 import { Feedback } from "../models/Feedback.js";
 import { Product } from "../models/Product.js";
 import { Payment } from "../models/Payment.js";
+import { StoredFile } from "../models/StoredFile.js";
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
@@ -226,8 +227,12 @@ const ordercontroller = {
       }
       proofFile = `${crypto.randomUUID()}${extension}`;
       try {
-        await fs.promises.mkdir(privateProofDirectory, { recursive: true });
-        await fs.promises.writeFile(path.join(privateProofDirectory, proofFile), req.file.buffer, { flag: 'wx' });
+        if (process.env.NODE_ENV === 'production') {
+          await StoredFile.create({ key: `payment-proofs/${proofFile}`, mimeType: req.file.mimetype, data: req.file.buffer });
+        } else {
+          await fs.promises.mkdir(privateProofDirectory, { recursive: true });
+          await fs.promises.writeFile(path.join(privateProofDirectory, proofFile), req.file.buffer, { flag: 'wx' });
+        }
       } catch (error) {
         console.error('[Order Create] Could not store private payment proof:', error);
         req.session.error_msg = 'The payment proof could not be stored. Please try again.';
@@ -302,7 +307,10 @@ const ordercontroller = {
       order = order.order;
     } catch (error) {
       console.error('[Order Create] Transaction failed:', error);
-      if (proofFile) await fs.promises.unlink(path.join(privateProofDirectory, proofFile)).catch(() => {});
+      if (proofFile) {
+        await StoredFile.destroy({ where: { key: `payment-proofs/${proofFile}` } }).catch(() => {});
+        await fs.promises.unlink(path.join(privateProofDirectory, proofFile)).catch(() => {});
+      }
       req.session.error_msg = error.message || 'Could not create the order.';
       return res.redirect('/cart');
     }
@@ -364,6 +372,14 @@ const ordercontroller = {
     const proofFile = typeof evidence.proofFile === 'string' ? evidence.proofFile : '';
     if (!/^[0-9a-f-]{36}\.(?:jpg|png|webp)$/.test(proofFile) || path.basename(proofFile) !== proofFile) {
       return res.status(404).send('Payment proof not found');
+    }
+    if (process.env.NODE_ENV === 'production') {
+      const saved = await StoredFile.findByPk(`payment-proofs/${proofFile}`);
+      if (!saved) return res.status(404).send('Payment proof not found');
+      res.setHeader('Cache-Control', 'private, no-store, max-age=0');
+      res.setHeader('Content-Type', saved.mimeType);
+      res.setHeader('X-Content-Type-Options', 'nosniff');
+      return res.send(saved.data);
     }
     const proofPath = path.join(privateProofDirectory, proofFile);
     try {

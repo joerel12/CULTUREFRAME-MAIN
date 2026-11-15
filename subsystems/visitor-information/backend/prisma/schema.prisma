@@ -126,6 +126,15 @@ model MediaAsset {
   @@map("media_assets")
 }
 
+model StoredUpload {
+  id        String   @id
+  mimeType  String   @map("mime_type")
+  data      Bytes
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("stored_uploads")
+}
+
 model Location {
   id                    String            @id @default(cuid())
   name                  String

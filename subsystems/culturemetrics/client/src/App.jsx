@@ -5,7 +5,6 @@ import MainLayout from './components/layout/MainLayout';
 import LoadingSpinner from './components/ui/LoadingSpinner';
 
 // Pages
-import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import SalesAnalytics from './pages/SalesAnalytics';
 import ProductAnalytics from './pages/ProductAnalytics';
@@ -16,6 +15,7 @@ import DestinationAnalytics from './pages/DestinationAnalytics';
 import Reports from './pages/Reports';
 import IntegrationSettings from './pages/IntegrationSettings';
 import Settings from './pages/Settings';
+import CultureFrameConnect from './pages/CultureFrameConnect';
 import NotFound from './pages/NotFound';
 
 function ProtectedRoute({ children }) {
@@ -25,17 +25,19 @@ function ProtectedRoute({ children }) {
   return <MainLayout>{children}</MainLayout>;
 }
 
-function PublicRoute({ children }) {
-  const { isAuthenticated, loading } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center"><LoadingSpinner /></div>;
-  if (isAuthenticated) return <Navigate to="/dashboard" replace />;
-  return children;
+function MainAdminAccess() {
+  React.useEffect(() => {
+    const mainSystemUrl = import.meta.env.VITE_MAIN_SYSTEM_URL || 'http://localhost:3000';
+    window.location.replace(`${mainSystemUrl.replace(/\/$/, '')}/admin/analytics/business`);
+  }, []);
+  return <div className="min-h-screen flex items-center justify-center"><LoadingSpinner text="Returning to CultureFrame Admin..." /></div>;
 }
 
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+      <Route path="/login" element={<MainAdminAccess />} />
+      <Route path="/account/connect" element={<CultureFrameConnect />} />
 
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/sales" element={<ProtectedRoute><SalesAnalytics /></ProtectedRoute>} />

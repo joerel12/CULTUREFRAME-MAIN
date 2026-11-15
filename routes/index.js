@@ -27,6 +27,7 @@ import express from "express";
 import multer from "multer";
 import path from "path";
 import crypto from "node:crypto";
+import { persistPublicUpload } from "../middleware/persistPublicUpload.js";
 import { homePage } from "../controllers/homeController.js";
 import sellerPortalRouter from "./sellerPortal.js";
 import paymentIntegrationRouter from "./paymentIntegration.js";
@@ -285,7 +286,7 @@ router.get("/customer/dashboard", requireCustomer, (_req, res) => res.redirect("
 router.get("/customer/events", requireCustomer, (_req, res) => res.redirect(301, "/discover/events"));
 // Customer profile edit
 router.get("/customer/profile/edit", requireCustomer, renderCustomerProfileEdit);
-router.post("/customer/profile/edit", requireCustomer, upload.single('profileImage'), handleCustomerProfileEdit);
+router.post("/customer/profile/edit", requireCustomer, upload.single('profileImage'), persistPublicUpload, handleCustomerProfileEdit);
 // Backwards-compatible: profile page -> redirect to edit
 router.get('/customer/profile', requireCustomer, async (req, res) => {
   try {
@@ -411,7 +412,7 @@ router.delete('/customer/moment/:id', requireCustomer, async (req, res) => {
 });
 
 // Create a moment (text post or photo+caption)
-router.post('/customer/moment', requireCustomer, upload.single('photo'), async (req, res) => {
+router.post('/customer/moment', requireCustomer, upload.single('photo'), persistPublicUpload, async (req, res) => {
   try {
     console.log('📸 Creating moment...');
     console.log('User ID:', req.session.user?.id);

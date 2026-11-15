@@ -12,10 +12,9 @@ async function main() {
   }
   if (email && password) {
     const passwordHash = await bcrypt.hash(password, 12);
-    await prisma.user.upsert({
-      where: { email },
-      update: { passwordHash, role: UserRole.ADMIN, status: "ACTIVE" },
-      create: {
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (!existing) await prisma.user.create({
+      data: {
         firstName: "CultureFrame",
         lastName: "Administrator",
         email,

@@ -59,7 +59,9 @@ export async function integrationStatus() {
   ]);
   const state = Object.fromEntries(syncSettings.map(row => [row.key, JSON.parse(row.value)]));
   const apiConfigured = Boolean(process.env.CULTUREFRAME_API_URL && process.env.CULTUREFRAME_API_TOKEN);
-  return { mode: config.simulator ? 'SIMULATOR' : 'LIVE_NOT_VERIFIED', database: process.env.DATABASE_URL?.startsWith('mysql:') ? 'MySQL' : 'SQLite · local development', apiConfigured, gatewayConfigured: Boolean(process.env.PAYMENT_WEBHOOK_SECRET), smtpConfigured: Boolean(process.env.SMTP_HOST), automaticSync: !config.simulator && apiConfigured && config.integrationAutoSync, syncIntervalMs: config.integrationSyncIntervalMs, lastSyncedAt: state._integrationLastSyncedAt || null, updatedAfter: state._integrationUpdatedAfter || null, liveVerified: false, website: 'https://jennycultureframe-1.onrender.com/', logs, counts };
+  const database = /^(?:postgresql|postgres):\/\//.test(process.env.DATABASE_URL || '') ? 'PostgreSQL'
+    : process.env.DATABASE_URL?.startsWith('mysql:') ? 'MySQL' : 'SQLite · local development';
+  return { mode: config.simulator ? 'SIMULATOR' : 'LIVE_NOT_VERIFIED', database, apiConfigured, gatewayConfigured: Boolean(process.env.PAYMENT_WEBHOOK_SECRET), smtpConfigured: Boolean(process.env.SMTP_HOST), automaticSync: !config.simulator && apiConfigured && config.integrationAutoSync, syncIntervalMs: config.integrationSyncIntervalMs, lastSyncedAt: state._integrationLastSyncedAt || null, updatedAfter: state._integrationUpdatedAfter || null, liveVerified: false, website: process.env.CULTUREFRAME_MAIN_URL || '', logs, counts };
 }
 export async function syncOrders(actor) {
   fail(config.simulator, 400, 'Use the simulator in development, or configure the live adapter to synchronize real orders.');

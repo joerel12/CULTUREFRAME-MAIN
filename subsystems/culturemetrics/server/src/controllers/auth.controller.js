@@ -1,9 +1,11 @@
 'use strict';
 
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { Admin } = require('../models');
 const { env } = require('../config/environment');
+const { verifyCultureFrameAdminToken } = require('../services/cultureframeSso');
 
 const COOKIE_NAME = 'cm_token';
 const COOKIE_OPTIONS = {
@@ -59,6 +61,48 @@ async function login(req, res, next) {
   }
 }
 
+async function cultureframeSession(req, res, next) {
+  try {
+    const identity = verifyCultureFrameAdminToken(req.body?.token);
+    let admin = await Admin.findOne({ where: { email: identity.email } });
+
+    if (!admin) {
+      const passwordHash = await bcrypt.hash(crypto.randomBytes(48).toString('base64url'), 12);
+      const usernameHash = crypto.createHash('sha256').update(`${identity.subject}:${identity.email}`).digest('hex').slice(0, 20);
+      admin = await Admin.create({
+        username: `cultureframe-${usernameHash}`,
+        email: identity.email,
+        passwordHash,
+        role: 'admin',
+        isActive: true,
+      });
+    }
+
+    if (!admin.isActive) {
+      return res.status(403).json({
+        success: false,
+        error: { code: 'ACCOUNT_DISABLED', message: 'This CultureMetrics administrator account is disabled.' },
+      });
+    }
+
+    await admin.update({ lastLoginAt: new Date() });
+    const token = signToken(admin);
+    res.cookie(COOKIE_NAME, token, COOKIE_OPTIONS);
+    return res.json({
+      success: true,
+      data: { admin: admin.toSafeJSON(), token, redirect: '/dashboard' },
+    });
+  } catch (error) {
+    if (/CultureFrame access token/.test(error.message)) {
+      return res.status(401).json({
+        success: false,
+        error: { code: 'INVALID_SSO_TOKEN', message: 'CultureFrame administrator access is invalid or expired.' },
+      });
+    }
+    return next(error);
+  }
+}
+
 async function logout(req, res, next) {
   try {
     res.clearCookie(COOKIE_NAME, { httpOnly: true, sameSite: 'strict', secure: env.isProduction() });
@@ -96,4 +140,4 @@ async function changePassword(req, res, next) {
   }
 }
 
-module.exports = { login, logout, me, changePassword };
+module.exports = { login, cultureframeSession, logout, me, changePassword };

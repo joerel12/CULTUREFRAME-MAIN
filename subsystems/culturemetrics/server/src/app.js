@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 const cookieParser = require('cookie-parser');
 const morgan = require('morgan');
+const path = require('path');
 
 const { env } = require('./config/environment');
 const { errorHandler } = require('./middleware/errorHandler');
@@ -70,6 +71,15 @@ app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/reports', reportsRoutes);
 app.use('/api/v1/integration', integrationRoutes);
+
+if (env.isProduction()) {
+  const frontendDirectory = path.resolve(__dirname, '../../client/dist');
+  app.use(express.static(frontendDirectory, { index: false, dotfiles: 'deny' }));
+  app.get('*', (req, res, next) => {
+    if (/^\/(?:api|health)(?:\/|$)/.test(req.path)) return next();
+    return res.sendFile(path.join(frontendDirectory, 'index.html'));
+  });
+}
 
 // ── 404 handler ───────────────────────────────────────────────────────────────
 app.use((req, res) => {
