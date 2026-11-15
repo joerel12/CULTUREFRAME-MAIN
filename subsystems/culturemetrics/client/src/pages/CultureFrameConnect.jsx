@@ -10,6 +10,7 @@ function safeReturnPath(value) {
 }
 
 export default function CultureFrameConnect() {
+  const mainAdminUrl = new URL('/admin/dashboard', import.meta.env.VITE_MAIN_SYSTEM_URL || 'http://localhost:3000').toString();
   const { connectCultureFrame, isAuthenticated } = useAuth();
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ export default function CultureFrameConnect() {
           <>
             <h1 className="text-2xl font-bold text-slate-900">CultureMetrics access unavailable</h1>
             <p className="mt-3 text-slate-600">{error}</p>
-            <a className="mt-6 inline-flex rounded-lg bg-emerald-700 px-5 py-3 font-semibold text-white" href="http://localhost:3000/admin/dashboard">Return to CultureFrame Admin</a>
+            <a className="mt-6 inline-flex rounded-lg bg-emerald-700 px-5 py-3 font-semibold text-white" href={mainAdminUrl}>Return to CultureFrame Admin</a>
           </>
         ) : (
           <LoadingSpinner text="Opening CultureMetrics from CultureFrame Admin..." />

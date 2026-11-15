@@ -643,6 +643,8 @@ function Places3DMap({ places, focusId }: { places: LocationItem[]; focusId: str
         script = document.createElement("script");
         script.dataset.cultureframeGoogleMaps = "true";
         script.async = true;
+        const nonce = document.querySelector<HTMLScriptElement>("script[nonce]")?.nonce;
+        if (nonce) script.nonce = nonce;
         script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(googleMapsApiKey)}&v=beta&libraries=maps3d&loading=async`;
         document.head.append(script);
       }

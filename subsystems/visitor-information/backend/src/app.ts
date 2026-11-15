@@ -7,6 +7,7 @@ import { rateLimit } from "express-rate-limit";
 import { Prisma, PrismaClient, ContentKind, PublicationStatus, UserRole } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
+import fs from "node:fs";
 import path from "node:path";
 import multer from "multer";
 import { z } from "zod";
@@ -572,8 +573,33 @@ app.get("/api/admin/audit-logs", ...admin, asyncRoute(async (_req, res) => res.j
 
 if (process.env.NODE_ENV === "production") {
   const frontendDirectory = path.resolve("../frontend/dist");
+  const frontendHtml = fs.readFileSync(path.join(frontendDirectory, "index.html"), "utf8");
   app.use(express.static(frontendDirectory, { index: false, dotfiles: "deny" }));
-  app.get("*", (req, res, next) => /^\/(?:api|uploads)(?:\/|$)/.test(req.path) ? next() : res.sendFile(path.join(frontendDirectory, "index.html")));
+  app.get("*", (req, res, next) => {
+    if (/^\/(?:api|uploads)(?:\/|$)/.test(req.path)) return next();
+    const nonce = crypto.randomBytes(16).toString("base64");
+    res.setHeader("Content-Security-Policy", [
+      "default-src 'self'",
+      "base-uri 'self'",
+      "object-src 'none'",
+      "frame-ancestors 'self'",
+      "form-action 'self'",
+      `script-src 'nonce-${nonce}' 'strict-dynamic' https: 'unsafe-eval' blob:`,
+      `style-src 'self' 'nonce-${nonce}' https://fonts.googleapis.com`,
+      "style-src-attr 'unsafe-inline'",
+      "font-src 'self' https://fonts.gstatic.com data:",
+      "img-src 'self' data: blob: https://www.travelorientalmindoro.ph https://*.wikimedia.org https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.googleusercontent.com",
+      "connect-src 'self' data: blob: https://*.googleapis.com https://*.gstatic.com https://*.google.com",
+      "frame-src https://www.google.com",
+      "worker-src 'self' blob:",
+      "upgrade-insecure-requests"
+    ].join("; "));
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Cache-Control", "no-store");
+    res.type("html").send(frontendHtml
+      .replace(/<script(?=[\s>])/g, `<script nonce="${nonce}"`)
+      .replace("</head>", `<style nonce="${nonce}"></style></head>`));
+  });
 }
 app.use((req, res) => res.status(404).json({ error: `No route for ${req.method} ${req.path}` }));
 app.use((error: unknown, _req: Request, res: Response, _next: NextFunction) => {

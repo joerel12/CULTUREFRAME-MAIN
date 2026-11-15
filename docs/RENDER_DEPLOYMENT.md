@@ -6,6 +6,18 @@ instance in Singapore. Each service keeps its own PostgreSQL database in that
 instance. The start command creates the extra databases, applies migrations,
 seeds the Mansalay showcase, and starts the app.
 
+## Live URLs
+
+- Main platform and marketplace: https://cultureframe-joerel-main.onrender.com/
+- Visitor guide: https://cultureframe-joerel-visitor.onrender.com/
+- CultureMetrics: https://cultureframe-joerel-metrics.onrender.com/
+- Payments administration: https://cultureframe-joerel-payments.onrender.com/
+
+The Render Blueprint is `cultureframe` in Joerel's Render workspace. This
+deployment uses manual sync. After pushing changes to `joerel12/CULTUREFRAME-MAIN`
+`main`, run **Manual sync** on the Blueprint for configuration changes, and
+deploy the latest commit for existing web services that did not redeploy.
+
 ## Deploy
 
 1. Push this repository's `main` branch to `joerel12/CULTUREFRAME-MAIN`.
