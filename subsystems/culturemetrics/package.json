@@ -1,0 +1,17 @@
+{
+  "name": "culturemetrics",
+  "version": "1.0.0",
+  "description": "CultureMetrics - Sales and Business Analytics System for CultureFrame",
+  "private": true,
+  "scripts": {
+    "dev": "npm run dev --prefix server",
+    "dev:server": "npm run dev --prefix server",
+    "dev:client": "npm run dev --prefix client",
+    "install:all": "npm install --prefix server && npm install --prefix client",
+    "db:migrate": "npm run db:migrate --prefix server",
+    "db:seed": "npm run db:seed --prefix server",
+    "db:migrate:undo": "npm run db:migrate:undo --prefix server",
+    "bootstrap:admin": "npm run bootstrap:admin --prefix server",
+    "test:server": "npm test --prefix server"
+  }
+}
