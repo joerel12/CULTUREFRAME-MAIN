@@ -60,7 +60,7 @@ test("walk-in sale trusts database prices, belongs to the seller, and records pa
     assert.equal(calls.items[0].price, "125.00");
     assert.equal(calls.savedStock, 3);
     assert.equal(calls.payments[0].status, "paid");
-    assert.equal(calls.redirect, "/seller/walk-in");
+    assert.equal(calls.redirect, "/seller/orders/44");
     assert.match(calls.flashes[0].message, /Change PHP 50\.00/);
   } finally {
     Product.findOne = originals.findOne;
@@ -68,5 +68,26 @@ test("walk-in sale trusts database prices, belongs to the seller, and records pa
     OrderItem.create = originals.itemCreate;
     Payment.create = originals.paymentCreate;
     sequelize.transaction = originals.transaction;
+  }
+});
+
+test("walk-in sale rejects an invalid product quantity instead of silently dropping it", async () => {
+  const originalCreate = Order.create;
+  let created = false;
+  Order.create = async () => { created = true; };
+  const messages = [];
+  const req = {
+    seller: { id: 3 },
+    body: { quantities: { 7: "-1", 9: "2" }, payment_method: "cash", cash_tendered: "500" },
+    flash: (_type, message) => messages.push(message)
+  };
+  const res = { redirect: location => { res.location = location; } };
+  try {
+    await createWalkInSale(req, res, error => { throw error; });
+    assert.equal(created, false);
+    assert.equal(res.location, "/seller/walk-in");
+    assert.match(messages[0], /quantity/i);
+  } finally {
+    Order.create = originalCreate;
   }
 });

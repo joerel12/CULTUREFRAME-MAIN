@@ -29,12 +29,7 @@ import { CartItem } from "../models/CartItem.js";
 import { Feedback } from "../models/Feedback.js";
 import { Product } from "../models/Product.js";
 import { Payment } from "../models/Payment.js";
-import { StoredFile } from "../models/StoredFile.js";
-import crypto from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
-
-const privateProofDirectory = path.resolve(process.cwd(), "private-uploads", "payment-proofs");
+import { savePaymentProof, discardPaymentProof, sendPaymentProof } from "../services/paymentProofService.js";
 
 const paymentEvidence = payment => {
   if (!payment) return null;
@@ -46,6 +41,14 @@ const paymentEvidence = payment => {
     submitted_at: typeof evidence.submittedAt === "string" ? evidence.submittedAt : null,
     review_note: typeof evidence.reviewNote === "string" ? evidence.reviewNote : null
   };
+};
+
+// Checkout evidence is shared by the entire order. Integrated payments can
+// arrive later for individual lines, so keep the checkout record visible to
+// customers and administrators when both kinds of payment coexist.
+const primaryPaymentForOrder = async orderId => {
+  const payments = await Payment.findAll({ where: { order_id: orderId }, order: [['createdAt', 'DESC']] });
+  return payments.find(payment => !payment.integration_external_id) || payments[0] || null;
 };
 
 const ordercontroller = {
@@ -219,20 +222,8 @@ const ordercontroller = {
 
     let proofFile = null;
     if (hasUploadedProof) {
-      const extensionByMime = { 'image/jpeg': '.jpg', 'image/png': '.png', 'image/webp': '.webp' };
-      const extension = extensionByMime[req.file.mimetype];
-      if (!extension) {
-        req.session.error_msg = 'Payment proof must be a JPEG, PNG, or WebP image.';
-        return res.redirect('/checkout');
-      }
-      proofFile = `${crypto.randomUUID()}${extension}`;
       try {
-        if (process.env.NODE_ENV === 'production') {
-          await StoredFile.create({ key: `payment-proofs/${proofFile}`, mimeType: req.file.mimetype, data: req.file.buffer });
-        } else {
-          await fs.promises.mkdir(privateProofDirectory, { recursive: true });
-          await fs.promises.writeFile(path.join(privateProofDirectory, proofFile), req.file.buffer, { flag: 'wx' });
-        }
+        proofFile = await savePaymentProof(req.file);
       } catch (error) {
         console.error('[Order Create] Could not store private payment proof:', error);
         req.session.error_msg = 'The payment proof could not be stored. Please try again.';
@@ -307,10 +298,7 @@ const ordercontroller = {
       order = order.order;
     } catch (error) {
       console.error('[Order Create] Transaction failed:', error);
-      if (proofFile) {
-        await StoredFile.destroy({ where: { key: `payment-proofs/${proofFile}` } }).catch(() => {});
-        await fs.promises.unlink(path.join(privateProofDirectory, proofFile)).catch(() => {});
-      }
+      await discardPaymentProof(proofFile);
       req.session.error_msg = error.message || 'Could not create the order.';
       return res.redirect('/cart');
     }
@@ -365,31 +353,13 @@ const ordercontroller = {
       || (!order.user_id && userEmail && String(order.customer_email).toLowerCase() === userEmail);
     if (!isAdmin && !ownsOrder) return res.status(403).send('Forbidden');
 
-    const payment = await Payment.findOne({ where: { order_id: order.id }, order: [['createdAt', 'DESC']] });
+    const payments = await Payment.findAll({ where: { order_id: order.id }, order: [['createdAt', 'DESC']] });
+    const payment = payments.find(candidate => {
+      try { return typeof JSON.parse(candidate.notes || '{}').proofFile === 'string'; }
+      catch { return false; }
+    });
     if (!payment) return res.status(404).send('Payment proof not found');
-    let evidence = {};
-    try { evidence = JSON.parse(payment.notes || '{}'); } catch { evidence = {}; }
-    const proofFile = typeof evidence.proofFile === 'string' ? evidence.proofFile : '';
-    if (!/^[0-9a-f-]{36}\.(?:jpg|png|webp)$/.test(proofFile) || path.basename(proofFile) !== proofFile) {
-      return res.status(404).send('Payment proof not found');
-    }
-    if (process.env.NODE_ENV === 'production') {
-      const saved = await StoredFile.findByPk(`payment-proofs/${proofFile}`);
-      if (!saved) return res.status(404).send('Payment proof not found');
-      res.setHeader('Cache-Control', 'private, no-store, max-age=0');
-      res.setHeader('Content-Type', saved.mimeType);
-      res.setHeader('X-Content-Type-Options', 'nosniff');
-      return res.send(saved.data);
-    }
-    const proofPath = path.join(privateProofDirectory, proofFile);
-    try {
-      await fs.promises.access(proofPath, fs.constants.R_OK);
-    } catch {
-      return res.status(404).send('Payment proof not found');
-    }
-    res.setHeader('Cache-Control', 'private, no-store, max-age=0');
-    res.setHeader('X-Content-Type-Options', 'nosniff');
-    return res.sendFile(proofPath);
+    return sendPaymentProof(payment, res);
   },
   
   adminIndex: async (req, res) => {
@@ -401,7 +371,7 @@ const ordercontroller = {
     const { id } = req.params;
     const order = await Order.findByPk(id);
     const items = await OrderItem.findAll({ where: { order_id: id } });
-    const payment = await Payment.findOne({ where: { order_id: id }, order: [['createdAt', 'DESC']] });
+    const payment = await primaryPaymentForOrder(id);
     res.render("admin/order-details", { order, items, payment: paymentEvidence(payment) });
   },
   
@@ -411,7 +381,7 @@ const ordercontroller = {
     const order = await Order.findByPk(id);
     if (!order) return res.status(404).send('Order not found');
     const items = await OrderItem.findAll({ where: { order_id: id } });
-    const payment = await Payment.findOne({ where: { order_id: id }, order: [['createdAt', 'DESC']] });
+    const payment = await primaryPaymentForOrder(id);
     res.render('admin/order-edit', { order, items, payment: paymentEvidence(payment) });
   },
   
@@ -440,7 +410,7 @@ const ordercontroller = {
     const reviewNote = String(req.body.review_note || '').trim().slice(0, 500);
     const order = await Order.findByPk(id);
     if (!order) return res.status(404).send('Order not found');
-    const payment = await Payment.findOne({ where: { order_id: id }, order: [['createdAt', 'DESC']] });
+    const payment = await Payment.findOne({ where: { order_id: id, integration_external_id: null }, order: [['createdAt', 'DESC']] });
     if (!payment) {
       req.flash('error_msg', 'No payment evidence was submitted for this order.');
       return res.redirect(`/admin/orders/edit/${id}`);
@@ -509,7 +479,7 @@ const ordercontroller = {
       feedback = await Feedback.findOne({ where: { order_id: id, user_email: userEmail } });
     } catch (err) { /* ignore */ }
 
-    const payment = await Payment.findOne({ where: { order_id: id }, order: [['createdAt', 'DESC']] });
+    const payment = await primaryPaymentForOrder(id);
     res.render('customer/order-detail', { order, items, feedback, payment: paymentEvidence(payment) });
   },
 

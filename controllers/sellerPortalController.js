@@ -7,6 +7,8 @@ import { Order } from "../models/Order.js";
 import { OrderItem } from "../models/Orderitem.js";
 import { Payment } from "../models/Payment.js";
 import { sequelize } from "../models/db.js";
+import { loadSellerSales } from "../services/sellerSalesService.js";
+import { savePaymentProof, discardPaymentProof, sendPaymentProof } from "../services/paymentProofService.js";
 
 const DEFAULT_CATEGORIES = [
   ["crafts", "Handmade crafts, weaving, beadwork, basketry, and artisan goods"],
@@ -101,19 +103,24 @@ const renderProductForm = async (res, options) => {
 export const dashboardPage = async (req, res, next) => {
   try {
     const where = productWhereForSeller(req);
-    const [total, active, outOfStock, lowStock, recentProducts] = await Promise.all([
+    const [total, active, outOfStock, lowStock, recentProducts, sales] = await Promise.all([
       Product.count({ where }),
       Product.count({ where: { ...where, status: "active" } }),
       Product.count({ where: { ...where, stocks: 0 } }),
       Product.count({ where: { ...where, stocks: { [Op.between]: [1, 5] } } }),
-      Product.findAll({ where, order: [["updatedAt", "DESC"]], limit: 6 })
+      Product.findAll({ where, order: [["updatedAt", "DESC"]], limit: 6 }),
+      loadSellerSales(req.seller.id)
     ]);
 
     res.render("seller/dashboard", {
       title: "Seller Dashboard",
       sellerPage: "dashboard",
       stats: { total, active, outOfStock, lowStock },
-      recentProducts: recentProducts.map(product => product.get({ plain: true }))
+      recentProducts: recentProducts.map(product => product.get({ plain: true })),
+      sales: sales.totals,
+      topProduct: sales.productPerformance[0]?.paidUnits ? sales.productPerformance[0] : null,
+      productPerformance: sales.productPerformance,
+      recentOrders: sales.orders.slice(0, 5)
     });
   } catch (error) {
     next(error);
@@ -122,14 +129,18 @@ export const dashboardPage = async (req, res, next) => {
 
 export const walkInPage = async (req, res, next) => {
   try {
-    const products = await Product.findAll({
-      where: { seller_id: req.seller.id, status: "active", stocks: { [Op.gt]: 0 } },
-      order: [["name", "ASC"]]
-    });
+    const [products, sales] = await Promise.all([
+      Product.findAll({
+        where: { seller_id: req.seller.id, status: "active", stocks: { [Op.gt]: 0 } },
+        order: [["name", "ASC"]]
+      }),
+      loadSellerSales(req.seller.id)
+    ]);
     res.render("seller/walk-in", {
       title: "Walk-in Transaction",
       sellerPage: "walk-in",
-      products: products.map(product => product.get({ plain: true }))
+      products: products.map(product => ({ ...product.get({ plain: true }), walkInLimit: Math.min(100, product.stocks) })),
+      recentWalkIns: sales.orders.filter(order => order.isWalkIn).slice(0, 5)
     });
   } catch (error) {
     next(error);
@@ -137,24 +148,30 @@ export const walkInPage = async (req, res, next) => {
 };
 
 export const createWalkInSale = async (req, res, next) => {
+  let proofFile = null;
   try {
-    const quantities = req.body.quantities && typeof req.body.quantities === "object" ? req.body.quantities : {};
-    const selections = Object.entries(quantities)
-      .map(([id, quantity]) => ({ id: Number(id), quantity: Number(quantity) }))
-      .filter(item => Number.isInteger(item.id) && Number.isInteger(item.quantity) && item.quantity > 0 && item.quantity <= 100);
+    const quantities = req.body.quantities && typeof req.body.quantities === "object" && !Array.isArray(req.body.quantities) ? req.body.quantities : {};
+    const entries = Object.entries(quantities).filter(([, value]) => String(value).trim() !== "" && String(value).trim() !== "0");
+    const selections = entries.map(([id, quantity]) => ({ id: Number(id), quantity: Number(quantity) }));
     const paymentMethod = req.body.payment_method === "gcash" ? "gcash" : req.body.payment_method === "cash" ? "cash" : "";
     const customerName = String(req.body.customer_name || "Walk-in Customer").trim().slice(0, 120) || "Walk-in Customer";
-    const referenceNumber = String(req.body.reference_number || "").trim().slice(0, 100);
-    const cashTendered = Number(req.body.cash_tendered);
+    const referenceNumber = String(req.body.reference_number || "").trim();
+    const cashInput = String(req.body.cash_tendered || "").trim();
+    const cashTenderedCents = /^\d{1,9}(?:\.\d{1,2})?$/.test(cashInput) ? Math.round(Number(cashInput) * 100) : NaN;
 
-    if (!selections.length) {
+    if (!selections.length || selections.some(item => !Number.isSafeInteger(item.id) || item.id < 1 || !Number.isInteger(item.quantity) || item.quantity < 1 || item.quantity > 100)) {
       req.flash("error_msg", "Select at least one available product and quantity.");
       return res.redirect("/seller/walk-in");
     }
-    if (!paymentMethod || (paymentMethod === "gcash" && referenceNumber.length < 6)) {
+    if (!paymentMethod || (paymentMethod === "gcash" && (referenceNumber.length < 6 || referenceNumber.length > 100))) {
       req.flash("error_msg", paymentMethod === "gcash" ? "Enter a valid GCash reference number." : "Select cash or GCash payment.");
       return res.redirect("/seller/walk-in");
     }
+    if (req.file && paymentMethod !== "gcash") {
+      req.flash("error_msg", "A payment receipt can be attached only to a GCash sale.");
+      return res.redirect("/seller/walk-in");
+    }
+    if (req.file) proofFile = await savePaymentProof(req.file);
 
     const result = await sequelize.transaction(async transaction => {
       const items = [];
@@ -173,7 +190,7 @@ export const createWalkInSale = async (req, res, next) => {
         items.push({ product, quantity: selection.quantity, priceCents });
       }
       const total = totalCents / 100;
-      if (paymentMethod === "cash" && (!Number.isFinite(cashTendered) || cashTendered < total)) {
+      if (paymentMethod === "cash" && (!Number.isSafeInteger(cashTenderedCents) || cashTenderedCents < totalCents)) {
         throw new Error(`Cash tendered must be at least PHP ${total.toFixed(2)}.`);
       }
 
@@ -201,7 +218,7 @@ export const createWalkInSale = async (req, res, next) => {
         await item.product.save({ transaction });
       }
 
-      const change = paymentMethod === "cash" ? Math.max(0, cashTendered - total) : 0;
+      const change = paymentMethod === "cash" ? (cashTenderedCents - totalCents) / 100 : 0;
       await Payment.create({
         order_id: order.id,
         customer_name: customerName,
@@ -210,21 +227,80 @@ export const createWalkInSale = async (req, res, next) => {
         method: `walk_in_${paymentMethod}`,
         status: "paid",
         reference_number: paymentMethod === "gcash" ? referenceNumber : `CASH-${order.id}`,
-        notes: JSON.stringify({ channel: "walk-in", seller_id: req.seller.id, cash_tendered: paymentMethod === "cash" ? cashTendered : null, change }),
+        notes: JSON.stringify({ channel: "walk-in", seller_id: req.seller.id, cash_tendered: paymentMethod === "cash" ? (cashTenderedCents / 100).toFixed(2) : null, change, proofFile, submittedAt: new Date().toISOString() }),
         paid_at: new Date()
       }, { transaction });
       return { orderId: order.id, total, change };
     });
 
     req.flash("success_msg", `Walk-in sale #${result.orderId} completed: PHP ${result.total.toFixed(2)}${result.change ? ` · Change PHP ${result.change.toFixed(2)}` : ""}.`);
-    return res.redirect("/seller/walk-in");
+    return res.redirect(`/seller/orders/${result.orderId}`);
   } catch (error) {
-    if (/Insufficient stock|Cash tendered/.test(error.message)) {
+    await discardPaymentProof(proofFile);
+    if (/Insufficient stock|Cash tendered|payment receipt/.test(error.message)) {
       req.flash("error_msg", error.message);
       return res.redirect("/seller/walk-in");
     }
     next(error);
   }
+};
+
+export const sellerOrdersPage = async (req, res, next) => {
+  try {
+    const sales = await loadSellerSales(req.seller.id);
+    const channel = req.query.channel === "walk-in" || req.query.channel === "online" ? req.query.channel : "all";
+    const filtered = sales.orders.filter(order => channel === "all" || (channel === "walk-in") === order.isWalkIn);
+    const pageSize = 20;
+    const requestedPage = Number(req.query.page);
+    const pages = Math.max(1, Math.ceil(filtered.length / pageSize));
+    const page = Number.isSafeInteger(requestedPage) && requestedPage > 0 ? Math.min(requestedPage, pages) : 1;
+    res.render("seller/orders", {
+      title: "Seller Transactions",
+      sellerPage: "orders",
+      orders: filtered.slice((page - 1) * pageSize, page * pageSize),
+      channel,
+      totalOrders: filtered.length,
+      currentPage: page,
+      previousPage: page > 1 ? page - 1 : null,
+      nextPage: page < pages ? page + 1 : null,
+      hasOrders: Boolean(filtered.length)
+    });
+  } catch (error) { next(error); }
+};
+
+export const sellerOrderDetailPage = async (req, res, next) => {
+  try {
+    const orderId = Number(req.params.id);
+    if (!Number.isSafeInteger(orderId) || orderId < 1) return res.status(404).send("Transaction not found");
+    const sales = await loadSellerSales(req.seller.id);
+    const order = sales.orders.find(record => record.id === orderId);
+    if (!order) return res.status(404).send("Transaction not found");
+    res.render("seller/order-detail", { title: `Transaction #${orderId}`, sellerPage: "orders", order });
+  } catch (error) { next(error); }
+};
+
+export const sellerPaymentProof = async (req, res, next) => {
+  try {
+    const orderId = Number(req.params.orderId);
+    const paymentId = Number(req.params.paymentId);
+    if (!Number.isSafeInteger(orderId) || orderId < 1 || !Number.isSafeInteger(paymentId) || paymentId < 1) {
+      return res.status(404).send("Payment proof not found");
+    }
+    const products = await Product.findAll({ where: { seller_id: req.seller.id }, attributes: ["id"] });
+    const productIds = products.map(product => product.id);
+    if (!productIds.length) return res.status(404).send("Payment proof not found");
+    const sellerItems = await OrderItem.findAll({
+      where: { order_id: orderId, product_id: { [Op.in]: productIds } }, attributes: ["id"]
+    });
+    if (!sellerItems.length) return res.status(404).send("Payment proof not found");
+    const payment = await Payment.findOne({ where: { id: paymentId, order_id: orderId } });
+    if (!payment) return res.status(404).send("Payment proof not found");
+    const allowedIds = new Set(sellerItems.map(item => `CF-ORDER-${orderId}-ITEM-${item.id}`));
+    if (payment.integration_external_id && !allowedIds.has(payment.integration_external_id)) {
+      return res.status(404).send("Payment proof not found");
+    }
+    return sendPaymentProof(payment, res);
+  } catch (error) { next(error); }
 };
 
 export const productsPage = async (req, res, next) => {

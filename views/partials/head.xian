@@ -8,7 +8,7 @@
   <title>{{#if title}}{{title}}{{else}}CultureFrame — Mansalay Heritage{{/if}}</title>
 
   <!-- Locally built Tailwind CSS -->
-  <link rel="stylesheet" href="/tailwind.css?v=admin-layout-20261116" />
+  <link rel="stylesheet" href="/tailwind.css?v=seller-workspace-20261117" />
 
   <!-- Font Awesome 6 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />

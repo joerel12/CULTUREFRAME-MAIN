@@ -8,20 +8,46 @@
           <div>
             <p class="text-sm font-semibold text-emerald-600">Seller dashboard</p>
             <h1 class="text-3xl font-extrabold text-gray-900">Welcome, {{seller.business_name}}</h1>
-            <p class="mt-1 text-gray-500">Manage your CultureFrame inventory and storefront listings.</p>
+            <p class="mt-1 text-gray-500">Track sales, payment activity, and inventory for your CultureFrame products.</p>
           </div>
-          <div class="flex gap-2"><a href="/seller/walk-in" class="cf-btn cf-btn-outline"><i class="fas fa-cash-register"></i>Walk-in sale</a><a href="/seller/products/add" class="cf-btn cf-btn-primary">Add product</a></div>
+          <div class="flex flex-wrap gap-2"><a href="/seller/orders" class="cf-btn cf-btn-outline">Transactions</a><a href="/seller/walk-in" class="cf-btn cf-btn-outline"><i class="fas fa-cash-register"></i>Walk-in sale</a><a href="/seller/products/add" class="cf-btn cf-btn-primary">Add product</a></div>
         </div>
 
         {{#if success_msg}}<div class="mb-5 rounded-xl bg-emerald-100 px-4 py-3 text-emerald-800">{{success_msg}}</div>{{/if}}
         {{#if error_msg}}<div class="mb-5 rounded-xl bg-red-100 px-4 py-3 text-red-800">{{error_msg}}</div>{{/if}}
 
-        <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section class="rounded-3xl bg-emerald-950 p-6 text-white shadow-lg md:p-8">
+          <div class="flex flex-wrap items-center justify-between gap-3"><div><p class="text-xs font-bold uppercase tracking-widest text-emerald-200">Sales performance</p><h2 class="mt-1 text-2xl font-bold">Your products in every channel</h2></div><a href="/seller/orders" class="cf-btn bg-white text-emerald-950">View transactions <i class="fas fa-arrow-right"></i></a></div>
+          <div class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <article class="rounded-2xl bg-white/10 p-5"><p class="text-sm text-emerald-100">Paid product sales</p><p class="mt-2 text-3xl font-extrabold">PHP {{sales.paidRevenue}}</p><p class="mt-2 text-xs text-emerald-100">Your items only, before refunds</p></article>
+            <article class="rounded-2xl bg-white/10 p-5"><p class="text-sm text-emerald-100">Paid sales, last 30 days</p><p class="mt-2 text-3xl font-extrabold">PHP {{sales.paid30Days}}</p><p class="mt-2 text-xs text-emerald-100">Based on order date</p></article>
+            <article class="rounded-2xl bg-white/10 p-5"><p class="text-sm text-emerald-100">Units sold</p><p class="mt-2 text-3xl font-extrabold">{{sales.paidUnits}}</p><p class="mt-2 text-xs text-emerald-100">Paid product quantities</p></article>
+            <article class="rounded-2xl bg-white/10 p-5"><p class="text-sm text-emerald-100">Transactions</p><p class="mt-2 text-3xl font-extrabold">{{sales.orderCount}}</p><p class="mt-2 text-xs text-emerald-100">{{sales.walkInCount}} walk-in · {{sales.awaitingPaymentCount}} awaiting payment</p></article>
+          </div>
+        </section>
+
+        <section class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <article class="cf-card p-5"><p class="text-sm text-gray-500">Total products</p><p class="mt-2 text-3xl font-extrabold">{{stats.total}}</p></article>
           <article class="cf-card p-5"><p class="text-sm text-gray-500">Active listings</p><p class="mt-2 text-3xl font-extrabold text-emerald-600">{{stats.active}}</p></article>
           <article class="cf-card p-5"><p class="text-sm text-gray-500">Low stock</p><p class="mt-2 text-3xl font-extrabold text-amber-600">{{stats.lowStock}}</p></article>
           <article class="cf-card p-5"><p class="text-sm text-gray-500">Out of stock</p><p class="mt-2 text-3xl font-extrabold text-red-600">{{stats.outOfStock}}</p></article>
         </section>
+
+        <section class="mt-8 grid gap-4 md:grid-cols-3">
+          <article class="cf-card p-5"><p class="text-sm text-gray-500">Paid online sales</p><p class="mt-2 text-2xl font-extrabold text-emerald-800">PHP {{sales.onlinePaidRevenue}}</p><p class="mt-1 text-xs text-gray-500">Marketplace orders for your items</p></article>
+          <article class="cf-card p-5"><p class="text-sm text-gray-500">Paid walk-in sales</p><p class="mt-2 text-2xl font-extrabold text-emerald-800">PHP {{sales.walkInPaidRevenue}}</p><p class="mt-1 text-xs text-gray-500">Recorded at your counter</p></article>
+          <article class="cf-card p-5"><p class="text-sm text-gray-500">Best-selling product</p>{{#if topProduct}}<p class="mt-2 text-lg font-extrabold text-gray-900">{{topProduct.name}}</p><p class="mt-1 text-sm text-emerald-800">{{topProduct.paidUnits}} paid units</p>{{else}}<p class="mt-2 text-lg font-bold text-gray-500">Awaiting first paid sale</p>{{/if}}</article>
+        </section>
+
+        <section class="cf-card mt-8 overflow-hidden">
+          <div class="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4"><div><h2 class="text-lg font-bold text-gray-900">Product performance</h2><p class="text-sm text-gray-500">Every product, ranked by paid units sold</p></div><a href="/seller/products" class="text-sm font-semibold text-emerald-700">Manage products</a></div>
+          <div class="overflow-x-auto"><table class="min-w-full divide-y divide-gray-100 text-sm">
+            <thead class="bg-gray-50 text-left text-xs uppercase tracking-wider text-gray-500"><tr><th class="px-5 py-3">Product</th><th class="px-5 py-3">Paid units</th><th class="px-5 py-3">Paid sales</th><th class="px-5 py-3">Current stock</th><th class="px-5 py-3">Status</th></tr></thead>
+            <tbody class="divide-y divide-gray-100">{{#each productPerformance}}<tr><td class="px-5 py-4"><div class="flex min-w-48 items-center gap-3"><img src="{{#if image_url}}{{image_url}}{{else}}/images/cultureframe-logo.svg{{/if}}" alt="" class="h-11 w-11 rounded-lg border object-cover" /><div><a href="/seller/products/edit/{{id}}" class="font-bold text-gray-900 hover:text-emerald-700">{{name}}</a><p class="text-xs text-gray-500">{{category}}</p></div></div></td><td class="px-5 py-4 font-semibold">{{paidUnits}}</td><td class="px-5 py-4 font-semibold text-emerald-800">PHP {{paidRevenue}}</td><td class="px-5 py-4">{{stocks}}</td><td class="px-5 py-4"><span class="cf-badge {{#if (eq status 'active')}}cf-badge-green{{else}}cf-badge-gray{{/if}}">{{status}}</span></td></tr>{{else}}<tr><td colspan="5" class="px-5 py-10 text-center text-gray-500">No products yet. Add a product to start selling.</td></tr>{{/each}}</tbody>
+          </table></div>
+        </section>
+
+        <section class="cf-card mt-8 overflow-hidden"><div class="flex items-center justify-between border-b px-5 py-4"><div><h2 class="font-bold text-gray-900">Recent transactions</h2><p class="text-sm text-gray-500">Online and walk-in orders</p></div><a href="/seller/orders" class="text-sm font-semibold text-emerald-700">View all</a></div><div class="divide-y">{{#each recentOrders}}<a href="/seller/orders/{{id}}" class="flex flex-wrap items-center justify-between gap-3 px-5 py-4 hover:bg-emerald-50"><div><p class="font-bold text-gray-900">#{{id}} · {{customer_name}}</p><p class="text-xs text-gray-500">{{dateLabel}} · {{#if isWalkIn}}Walk-in{{else}}Online{{/if}}</p></div><div class="text-right"><p class="font-bold text-emerald-800">PHP {{subtotal}}</p><p class="text-xs capitalize text-gray-500">{{paymentStatus}}</p></div></a>{{else}}<p class="px-5 py-10 text-center text-gray-500">No transactions yet.</p>{{/each}}</div></section>
 
         <section class="cf-card mt-8 overflow-hidden">
           <div class="flex items-center justify-between border-b px-5 py-4">

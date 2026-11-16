@@ -63,7 +63,7 @@ app.disable("x-powered-by");
 app.set('trust proxy', 1);
 app.use(securityHeaders);
 app.use(express.json({ limit: "100kb" }));
-app.use(express.urlencoded({ extended: true, limit: "100kb", parameterLimit: 100 }));
+app.use(express.urlencoded({ extended: true, limit: "100kb", parameterLimit: 1000 }));
 app.get('/health', async (_req, res) => {
   try { await sequelize.authenticate(); res.json({ status: 'ok' }); }
   catch { res.status(503).json({ status: 'unavailable' }); }
