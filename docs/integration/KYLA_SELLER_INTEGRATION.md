@@ -4,7 +4,14 @@
 
 - Repository: `https://github.com/kylasalmorin08-ui/CultureFrame.git`
 - Reviewed source commit: `83afe885366dc2618917813dc4d65b0378664294`
-- Integration branch: `integration/unified-cultureframe`
+- Required integrated repository: `https://github.com/joerel12/CULTUREFRAME-MAIN`
+- Deployed branch: `main`
+
+Kyla's source commit has the same Git tree as commit `7a8975b` in the integrated
+repository. Her commits are retained in the integrated repository's history. The
+seller workflow was then adapted to use the main application's accounts, products,
+orders, and payments. The original repository remains independent; later changes
+there must be merged into the required repository before they appear online.
 
 The source project supplied a seller dashboard, seller-owned inventory workflow,
 product-category management, and image validation. It used a separate product
@@ -63,6 +70,13 @@ project migration script recreates all tables.
 - Seller-role authentication module load check.
 - Seller access-control check for unauthenticated and active-seller requests.
 - `git diff --check` whitespace validation.
+- The `main` branch contains seller routes, seller-owned product records, and the
+  public shop's query of the same `products` model.
+- The deployed `/shop` page responds successfully; `/seller/dashboard` redirects
+  a signed-out visitor to `/login`.
+- `npm run test:integration` passes the seller walk-in test and the other 30
+  integration and security tests.
 
-A live database migration and end-to-end browser test still require a configured
-PostgreSQL database through `DATABASE_URL`.
+An authenticated live seller product creation and storefront purchase should be
+demonstrated with a seller and customer account. The checks above do not replace
+that transaction-level check.
