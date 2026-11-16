@@ -245,6 +245,7 @@ const hasImageSignature = (file: Express.Multer.File) => {
   if (file.mimetype === "image/webp") return bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP";
   return false;
 };
+const contentCoverCaption = "Content record cover";
 const contentImageSchema = z.object({
   imageAltText: z.string().trim().min(2).max(300),
   imageCredit: z.string().trim().max(200).optional(),
@@ -266,7 +267,7 @@ async function saveContentImage(
   await transaction.storedUpload.create({ data: { id: filename, mimeType: file.mimetype, data: Uint8Array.from(file.buffer) } });
   await transaction.mediaAsset.create({ data: {
     filePath, fileName: file.originalname, mimeType: file.mimetype, fileSize: file.size,
-    altText: details.imageAltText, photographer: details.imageCredit || "",
+    altText: details.imageAltText, caption: contentCoverCaption, photographer: details.imageCredit || "",
     license: details.imageLicense || "Administrator-confirmed permission",
     permissionStatus: "APPROVED", uploadedById: userId
   } });
@@ -363,7 +364,18 @@ for (const [segment, kind] of Object.entries(kinds)) {
 }
 
 app.get("/api/gallery", asyncRoute(async (_req, res) => {
-  res.json({ items: await prisma.mediaAsset.findMany({ where: { permissionStatus: "APPROVED" }, orderBy: { createdAt: "desc" } }) });
+  const assets = await prisma.mediaAsset.findMany({ where: { permissionStatus: "APPROVED" }, orderBy: { createdAt: "desc" } });
+  const covers = assets.filter((asset) => asset.caption === contentCoverCaption);
+  if (!covers.length) return res.json({ items: assets });
+  const publishedRecords = await prisma.contentRecord.findMany({
+    where: { publicationStatus: PublicationStatus.PUBLISHED }, select: { payload: true }
+  });
+  const publishedCoverPaths = new Set(publishedRecords.flatMap((record) => {
+    const payload = record.payload;
+    return payload && typeof payload === "object" && !Array.isArray(payload) && typeof payload.imageUrl === "string"
+      ? [payload.imageUrl] : [];
+  }));
+  res.json({ items: assets.filter((asset) => asset.caption !== contentCoverCaption || publishedCoverPaths.has(asset.filePath)) });
 }));
 app.get("/api/locations", asyncRoute(async (_req, res) => {
   res.json({ items: await prisma.location.findMany({ orderBy: { name: "asc" } }) });

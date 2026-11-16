@@ -44,7 +44,7 @@ describe("content cover images", () => {
     expect(response.body.item.payload.imageUrl).toMatch(/^\/uploads\/[0-9a-f-]{36}\.png$/);
     expect(response.body.item.payload.imageAlt).toBe("A cultural heritage display");
     expect(transaction.storedUpload.create).toHaveBeenCalledOnce();
-    expect(transaction.mediaAsset.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ permissionStatus: "APPROVED", altText: "A cultural heritage display" }) }));
+    expect(transaction.mediaAsset.create).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ permissionStatus: "APPROVED", caption: "Content record cover", altText: "A cultural heritage display" }) }));
     expect(transaction.contentRecord.create).toHaveBeenCalledOnce();
   });
 
@@ -92,5 +92,20 @@ describe("content cover images", () => {
     expect(response.body.item.payload.location).toBe("Mansalay");
     expect(response.body.item.payload.imageUrl).toMatch(/^\/uploads\/[0-9a-f-]{36}\.png$/);
     expect(transaction.contentRecord.update).toHaveBeenCalledOnce();
+  });
+
+  it("shows content cover images in the gallery only after publication", async () => {
+    vi.spyOn(prisma.mediaAsset, "findMany").mockResolvedValue([
+      { id: "standalone", caption: "Community photo", filePath: "/uploads/standalone.png" },
+      { id: "published", caption: "Content record cover", filePath: "/uploads/published.png" },
+      { id: "draft", caption: "Content record cover", filePath: "/uploads/draft.png" }
+    ] as never);
+    vi.spyOn(prisma.contentRecord, "findMany").mockResolvedValue([
+      { payload: { imageUrl: "/uploads/published.png" } }
+    ] as never);
+
+    const response = await request(app).get("/api/gallery");
+    expect(response.status).toBe(200);
+    expect(response.body.items.map((item: { id: string }) => item.id)).toEqual(["standalone", "published"]);
   });
 });
