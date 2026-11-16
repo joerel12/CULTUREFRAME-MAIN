@@ -3,7 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LayoutDashboard, TrendingUp, Package, ShoppingCart,
   Users, Calendar, MapPin, FileText, Link2, Settings,
-  LogOut, Menu, X, Leaf, ChevronRight,
+  LogOut, Menu, X, Leaf, ChevronRight, ArrowLeft,
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -19,6 +19,7 @@ const NAV = [
   { to: '/integration', icon: Link2, label: 'CultureFrame Link' },
   { to: '/settings', icon: Settings, label: 'Settings' },
 ];
+const MAIN_ADMIN_URL = new URL('/admin/dashboard', import.meta.env.VITE_MAIN_SYSTEM_URL || 'http://localhost:3000').toString();
 
 export default function Sidebar() {
   const { admin, logout } = useAuth();
@@ -73,6 +74,10 @@ export default function Sidebar() {
 
       {/* Admin info + Logout */}
       <div className="border-t border-white/10 px-4 py-4">
+        <a href={MAIN_ADMIN_URL} className="sidebar-link mb-4 w-full border border-white/15 text-[#e2cb8e] hover:bg-white/10 hover:text-white">
+          <ArrowLeft size={17} />
+          <span>Back to main admin</span>
+        </a>
         <div className="mb-3 flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#285741] text-xs font-bold uppercase text-white">
             {(admin?.username || 'A').slice(0, 1)}

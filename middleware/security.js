@@ -9,7 +9,7 @@ export const securityHeaders = (req, res, next) => {
   if (process.env.NODE_ENV === "production") {
     res.setHeader("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   }
-  if (/^\/(login|register|forgot-password|admin|seller|customer|cart|wishlist|checkout|api\/customer)/.test(req.path)) {
+  if (/^\/(login|logout|register|forgot-password|admin|seller|customer|cart|wishlist|checkout|api\/customer)/.test(req.path)) {
     res.setHeader("Cache-Control", "no-store");
   }
   next();

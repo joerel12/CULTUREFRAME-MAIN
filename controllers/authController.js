@@ -721,18 +721,13 @@ export const forgotPassword = async (req, res) => {
 // ==================== LOGOUT ====================
 
 export const logoutUser = (req, res) => {
-  console.log('👋 User logging out:', req.session && req.session.userName);
-  // Preserve userId for client-side localStorage cleanup
-  const uid = req.session && req.session.userId ? req.session.userId : 'current-user';
-
   req.session.destroy((err) => {
     if (err) {
-      console.error('💥 Logout error:', err);
-      // Even if destroy fails, redirect to home
-      return res.redirect('/');
+      console.error('Logout error:', err);
+      return res.status(500).send('Could not sign out. Please try again.');
     }
-    // Render a tiny page that clears localStorage for this user and then redirects home
-    return res.render('logout', { userId: uid });
+    res.clearCookie('sessionId', { path: '/' });
+    return res.redirect(303, '/');
   });
 };
 
