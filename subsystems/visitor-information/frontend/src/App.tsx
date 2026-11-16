@@ -155,11 +155,16 @@ const recordArtwork: Record<string, string> = {
   "palaro-ng-lahi-mansalay": experienceArt.palaroNgLahi,
   "barakalan-native-products-market": experienceArt.pamuguanMarket
 };
-const recordImage = (item: RecordItem) => recordArtwork[item.slug]
-  ?? destinationPhotos[item.title.toLowerCase()]?.image
-  ?? (typeof item.payload?.imageUrl === "string" && item.payload.imageUrl ? item.payload.imageUrl : undefined)
-  ?? fallbackImages[item.kind]
-  ?? "/images/placeholders/record-placeholder.svg";
+const recordImage = (item: RecordItem) => {
+  const savedImage = typeof item.payload?.imageUrl === "string" ? item.payload.imageUrl : "";
+  if (savedImage) return savedImage.startsWith("/uploads/") ? apiAssetUrl(savedImage) : savedImage;
+  return recordArtwork[item.slug]
+    ?? destinationPhotos[item.title.toLowerCase()]?.image
+    ?? fallbackImages[item.kind]
+    ?? "/images/placeholders/record-placeholder.svg";
+};
+const recordImageAlt = (item: RecordItem) => typeof item.payload?.imageAlt === "string" && item.payload.imageAlt
+  ? item.payload.imageAlt : item.title;
 const categoryImages: Record<string, string> = {
   "/heritage": experienceArt.heritageCenter,
   "/historical-sites": experienceArt.mansalayHistory,
@@ -224,8 +229,8 @@ function highlightsForHome(data?: HomeData): DiscoverHighlight[] {
     const segment = Object.keys(kindForPath).find((key) => kindForPath[key] === item.kind) ?? "heritage";
     return {
       id: `record-${item.id}`, title: item.title, label: fmtKind(item.kind),
-      description: item.summary || item.description, image, alt: item.title,
-      to: `/${segment}/${item.slug}`, credit: photo?.credit, sourceUrl: photo?.sourceUrl
+      description: item.summary || item.description, image, alt: recordImageAlt(item),
+      to: `/${segment}/${item.slug}`, credit: typeof item.payload?.imageCredit === "string" && item.payload.imageCredit ? item.payload.imageCredit : photo?.credit, sourceUrl: photo?.sourceUrl
     };
   });
   const editorial = culturePromotions.map((feature) => ({
@@ -580,14 +585,14 @@ function DetailPage({ segment }: { segment: string }) {
   if (!data?.item) return <NotFound message="This published record could not be found."/>;
   const item = data.item;
   const payload = item.payload ?? {};
-  return <main className="page-shell detail-shell"><div className="detail-meta"><Link to={`/${segment}`}>← Back to {titleForPath[segment]}</Link><span>{fmtKind(item.kind)}</span></div><article className="detail-article"><div className="section-kicker">{titleForPath[segment]}</div><h1>{item.title}</h1><div className="detail-cover"><img src={recordImage(item)} alt={item.title} loading="eager" decoding="async" onError={(event) => { event.currentTarget.src = "/images/placeholders/record-placeholder.svg"; }}/></div>{item.summary && <p className="detail-summary">{item.summary}</p>}<div className="detail-divider"/><p className="detail-body">{item.description || "Additional information for this record has not yet been added."}</p>{item.culturalSignificance && <section><h2>Cultural significance</h2><p>{item.culturalSignificance}</p></section>}{item.historicalBackground && <section><h2>Historical background</h2><p>{item.historicalBackground}</p></section>}{typeof payload.eventDate === "string" && <section><h2>When</h2><p>{payload.eventDate}</p></section>}{typeof payload.location === "string" && <section><h2>Location</h2><p>{payload.location}</p></section>}{typeof payload.marketplacePath === "string" && <section className="detail-marketplace"><h2>Available through CultureFrame</h2><p>Continue with the same customer account you use for visitor features, cart, wishlist, checkout, and orders.</p><a className="button button-gold" href={mainSystemUrl(payload.marketplacePath)}>Browse the marketplace <ShoppingBag size={15}/></a></section>}{typeof payload.sourceUrl === "string" && <section><h2>Reference</h2><p><a className="text-link" href={payload.sourceUrl} target="_blank" rel="noreferrer">Open the reference source <ArrowRight size={14}/></a></p></section>}</article></main>;
+  return <main className="page-shell detail-shell"><div className="detail-meta"><Link to={`/${segment}`}>← Back to {titleForPath[segment]}</Link><span>{fmtKind(item.kind)}</span></div><article className="detail-article"><div className="section-kicker">{titleForPath[segment]}</div><h1>{item.title}</h1><div className="detail-cover"><img src={recordImage(item)} alt={recordImageAlt(item)} loading="eager" decoding="async" onError={(event) => { event.currentTarget.src = "/images/placeholders/record-placeholder.svg"; }}/></div>{typeof item.payload?.imageCredit === "string" && item.payload.imageCredit && <p className="detail-image-credit">Image: {item.payload.imageCredit}</p>}{item.summary && <p className="detail-summary">{item.summary}</p>}<div className="detail-divider"/><p className="detail-body">{item.description || "Additional information for this record has not yet been added."}</p>{item.culturalSignificance && <section><h2>Cultural significance</h2><p>{item.culturalSignificance}</p></section>}{item.historicalBackground && <section><h2>Historical background</h2><p>{item.historicalBackground}</p></section>}{typeof payload.eventDate === "string" && <section><h2>When</h2><p>{payload.eventDate}</p></section>}{typeof payload.location === "string" && <section><h2>Location</h2><p>{payload.location}</p></section>}{typeof payload.marketplacePath === "string" && <section className="detail-marketplace"><h2>Available through CultureFrame</h2><p>Continue with the same customer account you use for visitor features, cart, wishlist, checkout, and orders.</p><a className="button button-gold" href={mainSystemUrl(payload.marketplacePath)}>Browse the marketplace <ShoppingBag size={15}/></a></section>}{typeof payload.sourceUrl === "string" && <section><h2>Reference</h2><p><a className="text-link" href={payload.sourceUrl} target="_blank" rel="noreferrer">Open the reference source <ArrowRight size={14}/></a></p></section>}</article></main>;
 }
 
 function RecordGrid({ items, empty }: { items: RecordItem[]; empty: string }) {
   if (!items.length) return <div className="empty-state glass"><BookOpen/><h3>The archive is taking shape</h3><p>{empty}</p><Link className="text-link" to="/about">About this project <ArrowRight size={15}/></Link></div>;
   return <div className="record-grid">{items.map((item) => {
     const imageUrl = recordImage(item);
-    return <Link to={`/${Object.keys(kindForPath).find((key) => kindForPath[key] === item.kind) ?? "heritage"}/${item.slug}`} className="record-card glass" key={item.id}><div className="record-art record-art-photo"><img src={imageUrl} alt={item.title} loading="eager" decoding="async" onError={(event) => { event.currentTarget.src = "/images/placeholders/record-placeholder.svg"; }}/><span>{fmtKind(item.kind)}</span></div><div className="record-body"><div className="record-kind">{fmtKind(item.kind)}</div><h3>{item.title}</h3><p>{item.summary || item.description.slice(0, 140)}</p><span className="text-link">Read more <ArrowRight size={14}/></span></div></Link>;
+    return <Link to={`/${Object.keys(kindForPath).find((key) => kindForPath[key] === item.kind) ?? "heritage"}/${item.slug}`} className="record-card glass" key={item.id}><div className="record-art record-art-photo"><img src={imageUrl} alt={recordImageAlt(item)} loading="eager" decoding="async" onError={(event) => { event.currentTarget.src = "/images/placeholders/record-placeholder.svg"; }}/><span>{fmtKind(item.kind)}</span></div><div className="record-body"><div className="record-kind">{fmtKind(item.kind)}</div><h3>{item.title}</h3><p>{item.summary || item.description.slice(0, 140)}</p><span className="text-link">Read more <ArrowRight size={14}/></span></div></Link>;
   })}</div>;
 }
 
@@ -865,6 +870,7 @@ function AdminPage() {
   const section = selectedSection?.key ?? "";
   const [notice, setNotice] = useState("");
   const [editing, setEditing] = useState<RecordItem | null>(null);
+  const [formKey, setFormKey] = useState(0);
   useEffect(() => { setNotice(""); setEditing(null); }, [location.pathname]);
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ["admin", section],
@@ -878,10 +884,12 @@ function AdminPage() {
   const submitRecord = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault(); setNotice("");
     const formElement = e.currentTarget;
-    const raw = Object.fromEntries(new FormData(formElement).entries());
+    const form = new FormData(formElement);
+    form.set("kind", section);
+    form.set("featured", form.has("featured") ? "true" : "false");
     try {
-      await api("/admin/content", { method: "POST", body: JSON.stringify({ ...raw, kind: section, publicationStatus: raw.publicationStatus || "DRAFT", featured: raw.featured === "on" }) });
-      setNotice("Record saved."); formElement.reset(); await refetch();
+      await api("/admin/content", { method: "POST", body: form });
+      setNotice("Record saved with its cover image."); formElement.reset(); setFormKey((value) => value + 1); await refetch();
     } catch (issue) { setNotice((issue as Error).message); }
   };
   const setStatus = async (id: string, publicationStatus: string) => {
@@ -893,30 +901,62 @@ function AdminPage() {
     try { await api(`/admin/content/${id}`, { method: "DELETE" }); setNotice("Record deleted."); await refetch(); }
     catch (issue) { setNotice((issue as Error).message); }
   };
-  const saveEdit = async (id: string, values: Record<string, unknown>) => {
+  const saveEdit = async (id: string, values: FormData) => {
     try {
-      await api(`/admin/content/${id}`, { method: "PATCH", body: JSON.stringify(values) });
+      await api(`/admin/content/${id}`, { method: "PATCH", body: values });
       setNotice("Record updated."); setEditing(null); await refetch();
     } catch (issue) { setNotice((issue as Error).message); }
   };
   if (!selectedSection) return <NotFound message="That administrator section does not exist." />;
-  return <main className="admin-shell"><aside className="admin-sidebar"><Link to="/" className="brand"><span className="brand-mark">C</span><span>Culture<span className="gold">Frame</span><small>ADMIN CONSOLE</small></span></Link><nav className="admin-nav" aria-label="Administrator sections">{adminSections.map((item) => <Link key={item.key} to={`/admin/${item.path}`} className={section === item.key ? "active" : ""} aria-current={section === item.key ? "page" : undefined}>{item.label}</Link>)}</nav><a href={mainSystemUrl("/admin/dashboard")} className="admin-back"><ArrowLeft size={15}/> Back to main admin</a></aside><section className="admin-content"><div className="admin-top"><div><div className="section-kicker">CultureFrame CMS</div><h1>{selectedSection.label}</h1></div><span className="admin-badge"><ShieldCheck size={15}/> Administrator</span></div>{notice && <div className={notice.includes("updated") || notice.includes("saved") || notice.includes("deleted") ? "form-success" : "form-error"} role="status">{notice}</div>}{isLoading ? <Loading/> : error ? <ErrorPanel message={(error as Error).message}/> : section === "dashboard" ? <AdminStats data={data ?? {}}/> : section === "homepage" ? <HomepageEditor content={(data as {content: Record<string, unknown>})?.content ?? {}} onSaved={setNotice}/> : section === "feedback" || section === "audit-logs" ? <AdminRows rows={(data as {items: Array<Record<string, unknown>>})?.items ?? []} section={section} refresh={refetch} notice={setNotice}/> : section === "media" ? <MediaManager rows={(data as {items: Array<Record<string, unknown>>})?.items ?? []} refresh={refetch} notice={setNotice}/> : section === "locations" ? <LocationManager rows={(data as {items: Array<Record<string, unknown>>})?.items ?? []} refresh={refetch} notice={setNotice}/> : <><form className="glass admin-create" onSubmit={submitRecord}><h2>Add {selectedSection.label.toLowerCase()} record</h2><div className="form-row"><Field label="Title" name="title" required/><Field label="Slug (lowercase-and-hyphenated)" name="slug" required/></div><Field label="Summary" name="summary"/><label className="field"><span>Description</span><textarea name="description" rows={4}/></label><div className="form-row"><label className="field"><span>Publication status</span><select name="publicationStatus"><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option><option value="ARCHIVED">Archived</option></select></label><label className="check-label"><input name="featured" type="checkbox"/> Feature on homepage</label></div><button className="button button-dark">Create record <Check size={16}/></button></form>{editing && <AdminEditForm item={editing} onCancel={()=>setEditing(null)} onSave={saveEdit}/>}<AdminContentList rows={(data as {items: RecordItem[]})?.items ?? []} onStatus={setStatus} onDelete={remove} onEdit={setEditing}/></>}</section></main>;
+  return <main className="admin-shell"><aside className="admin-sidebar"><Link to="/" className="brand"><span className="brand-mark">C</span><span>Culture<span className="gold">Frame</span><small>ADMIN CONSOLE</small></span></Link><nav className="admin-nav" aria-label="Administrator sections">{adminSections.map((item) => <Link key={item.key} to={`/admin/${item.path}`} className={section === item.key ? "active" : ""} aria-current={section === item.key ? "page" : undefined}>{item.label}</Link>)}</nav><a href={mainSystemUrl("/admin/dashboard")} className="admin-back"><ArrowLeft size={15}/> Back to main admin</a></aside><section className="admin-content"><div className="admin-top"><div><div className="section-kicker">CultureFrame CMS</div><h1>{selectedSection.label}</h1></div><span className="admin-badge"><ShieldCheck size={15}/> Administrator</span></div>{notice && <div className={notice.includes("updated") || notice.includes("saved") || notice.includes("deleted") ? "form-success" : "form-error"} role="status">{notice}</div>}{isLoading ? <Loading/> : error ? <ErrorPanel message={(error as Error).message}/> : section === "dashboard" ? <AdminStats data={data ?? {}}/> : section === "homepage" ? <HomepageEditor content={(data as {content: Record<string, unknown>})?.content ?? {}} onSaved={setNotice}/> : section === "feedback" || section === "audit-logs" ? <AdminRows rows={(data as {items: Array<Record<string, unknown>>})?.items ?? []} section={section} refresh={refetch} notice={setNotice}/> : section === "media" ? <MediaManager rows={(data as {items: Array<Record<string, unknown>>})?.items ?? []} refresh={refetch} notice={setNotice}/> : section === "locations" ? <LocationManager rows={(data as {items: Array<Record<string, unknown>>})?.items ?? []} refresh={refetch} notice={setNotice}/> : <><form className="glass admin-create" onSubmit={submitRecord} encType="multipart/form-data"><h2>Add {selectedSection.label.toLowerCase()} record</h2><div className="form-row"><Field label="Title" name="title" required/><Field label="Slug (lowercase-and-hyphenated)" name="slug" required/></div><Field label="Summary" name="summary"/><label className="field"><span>Description</span><textarea name="description" rows={4}/></label><div className="form-row"><label className="field"><span>Publication status</span><select name="publicationStatus"><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option><option value="ARCHIVED">Archived</option></select></label><label className="check-label"><input name="featured" type="checkbox"/> Feature on homepage</label></div><ContentImageFields required key={`${section}-${formKey}`}/><button className="button button-dark">Create record <Check size={16}/></button></form>{editing && <AdminEditForm key={editing.id} item={editing} onCancel={()=>setEditing(null)} onSave={saveEdit}/>}<AdminContentList rows={(data as {items: RecordItem[]})?.items ?? []} onStatus={setStatus} onDelete={remove} onEdit={setEditing}/></>}</section></main>;
 }
 
 function AdminStats({ data }: { data: Record<string, unknown> }) {
   const stats = [["Administrator accounts",data.administrators],["Content records",data.contents],["Feedback submissions",data.feedback],["Media assets",data.media]];
   return <><div className="stats-grid">{stats.map(([label, value]) => <article className="glass stat-card" key={String(label)}><span>{String(label)}</span><strong>{value == null ? "—" : String(value)}</strong><small>Live database count</small></article>)}</div><div className="glass admin-note"><ShieldCheck/><div><h2>Publication responsibility</h2><p>Only records marked Published appear in public browsing and search. Confirm local facts, source references, and image permissions before publishing.</p></div></div></>;
 }
-function AdminContentList({ rows, onStatus, onDelete, onEdit }: { rows: RecordItem[]; onStatus: (id:string,status:string)=>void; onDelete: (id:string)=>void; onEdit:(item:RecordItem)=>void }) {
-  return <div className="admin-record-list"><div className="table-head"><span>Record</span><span>Status</span><span>Actions</span></div>{rows.map((row) => <div className="table-row" key={row.id}><div><strong>{row.title}</strong><small>{row.slug}</small></div><select aria-label={`Status for ${row.title}`} value={row.publicationStatus} onChange={(e) => onStatus(row.id,e.target.value)}><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option><option value="ARCHIVED">Archived</option></select><div className="row-actions"><button className="edit-link" onClick={() => onEdit(row)}>Edit</button><button className="danger-link" onClick={() => onDelete(row.id)}>Delete</button></div></div>)}{!rows.length && <p className="muted table-empty">No records in this collection yet.</p>}</div>;
+function ContentImageFields({ required = false, currentImage, currentAlt }: { required?: boolean; currentImage?: string; currentAlt?: string }) {
+  const [preview, setPreview] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  useEffect(() => () => { if (preview) URL.revokeObjectURL(preview); }, [preview]);
+  return <div className="content-image-editor">
+    <label className="field"><span>{required ? "Cover image" : "Replace cover image"} (JPG, PNG, WebP; up to 5 MB)</span>
+      <input type="file" name="image" accept="image/jpeg,image/png,image/webp" required={required} onChange={(event) => {
+        const file = event.currentTarget.files?.[0];
+        if (file && (!["image/jpeg", "image/png", "image/webp"].includes(file.type) || file.size > 5 * 1024 * 1024)) {
+          event.currentTarget.value = "";
+          event.currentTarget.setCustomValidity("Choose a JPG, PNG, or WebP image no larger than 5 MB.");
+          event.currentTarget.reportValidity();
+          setPreview(null);
+          setError("Choose a JPG, PNG, or WebP image no larger than 5 MB.");
+          return;
+        }
+        event.currentTarget.setCustomValidity("");
+        setError("");
+        setPreview(file ? URL.createObjectURL(file) : null);
+      }}/>
+      <small>Choose an image you own or have permission to publish.</small>
+    </label>
+    {error && <p className="form-error" role="alert">{error}</p>}
+    {(preview || currentImage) && <img className="content-image-preview" src={preview || currentImage} alt={preview ? "Selected cover image preview" : currentAlt || "Current cover image"}/>}
+    {(required || preview) && <>
+      <Field label="Image description for accessibility" name="imageAltText" required/>
+      <div className="form-row"><Field label="Photographer or creator credit" name="imageCredit"/><Field label="License or permission note" name="imageLicense"/></div>
+      <label className="check-label"><input type="checkbox" name="imagePermissionConfirmed" required/> I confirm that this image may be published on CultureFrame.</label>
+    </>}
+  </div>;
 }
-function AdminEditForm({ item, onCancel, onSave }: { item:RecordItem; onCancel:()=>void; onSave:(id:string,values:Record<string,unknown>)=>void }) {
+function AdminContentList({ rows, onStatus, onDelete, onEdit }: { rows: RecordItem[]; onStatus: (id:string,status:string)=>void; onDelete: (id:string)=>void; onEdit:(item:RecordItem)=>void }) {
+  return <div className="admin-record-list"><div className="table-head"><span>Record</span><span>Status</span><span>Actions</span></div>{rows.map((row) => <div className="table-row" key={row.id}><div className="admin-record-main"><img src={recordImage(row)} alt={recordImageAlt(row)} onError={(event) => { event.currentTarget.src = "/images/placeholders/record-placeholder.svg"; }}/><div><strong>{row.title}</strong><small>{row.slug}</small></div></div><select aria-label={`Status for ${row.title}`} value={row.publicationStatus} onChange={(e) => onStatus(row.id,e.target.value)}><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option><option value="ARCHIVED">Archived</option></select><div className="row-actions"><button className="edit-link" onClick={() => onEdit(row)}>Edit</button><button className="danger-link" onClick={() => onDelete(row.id)}>Delete</button></div></div>)}{!rows.length && <p className="muted table-empty">No records in this collection yet.</p>}</div>;
+}
+function AdminEditForm({ item, onCancel, onSave }: { item:RecordItem; onCancel:()=>void; onSave:(id:string,values:FormData)=>Promise<void> }) {
   const submit=(e:FormEvent<HTMLFormElement>)=>{
     e.preventDefault();
-    const values=Object.fromEntries(new FormData(e.currentTarget).entries());
-    onSave(item.id,{...values,featured:values.featured==="on"});
+    const form = new FormData(e.currentTarget);
+    form.set("featured", form.has("featured") ? "true" : "false");
+    void onSave(item.id, form);
   };
-  return <form className="glass admin-create" onSubmit={submit}><h2>Edit {item.title}</h2><div className="form-row"><Field label="Title" name="title" required defaultValue={item.title}/><Field label="Slug" name="slug" required defaultValue={item.slug}/></div><Field label="Summary" name="summary" defaultValue={item.summary}/><label className="field"><span>Description</span><textarea name="description" rows={4} defaultValue={item.description}/></label><div className="form-row"><label className="field"><span>Publication status</span><select name="publicationStatus" defaultValue={item.publicationStatus}><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option><option value="ARCHIVED">Archived</option></select></label><label className="check-label"><input name="featured" type="checkbox" defaultChecked={item.featured}/> Feature on homepage</label></div><div className="button-row"><button type="submit" className="button button-dark">Save changes</button><button type="button" className="button button-neutral" onClick={onCancel}>Cancel</button></div></form>;
+  return <form className="glass admin-create" onSubmit={submit} encType="multipart/form-data"><h2>Edit {item.title}</h2><div className="form-row"><Field label="Title" name="title" required defaultValue={item.title}/><Field label="Slug" name="slug" required defaultValue={item.slug}/></div><Field label="Summary" name="summary" defaultValue={item.summary}/><label className="field"><span>Description</span><textarea name="description" rows={4} defaultValue={item.description}/></label><div className="form-row"><label className="field"><span>Publication status</span><select name="publicationStatus" defaultValue={item.publicationStatus}><option value="DRAFT">Draft</option><option value="PUBLISHED">Published</option><option value="ARCHIVED">Archived</option></select></label><label className="check-label"><input name="featured" type="checkbox" defaultChecked={item.featured}/> Feature on homepage</label></div><ContentImageFields currentImage={recordImage(item)} currentAlt={recordImageAlt(item)}/><div className="button-row"><button type="submit" className="button button-dark">Save changes</button><button type="button" className="button button-neutral" onClick={onCancel}>Cancel</button></div></form>;
 }
 function HomepageEditor({ content, onSaved }: { content: Record<string, unknown>; onSaved: (text:string)=>void }) {
   const submit = async (e:FormEvent<HTMLFormElement>) => {

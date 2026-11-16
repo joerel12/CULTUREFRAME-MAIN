@@ -231,6 +231,47 @@ const kinds: Record<string, ContentKind> = {
   traditions: ContentKind.TRADITION, events: ContentKind.EVENT, attractions: ContentKind.ATTRACTION,
   festivals: ContentKind.FESTIVAL, "local-products": ContentKind.LOCAL_PRODUCT
 };
+const upload = multer({
+  storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+  fileFilter: (_req, file, callback) => {
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)) return callback(new Error("Only JPG, PNG, and WebP images are allowed."));
+    callback(null, true);
+  }
+});
+const hasImageSignature = (file: Express.Multer.File) => {
+  const bytes = file.buffer;
+  if (file.mimetype === "image/png") return bytes.subarray(0, 8).equals(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
+  if (file.mimetype === "image/jpeg") return bytes.length >= 3 && bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255;
+  if (file.mimetype === "image/webp") return bytes.length >= 12 && bytes.toString("ascii", 0, 4) === "RIFF" && bytes.toString("ascii", 8, 12) === "WEBP";
+  return false;
+};
+const contentImageSchema = z.object({
+  imageAltText: z.string().trim().min(2).max(300),
+  imageCredit: z.string().trim().max(200).optional(),
+  imageLicense: z.string().trim().max(120).optional(),
+  imagePermissionConfirmed: z.literal("on")
+});
+const contentInput = (req: Request) => req.is("multipart/form-data")
+  ? { ...req.body, ...(req.body.featured !== undefined ? { featured: ["on", "true"].includes(req.body.featured) } : {}) }
+  : req.body;
+async function saveContentImage(
+  transaction: Prisma.TransactionClient,
+  file: Express.Multer.File,
+  details: z.infer<typeof contentImageSchema>,
+  userId: string
+) {
+  const extensionByMime: Record<string, string> = { "image/jpeg": ".jpg", "image/png": ".png", "image/webp": ".webp" };
+  const filename = `${crypto.randomUUID()}${extensionByMime[file.mimetype]}`;
+  const filePath = `/uploads/${filename}`;
+  await transaction.storedUpload.create({ data: { id: filename, mimeType: file.mimetype, data: Uint8Array.from(file.buffer) } });
+  await transaction.mediaAsset.create({ data: {
+    filePath, fileName: file.originalname, mimeType: file.mimetype, fileSize: file.size,
+    altText: details.imageAltText, photographer: details.imageCredit || "",
+    license: details.imageLicense || "Administrator-confirmed permission",
+    permissionStatus: "APPROVED", uploadedById: userId
+  } });
+  return filePath;
+}
 const contentSchema = z.object({
   kind: z.nativeEnum(ContentKind).optional(),
   title: z.string().trim().min(2).max(180),
@@ -462,14 +503,6 @@ app.post("/api/visitor/feedback", feedbackLimiter, requireVisitor, asyncRoute(as
   res.status(201).json({ feedback, message: "Thank you. Your feedback has been submitted." });
 }));
 
-const upload = multer({
-  storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024, files: 1 },
-  fileFilter: (_req, file, callback) => {
-    if (!["image/jpeg", "image/png", "image/webp"].includes(file.mimetype)) return callback(new Error("Only JPG, PNG, and WebP images are allowed."));
-    callback(null, true);
-  }
-});
-
 app.get("/api/admin/dashboard", ...admin, asyncRoute(async (_req, res) => {
   const [administrators, contents, feedback, media, byKind, recentFeedback] = await Promise.all([
     prisma.user.count({ where: { role: UserRole.ADMIN } }),
@@ -487,18 +520,49 @@ app.get("/api/admin/content", ...admin, asyncRoute(async (req, res) => {
   const items = await prisma.contentRecord.findMany({ where: kind ? { kind } : {}, orderBy: { updatedAt: "desc" } });
   res.json({ items });
 }));
-app.post("/api/admin/content", ...admin, asyncRoute(async (req, res) => {
-  const parsed = contentSchema.safeParse(req.body);
+app.post("/api/admin/content", ...admin, upload.single("image"), asyncRoute(async (req, res) => {
+  const parsed = contentSchema.safeParse(contentInput(req));
   if (!parsed.success || !parsed.data.kind) return res.status(400).json({ error: "A valid content type and complete record are required.", details: parsed.success ? undefined : parsed.error.flatten() });
-  const item = await prisma.contentRecord.create({ data: { ...parsed.data, kind: parsed.data.kind, createdById: req.user!.id } });
-  await prisma.auditLog.create({ data: { userId: req.user!.id, action: "CREATE", entity: "ContentRecord", entityId: item.id } });
+  if (req.is("multipart/form-data") && !req.file) return res.status(400).json({ error: "Choose a cover image for this record." });
+  if (req.file && !hasImageSignature(req.file)) return res.status(400).json({ error: "The file is not a valid JPG, PNG, or WebP image." });
+  const imageDetails = req.file ? contentImageSchema.safeParse(req.body) : null;
+  if (imageDetails && !imageDetails.success) return res.status(400).json({ error: "Describe the image and confirm that you may publish it.", details: imageDetails.error.flatten() });
+  const item = await prisma.$transaction(async transaction => {
+    const imagePath = req.file && imageDetails?.success
+      ? await saveContentImage(transaction, req.file, imageDetails.data, req.user!.id)
+      : null;
+    const payload = imagePath
+      ? { ...parsed.data.payload, imageUrl: imagePath, imageAlt: imageDetails!.data!.imageAltText,
+          imageCredit: imageDetails!.data!.imageCredit || "", imageLicense: imageDetails!.data!.imageLicense || "" }
+      : parsed.data.payload;
+    const record = await transaction.contentRecord.create({ data: { ...parsed.data, payload, kind: parsed.data.kind!, createdById: req.user!.id } });
+    await transaction.auditLog.create({ data: { userId: req.user!.id, action: "CREATE", entity: "ContentRecord", entityId: record.id } });
+    return record;
+  });
   res.status(201).json({ item });
 }));
-app.patch("/api/admin/content/:id", ...admin, asyncRoute(async (req, res) => {
-  const parsed = contentSchema.partial().safeParse(req.body);
+app.patch("/api/admin/content/:id", ...admin, upload.single("image"), asyncRoute(async (req, res) => {
+  const parsed = contentSchema.partial().safeParse(contentInput(req));
   if (!parsed.success) return res.status(400).json({ error: "Please correct the record.", details: parsed.error.flatten() });
-  const item = await prisma.contentRecord.update({ where: { id: req.params.id }, data: parsed.data });
-  await prisma.auditLog.create({ data: { userId: req.user!.id, action: "UPDATE", entity: "ContentRecord", entityId: item.id } });
+  if (req.file && !hasImageSignature(req.file)) return res.status(400).json({ error: "The file is not a valid JPG, PNG, or WebP image." });
+  const imageDetails = req.file ? contentImageSchema.safeParse(req.body) : null;
+  if (imageDetails && !imageDetails.success) return res.status(400).json({ error: "Describe the image and confirm that you may publish it.", details: imageDetails.error.flatten() });
+  const existing = await prisma.contentRecord.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: "Record not found." });
+  const item = await prisma.$transaction(async transaction => {
+    const imagePath = req.file && imageDetails?.success
+      ? await saveContentImage(transaction, req.file, imageDetails.data, req.user!.id)
+      : null;
+    const previousPayload = existing.payload && typeof existing.payload === "object" && !Array.isArray(existing.payload)
+      ? existing.payload : {};
+    const payload = imagePath
+      ? { ...previousPayload, ...parsed.data.payload, imageUrl: imagePath, imageAlt: imageDetails!.data!.imageAltText,
+          imageCredit: imageDetails!.data!.imageCredit || "", imageLicense: imageDetails!.data!.imageLicense || "" }
+      : parsed.data.payload;
+    const record = await transaction.contentRecord.update({ where: { id: existing.id }, data: { ...parsed.data, ...(payload ? { payload } : {}) } });
+    await transaction.auditLog.create({ data: { userId: req.user!.id, action: "UPDATE", entity: "ContentRecord", entityId: record.id } });
+    return record;
+  });
   res.json({ item });
 }));
 app.delete("/api/admin/content/:id", ...admin, asyncRoute(async (req, res) => {
@@ -538,6 +602,7 @@ app.get("/api/admin/media", ...admin, asyncRoute(async (_req, res) => {
 }));
 app.post("/api/admin/media", ...admin, upload.single("image"), asyncRoute(async (req, res) => {
   if (!req.file) return res.status(400).json({ error: "Choose an image to upload." });
+  if (!hasImageSignature(req.file)) return res.status(400).json({ error: "The file is not a valid JPG, PNG, or WebP image." });
   const parsed = z.object({
     altText: z.string().max(300).optional(), caption: z.string().max(1000).optional(),
     photographer: z.string().max(200).optional(), sourceUrl: z.string().url().optional(),

@@ -19,6 +19,7 @@
       </header>
 
       <img src="{{item.imageUrl}}" alt="{{item.imageAlt}}" loading="eager" decoding="async" class="h-64 md:h-96 w-full object-cover" onerror="this.onerror=null;this.src='/images/placeholders/record-placeholder.svg'" />
+      {{#if item.imageCredit}}<p class="px-6 md:px-10 pt-3 text-xs text-gray-500">Image: {{item.imageCredit}}</p>{{/if}}
 
       <div class="p-6 md:p-10 space-y-9">
         <section>

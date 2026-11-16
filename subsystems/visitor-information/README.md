@@ -50,6 +50,7 @@ npm run db:seed
   fresh high-accuracy readings, signed short-lived verification tokens, validation,
   rate limiting, and the shared main CultureFrame customer identity
 - Administrator content create/edit-publication-state/delete, homepage editor, feedback status management, media upload and attribution, locations, audit records, and database-backed counts
+- Visitor admin content forms require a JPG, PNG, or WebP cover image (up to 5 MB), image description, and publication permission confirmation. Administrators can replace the cover later. Uploaded covers are stored in PostgreSQL and appear on published Visitor pages and the main system's Discover pages.
 - Media allowlist, upload size limit, permission-gated public gallery, secure HTTP-only session cookie, hashed passwords/session tokens, authentication rate limiting, and admin API authorization
 - Docker Compose PostgreSQL, Prisma schema/seed, backend validation/access tests
 

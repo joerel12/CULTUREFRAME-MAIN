@@ -141,7 +141,7 @@ function normalizePayload(payload) {
   );
 }
 
-function normalizeItem(item) {
+function normalizeItem(item, portalUrl) {
   if (!item || typeof item !== "object" || Array.isArray(item)) return null;
   const kind = cleanText(item.kind, 40).toUpperCase();
   const segment = SEGMENT_BY_KIND.get(kind);
@@ -164,16 +164,18 @@ function normalizeItem(item) {
     location: cleanText(payload.location, 500),
     eventDate: cleanText(payload.eventDate || payload.startDate || payload.date, 100),
     sourceUrl: safeExternalUrl(payload.sourceUrl),
-    imageUrl: safeImageUrl(payload.imageUrl || payload.image_url) || SEGMENT_IMAGES[segment] || "/images/placeholders/record-placeholder.svg",
-    imageAlt: `${title} in CultureFrame`,
+    imageUrl: safeImageUrl(payload.imageUrl || payload.image_url, portalUrl) || SEGMENT_IMAGES[segment] || "/images/placeholders/record-placeholder.svg",
+    imageAlt: cleanText(payload.imageAlt, 300) || `${title} in CultureFrame`,
+    imageCredit: cleanText(payload.imageCredit, 200),
+    imageLicense: cleanText(payload.imageLicense, 120),
     featured: item.featured === true,
     url: `/discover/${segment}/${encodeURIComponent(slug)}`
   };
 }
 
-function normalizeItems(items) {
+function normalizeItems(items, portalUrl) {
   if (!Array.isArray(items)) return [];
-  return items.map(normalizeItem).filter(Boolean).slice(0, 30);
+  return items.map(item => normalizeItem(item, portalUrl)).filter(Boolean).slice(0, 30);
 }
 
 function safeExternalUrl(value) {
@@ -185,8 +187,9 @@ function safeExternalUrl(value) {
   }
 }
 
-function safeImageUrl(value) {
+function safeImageUrl(value, portalUrl) {
   const text = cleanText(value, 1000);
+  if (/^\/uploads\/[0-9a-f-]{36}\.(?:jpg|png|webp)$/i.test(text)) return new URL(text, portalUrl).toString();
   if (/^\/images\/[a-zA-Z0-9_./-]+$/.test(text) && !text.includes("..")) return text;
   return safeExternalUrl(text);
 }
@@ -293,9 +296,9 @@ async function requestJson(pathname, query = {}, options = {}) {
   }
 }
 
-function normalizeList(data) {
+function normalizeList(data, portalUrl) {
   return {
-    items: normalizeItems(data?.items),
+    items: normalizeItems(data?.items, portalUrl),
     total: Math.max(0, Number(data?.total) || 0),
     page: positiveInteger(data?.page),
     pages: positiveInteger(data?.pages)
@@ -313,8 +316,8 @@ export const visitorInformationClient = {
         heroDescription: cleanText(content.heroDescription, 500) || "Explore published community stories, traditions, events, and places.",
         about: cleanText(content.about, 1000)
       },
-      featured: normalizeItems(data?.featured),
-      upcoming: normalizeItems(data?.upcoming),
+      featured: normalizeItems(data?.featured, portalUrl),
+      upcoming: normalizeItems(data?.upcoming, portalUrl),
       destinations: normalizeDestinations(data?.destinations, portalUrl)
     };
   },
@@ -326,7 +329,7 @@ export const visitorInformationClient = {
       page: positiveInteger(page),
       limit: positiveInteger(limit, 12, 30)
     }, options);
-    return { ...normalizeList(data), portalUrl };
+    return { ...normalizeList(data, portalUrl), portalUrl };
   },
 
   async search({ q = "", category = "", page = 1, limit = 12, ...options } = {}) {
@@ -337,7 +340,7 @@ export const visitorInformationClient = {
       page: positiveInteger(page),
       limit: positiveInteger(limit, 12, 30)
     }, options);
-    return { ...normalizeList(data), portalUrl };
+    return { ...normalizeList(data, portalUrl), portalUrl };
   },
 
   async getDetail(segment, slug, options = {}) {
@@ -347,7 +350,7 @@ export const visitorInformationClient = {
       throw new VisitorInformationError("Invalid Visitor Information record.", { code: "INVALID_SLUG", statusCode: 404 });
     }
     const { data, portalUrl } = await requestJson(`${segment}/${encodeURIComponent(safeSlug)}`, {}, options);
-    const item = normalizeItem(data?.item);
+    const item = normalizeItem(data?.item, portalUrl);
     if (!item || item.segment !== segment) {
       throw new VisitorInformationError("This published Visitor Information record could not be found.", {
         code: "UPSTREAM_NOT_FOUND",

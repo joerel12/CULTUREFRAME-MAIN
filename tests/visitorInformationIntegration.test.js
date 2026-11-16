@@ -128,7 +128,11 @@ test("loads only a matching published detail record", async () => {
           slug: "mangyan-day",
           summary: "A community gathering.",
           description: "A published cultural event.",
-          payload: { location: "Mansalay Plaza", eventDate: "2026-11-15" }
+          payload: {
+            location: "Mansalay Plaza", eventDate: "2026-11-15",
+            imageUrl: "/uploads/123e4567-e89b-12d3-a456-426614174000.png",
+            imageAlt: "Community event at Mansalay Plaza", imageCredit: "Mansalay Culture Office"
+          }
         }
       });
     }
@@ -137,6 +141,9 @@ test("loads only a matching published detail record", async () => {
   assert.equal(result.item.location, "Mansalay Plaza");
   assert.equal(result.item.eventDate, "2026-11-15");
   assert.equal(result.item.segment, "events");
+  assert.equal(result.item.imageUrl, "https://visitor.example.test/uploads/123e4567-e89b-12d3-a456-426614174000.png");
+  assert.equal(result.item.imageAlt, "Community event at Mansalay Plaza");
+  assert.equal(result.item.imageCredit, "Mansalay Culture Office");
 });
 
 test("requires configuration and HTTPS for non-local production services", () => {
