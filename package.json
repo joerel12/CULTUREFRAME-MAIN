@@ -10,6 +10,7 @@
     "xian": "node index.js",
     "start": "node index.js",
     "dev": "nodemon index.js",
+    "build:css": "tailwindcss -c tailwind.config.cjs -i styles/tailwind.input.css -o public/tailwind.css --minify",
     "migrate": "node migrate.js",
     "sync": "node sync-models.js",
     "seed:integration": "node scripts/seed-integration-demo.mjs",
@@ -37,5 +38,8 @@
     "pg": "^8.22.0",
     "pg-hstore": "^2.3.4",
     "sequelize": "^6.37.3"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.16"
   }
 }

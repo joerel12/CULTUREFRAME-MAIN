@@ -1,15 +1,8 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>{{title}} - CultureFrame Admin</title>
-  <link rel="stylesheet" href="/tailwind.css" />
-</head>
-<body class="bg-gray-50 flex">
+{{>head}}
+<body class="cf-admin-body">
   {{> admin-sidebar}}
 
-  <main class="flex-1 p-8 overflow-auto">
+  <main class="cf-admin-main p-8 overflow-auto">
     <div class="flex items-center gap-3 mb-8">
       <a href="/admin/customers" class="text-gray-400 hover:text-gray-600 transition-colors">
         <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
