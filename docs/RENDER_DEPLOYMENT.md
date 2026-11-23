@@ -17,6 +17,10 @@ The Render Blueprint is `cultureframe` in Joerel's Render workspace. This
 deployment uses manual sync. After pushing changes to `joerel12/CULTUREFRAME-MAIN`
 `main`, run **Manual sync** on the Blueprint for configuration changes, and
 deploy the latest commit for existing web services that did not redeploy.
+The main service's build command also compiles `public/tailwind.css`. If an
+administrator page shows an oversized logo and plain text, sync the Blueprint
+and rebuild the main service from the latest commit. The served `/tailwind.css`
+must contain compiled CSS, not the three `@tailwind` source directives.
 
 ## Deploy
 

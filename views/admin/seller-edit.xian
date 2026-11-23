@@ -38,7 +38,7 @@
               title="Use uppercase, lowercase, number, and symbol characters."
                    class="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:ring-2 focus:ring-emerald-400 focus:outline-none" />
             <p class="mt-1 text-xs text-gray-500">
-              {{#if hasLoginAccount}}Leave blank to keep the current password.{{else}}Enter at least 12 characters to create this seller's login.{{/if}}
+              {{#if hasLoginAccount}}Leave blank to keep the current password.{{else}}This seller has no working login. Enter at least 12 characters before setting the status to Active.{{/if}}
             </p>
           </div>
           <div>

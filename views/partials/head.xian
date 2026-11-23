@@ -8,7 +8,7 @@
   <title>{{#if title}}{{title}}{{else}}CultureFrame — Mansalay Heritage{{/if}}</title>
 
   <!-- Locally built Tailwind CSS -->
-  <link rel="stylesheet" href="/tailwind.css?v=seller-workspace-20261117" />
+  <link rel="stylesheet" href="/tailwind.css?v=admin-people-20261124" />
 
   <!-- Font Awesome 6 -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
@@ -168,5 +168,5 @@
     /* ── Focus ring ─────────────────────────────────────────── */
     :focus-visible { outline: 2px solid var(--cf-green); outline-offset: 2px; }
   </style>
-  <link rel="stylesheet" href="/cultureframe.css" />
+  <link rel="stylesheet" href="/cultureframe.css?v=admin-people-20261124" />
 </head>

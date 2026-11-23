@@ -10,7 +10,7 @@ services:
     runtime: node
     plan: free
     region: singapore
-    buildCommand: npm ci --omit=dev
+    buildCommand: npm ci --include=dev && npm run build:css && npm prune --omit=dev
     startCommand: node scripts/run-render.mjs main
     healthCheckPath: /health
     envVars:
