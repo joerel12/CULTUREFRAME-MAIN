@@ -135,13 +135,14 @@ handoff, so CultureMetrics does not require a second login. Configure the same
 `docs/integration/CULTUREMETRICS_INTEGRATION.md` for the complete
 contract, privacy rules, and activation checklist.
 
-## Default Accounts
+## Administrator account
 
-### Admin Account
 - Email: `admin@cultureframe.com`
-- Password: `admin123`
+- Password: the strong `ADMIN_INITIAL_PASSWORD` configured for this installation. The online Render deployment uses the value set privately in Render; `admin123` is not an online password.
 
-### Test Customer Account
+The account is created only when no administrator exists. Changing `ADMIN_INITIAL_PASSWORD` later does not change the password of an existing account. See [Render deployment](docs/RENDER_DEPLOYMENT.md) for the online setup.
+
+## Test customer account
 Create via registration at: http://localhost:3000/register
 
 ## Project Structure
