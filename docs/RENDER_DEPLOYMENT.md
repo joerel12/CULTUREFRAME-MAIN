@@ -14,9 +14,14 @@ seeds the Mansalay showcase, and starts the app.
 - Payments administration: https://cultureframe-joerel-payments.onrender.com/
 
 The Render Blueprint is `cultureframe` in Joerel's Render workspace. This
-deployment uses manual sync. After pushing changes to `joerel12/CULTUREFRAME-MAIN`
-`main`, run **Manual sync** on the Blueprint for configuration changes, and
-deploy the latest commit for existing web services that did not redeploy.
+deployment currently uses manual sync. The Blueprint specifies
+`autoDeployTrigger: commit` for all four services. Run **Manual sync** once to
+apply that setting and the current build commands. In the Blueprint Settings,
+turn **Auto Sync** on if configuration changes in future `render.yaml` commits
+should also apply automatically. After that, pushes to
+`joerel12/CULTUREFRAME-MAIN` `main` rebuild each connected service. If an
+existing web service does not redeploy, check its **Settings → Auto-Deploy**
+setting and deploy the latest commit from its Deploys page.
 The main service's build command also compiles `public/tailwind.css`. If an
 administrator page shows an oversized logo and plain text, sync the Blueprint
 and rebuild the main service from the latest commit. The served `/tailwind.css`

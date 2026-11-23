@@ -8,6 +8,7 @@ describe("visitor homepage destinations", () => {
   it("returns only the GPS-ready destinations selected by the homepage query", async () => {
     vi.spyOn(prisma.homepageContent, "findMany").mockResolvedValue([]);
     vi.spyOn(prisma.contentRecord, "findMany").mockResolvedValue([]);
+    vi.spyOn(prisma.visitorFeedback, "groupBy").mockResolvedValue([] as never);
     const destinations = vi.spyOn(prisma.location, "findMany").mockResolvedValue([{
       id: "destination-1",
       name: "Casabangan Beach and Marine Protected Area",
@@ -30,7 +31,8 @@ describe("visitor homepage destinations", () => {
       id: "destination-1",
       name: "Casabangan Beach and Marine Protected Area",
       category: "Beach & Marine Sanctuary",
-      verified: true
+      verified: true,
+      ratingSummary: { average: 0, count: 0 }
     });
     expect(destinations).toHaveBeenCalledWith(expect.objectContaining({
       where: { verified: true, latitude: { not: null }, longitude: { not: null } },

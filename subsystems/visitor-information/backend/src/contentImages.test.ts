@@ -94,6 +94,24 @@ describe("content cover images", () => {
     expect(transaction.contentRecord.update).toHaveBeenCalledOnce();
   });
 
+  it("keeps an existing cover when linking an attraction to a GPS location", async () => {
+    mockAdminSession();
+    vi.spyOn(prisma.location, "findUnique").mockResolvedValue({ id: "beach" } as never);
+    vi.spyOn(prisma.contentRecord, "findUnique").mockResolvedValue({
+      id: "record-1", kind: "ATTRACTION", payload: { imageUrl: "/uploads/existing.png", imageAlt: "Beach photo", sourceUrl: "https://example.com/beach" }
+    } as never);
+    const { transaction } = mockTransaction();
+    const response = await request(app).patch("/api/admin/content/record-1")
+      .set("Cookie", "cultureframe_session=test-token")
+      .field("title", "Beach attraction").field("locationId", "beach");
+
+    expect(response.status).toBe(200);
+    expect(response.body.item.payload).toEqual({
+      imageUrl: "/uploads/existing.png", imageAlt: "Beach photo", sourceUrl: "https://example.com/beach", locationId: "beach"
+    });
+    expect(transaction.contentRecord.update).toHaveBeenCalledOnce();
+  });
+
   it("shows content cover images in the gallery only after publication", async () => {
     vi.spyOn(prisma.mediaAsset, "findMany").mockResolvedValue([
       { id: "standalone", caption: "Community photo", filePath: "/uploads/standalone.png" },

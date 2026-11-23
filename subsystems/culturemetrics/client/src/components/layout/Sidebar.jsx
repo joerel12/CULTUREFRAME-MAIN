@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard, TrendingUp, Package, ShoppingCart,
   Users, Calendar, MapPin, FileText, Link2, Settings,
@@ -23,7 +23,6 @@ const MAIN_ADMIN_URL = new URL('/admin/dashboard', import.meta.env.VITE_MAIN_SYS
 
 export default function Sidebar() {
   const { admin, logout } = useAuth();
-  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = async () => {
@@ -32,7 +31,7 @@ export default function Sidebar() {
     } catch {
       // The local session is cleared even when the API cannot be reached.
     }
-    navigate('/login');
+    window.location.assign(MAIN_ADMIN_URL);
   };
 
   const sidebarContent = (

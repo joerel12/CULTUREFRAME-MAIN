@@ -252,9 +252,15 @@ const contentImageSchema = z.object({
   imageLicense: z.string().trim().max(120).optional(),
   imagePermissionConfirmed: z.literal("on")
 });
-const contentInput = (req: Request) => req.is("multipart/form-data")
-  ? { ...req.body, ...(req.body.featured !== undefined ? { featured: ["on", "true"].includes(req.body.featured) } : {}) }
-  : req.body;
+const contentInput = (req: Request) => {
+  if (!req.is("multipart/form-data")) return req.body;
+  const { locationId, ...fields } = req.body;
+  return {
+    ...fields,
+    ...(typeof locationId === "string" && locationId ? { payload: { locationId } } : {}),
+    ...(fields.featured !== undefined ? { featured: ["on", "true"].includes(fields.featured) } : {})
+  };
+};
 async function saveContentImage(
   transaction: Prisma.TransactionClient,
   file: Express.Multer.File,
@@ -289,6 +295,44 @@ const contentSchema = z.object({
 function contentFilter(kind?: ContentKind, publicOnly = true) {
   return { ...(kind ? { kind } : {}), ...(publicOnly ? { publicationStatus: PublicationStatus.PUBLISHED } : {}) };
 }
+
+type RatingSummary = { average: number; count: number };
+const noRatings = (): RatingSummary => ({ average: 0, count: 0 });
+async function ratingsByLocation(locationIds: string[]) {
+  if (!locationIds.length) return new Map<string, RatingSummary>();
+  const groups = await prisma.visitorFeedback.groupBy({
+    by: ["locationId"],
+    where: { locationId: { in: locationIds }, locationVerifiedAt: { not: null } },
+    _avg: { rating: true }, _count: { _all: true }
+  });
+  return new Map(groups.flatMap((group) => group.locationId ? [[group.locationId, {
+    average: Math.round((group._avg.rating ?? 0) * 10) / 10,
+    count: group._count._all
+  } satisfies RatingSummary]] : []));
+}
+async function withLocationRatings<T extends { id: string }>(locations: T[]) {
+  const ratings = await ratingsByLocation(locations.map((location) => location.id));
+  return locations.map((location) => ({ ...location, ratingSummary: ratings.get(location.id) ?? noRatings() }));
+}
+async function withAttractionRatings<T extends { kind: ContentKind; title: string; payload: unknown }>(records: T[]) {
+  if (!records.some((record) => record.kind === ContentKind.ATTRACTION)) return records;
+  const locations = await prisma.location.findMany({ select: { id: true, name: true } });
+  const ratings = await ratingsByLocation(locations.map((location) => location.id));
+  const byId = new Map(locations.map((location) => [location.id, location]));
+  const byName = new Map(locations.map((location) => [location.name.trim().toLowerCase(), location]));
+  return records.map((record) => {
+    if (record.kind !== ContentKind.ATTRACTION) return record;
+    const payload = record.payload && typeof record.payload === "object" && !Array.isArray(record.payload)
+      ? record.payload as Record<string, unknown> : {};
+    const linked = typeof payload.locationId === "string" ? byId.get(payload.locationId) : undefined;
+    const location = linked ?? byName.get(record.title.trim().toLowerCase());
+    return { ...record, ratingSummary: location ? ratings.get(location.id) ?? noRatings() : noRatings() };
+  });
+}
+async function attractionLocationExists(kind: ContentKind | undefined, payload: Record<string, unknown> | undefined) {
+  if (kind !== ContentKind.ATTRACTION || typeof payload?.locationId !== "string") return true;
+  return Boolean(await prisma.location.findUnique({ where: { id: payload.locationId }, select: { id: true } }));
+}
 app.get("/api/home", asyncRoute(async (_req, res) => {
   const [values, featured, upcoming, destinations] = await Promise.all([
     prisma.homepageContent.findMany(),
@@ -300,7 +344,8 @@ app.get("/api/home", asyncRoute(async (_req, res) => {
       orderBy: { name: "asc" }
     })
   ]);
-  res.json({ content: Object.fromEntries(values.map((item) => [item.key, item.value])), featured, upcoming, destinations });
+  res.json({ content: Object.fromEntries(values.map((item) => [item.key, item.value])),
+    featured: await withAttractionRatings(featured), upcoming, destinations: await withLocationRatings(destinations) });
 }));
 app.get("/api/search", asyncRoute(async (req, res) => {
   const q = String(req.query.q ?? "").trim();
@@ -315,7 +360,7 @@ app.get("/api/search", asyncRoute(async (req, res) => {
     prisma.contentRecord.findMany({ where, orderBy: { updatedAt: "desc" }, skip: (page - 1) * take, take }),
     prisma.contentRecord.count({ where })
   ]);
-  res.json({ items, total, page, pages: Math.ceil(total / take) });
+  res.json({ items: await withAttractionRatings(items), total, page, pages: Math.ceil(total / take) });
 }));
 
 for (const [segment, kind] of Object.entries(kinds)) {
@@ -354,12 +399,12 @@ for (const [segment, kind] of Object.entries(kinds)) {
       prisma.contentRecord.findMany({ where, orderBy: { updatedAt: "desc" }, skip: (page - 1) * take, take }),
       prisma.contentRecord.count({ where })
     ]);
-    res.json({ items, total, page, pages: Math.ceil(total / take) });
+    res.json({ items: await withAttractionRatings(items), total, page, pages: Math.ceil(total / take) });
   }));
   app.get(`/api/${segment}/:slug`, asyncRoute(async (req, res) => {
     const item = await prisma.contentRecord.findFirst({ where: { slug: req.params.slug, ...contentFilter(kind) } });
     if (!item) return res.status(404).json({ error: "This published record could not be found." });
-    res.json({ item });
+    res.json({ item: (await withAttractionRatings([item]))[0] });
   }));
 }
 
@@ -378,7 +423,8 @@ app.get("/api/gallery", asyncRoute(async (_req, res) => {
   res.json({ items: assets.filter((asset) => asset.caption !== contentCoverCaption || publishedCoverPaths.has(asset.filePath)) });
 }));
 app.get("/api/locations", asyncRoute(async (_req, res) => {
-  res.json({ items: await prisma.location.findMany({ orderBy: { name: "asc" } }) });
+  const locations = await prisma.location.findMany({ orderBy: { name: "asc" } });
+  res.json({ items: await withLocationRatings(locations) });
 }));
 
 app.get("/api/visitor/saved-locations", requireVisitor, asyncRoute(async (req, res) => {
@@ -530,11 +576,12 @@ app.get("/api/admin/content", ...admin, asyncRoute(async (req, res) => {
   const rawKind = typeof req.query.kind === "string" ? req.query.kind : "";
   const kind = Object.values(ContentKind).includes(rawKind as ContentKind) ? rawKind as ContentKind : kinds[rawKind];
   const items = await prisma.contentRecord.findMany({ where: kind ? { kind } : {}, orderBy: { updatedAt: "desc" } });
-  res.json({ items });
+  res.json({ items: await withAttractionRatings(items) });
 }));
 app.post("/api/admin/content", ...admin, upload.single("image"), asyncRoute(async (req, res) => {
   const parsed = contentSchema.safeParse(contentInput(req));
   if (!parsed.success || !parsed.data.kind) return res.status(400).json({ error: "A valid content type and complete record are required.", details: parsed.success ? undefined : parsed.error.flatten() });
+  if (!(await attractionLocationExists(parsed.data.kind, parsed.data.payload))) return res.status(400).json({ error: "Choose a location that exists in the GPS locations list." });
   if (req.is("multipart/form-data") && !req.file) return res.status(400).json({ error: "Choose a cover image for this record." });
   if (req.file && !hasImageSignature(req.file)) return res.status(400).json({ error: "The file is not a valid JPG, PNG, or WebP image." });
   const imageDetails = req.file ? contentImageSchema.safeParse(req.body) : null;
@@ -561,6 +608,7 @@ app.patch("/api/admin/content/:id", ...admin, upload.single("image"), asyncRoute
   if (imageDetails && !imageDetails.success) return res.status(400).json({ error: "Describe the image and confirm that you may publish it.", details: imageDetails.error.flatten() });
   const existing = await prisma.contentRecord.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Record not found." });
+  if (!(await attractionLocationExists(existing.kind, parsed.data.payload))) return res.status(400).json({ error: "Choose a location that exists in the GPS locations list." });
   const item = await prisma.$transaction(async transaction => {
     const imagePath = req.file && imageDetails?.success
       ? await saveContentImage(transaction, req.file, imageDetails.data, req.user!.id)
@@ -570,7 +618,7 @@ app.patch("/api/admin/content/:id", ...admin, upload.single("image"), asyncRoute
     const payload = imagePath
       ? { ...previousPayload, ...parsed.data.payload, imageUrl: imagePath, imageAlt: imageDetails!.data!.imageAltText,
           imageCredit: imageDetails!.data!.imageCredit || "", imageLicense: imageDetails!.data!.imageLicense || "" }
-      : parsed.data.payload;
+      : parsed.data.payload ? { ...previousPayload, ...parsed.data.payload } : undefined;
     const record = await transaction.contentRecord.update({ where: { id: existing.id }, data: { ...parsed.data, ...(payload ? { payload } : {}) } });
     await transaction.auditLog.create({ data: { userId: req.user!.id, action: "UPDATE", entity: "ContentRecord", entityId: record.id } });
     return record;

@@ -8,6 +8,8 @@ services:
   - type: web
     name: cultureframe-joerel-main
     runtime: node
+    branch: main
+    autoDeployTrigger: commit
     plan: free
     region: singapore
     buildCommand: npm ci --include=dev && npm run build:css && npm prune --omit=dev
@@ -42,6 +44,8 @@ services:
   - type: web
     name: cultureframe-joerel-visitor
     runtime: node
+    branch: main
+    autoDeployTrigger: commit
     plan: free
     region: singapore
     buildCommand: npm ci --omit=dev && npm ci --prefix subsystems/visitor-information/backend --include=dev && npm ci --prefix subsystems/visitor-information/frontend --include=dev && npm run db:generate --prefix subsystems/visitor-information/backend && npm run build --prefix subsystems/visitor-information/backend && npm run build --prefix subsystems/visitor-information/frontend
@@ -73,6 +77,8 @@ services:
   - type: web
     name: cultureframe-joerel-metrics
     runtime: node
+    branch: main
+    autoDeployTrigger: commit
     plan: free
     region: singapore
     buildCommand: npm ci --omit=dev && npm ci --prefix subsystems/culturemetrics/server --include=dev && npm ci --prefix subsystems/culturemetrics/client --include=dev && npm run build --prefix subsystems/culturemetrics/client
@@ -122,6 +128,8 @@ services:
   - type: web
     name: cultureframe-joerel-payments
     runtime: node
+    branch: main
+    autoDeployTrigger: commit
     plan: free
     region: singapore
     buildCommand: npm ci --omit=dev && npm ci --prefix subsystems/cultureframe-payments --include=dev && npm run db:postgres:generate --prefix subsystems/cultureframe-payments && npm run build --prefix subsystems/cultureframe-payments
