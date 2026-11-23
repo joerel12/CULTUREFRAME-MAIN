@@ -54,7 +54,8 @@ one-time startup recovery for the bootstrap administrator instead. In the
 2. Add `ADMIN_PASSWORD_RESET_NONCE` with a new, unique 24–128 character value
    using only letters, digits, underscores, or hyphens. A generated UUID without
    hyphens works. This marker is not a password; never reuse it for another reset.
-3. Choose **Save, deploy**. The main service log must show `Administrator
+3. Choose **Save, rebuild, and deploy** so Render builds the latest main-branch
+   commit with the recovery code. The main service log must show `Administrator
    password recovery reset.` (or `created.` if the account was missing), and
    the deployment must become live. The marker is recorded in PostgreSQL, so
    later restarts with the same marker cannot reset the password again.
