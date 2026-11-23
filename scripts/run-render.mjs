@@ -4,7 +4,7 @@ import { spawn } from "node:child_process";
 
 const service = process.argv[2];
 const config = {
-  main: { database: null, cwd: ".", setup: [["node", ["scripts/sync-render-db.mjs"]], ["node", ["scripts/seed-mansalay-content.mjs"]]], start: ["node", ["index.js"]] },
+  main: { database: null, cwd: ".", setup: [["node", ["scripts/sync-render-db.mjs"]], ["node", ["scripts/reset-render-admin.mjs"]], ["node", ["scripts/seed-mansalay-content.mjs"]]], start: ["node", ["index.js"]] },
   visitor: { database: "cultureframe_visitor", cwd: "subsystems/visitor-information/backend", setup: [["npx", ["prisma", "migrate", "deploy"]], ["node", ["dist/prisma/seed.js"]]], start: ["node", ["dist/src/server.js"]] },
   metrics: { database: "cultureframe_metrics", cwd: "subsystems/culturemetrics/server", setup: [["npm", ["run", "db:migrate"]], ["npm", ["run", "bootstrap:admin"]]], start: ["npm", ["start"]] },
   payments: { database: "cultureframe_payments", cwd: "subsystems/cultureframe-payments", setup: [["npm", ["run", "db:postgres:deploy"]]], start: ["npm", ["start"]] }

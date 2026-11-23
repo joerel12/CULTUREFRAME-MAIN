@@ -42,6 +42,31 @@ deploy the latest commit for existing web services that did not redeploy.
    CultureMetrics links. Open the payment service separately for its admin
    console. The payment admin must change its bootstrap password on first login.
 
+## Recover a forgotten main administrator password
+
+Render's Free web services do not provide a shell. The main service includes a
+one-time startup recovery for the bootstrap administrator instead. In the
+`cultureframe-joerel-main` service's **Environment** page:
+
+1. Replace `ADMIN_INITIAL_PASSWORD` with a **new** password containing 12–72
+   UTF-8 bytes, uppercase and lowercase letters, a number, and a symbol. Do
+   not add surrounding spaces. Keep the value private.
+2. Add `ADMIN_PASSWORD_RESET_NONCE` with a new, unique 24–128 character value
+   using only letters, digits, underscores, or hyphens. A generated UUID without
+   hyphens works. This marker is not a password; never reuse it for another reset.
+3. Choose **Save, deploy**. The main service log must show `Administrator
+   password recovery reset.` (or `created.` if the account was missing), and
+   the deployment must become live. The marker is recorded in PostgreSQL, so
+   later restarts with the same marker cannot reset the password again.
+4. Remove `ADMIN_PASSWORD_RESET_NONCE` from the service environment and save.
+   Sign in at the main URL using `admin@cultureframe.com` and the new password.
+
+This recovery affects only the main administrator account. The payment console
+has its own login; CultureMetrics can be opened from the signed-in main admin
+side. If the main service reports `already-applied`, choose a fresh marker.
+If deployment fails, inspect its logs before trying another login; an invalid
+password or a non-admin account at that email causes recovery to stop safely.
+
 The demo uses manual payment verification. It does not activate a real payment
 gateway. Uploaded visitor media, marketplace images, sessions, and payment
 proofs are stored in Postgres because free web instances lose local files when
