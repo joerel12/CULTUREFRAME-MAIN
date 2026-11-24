@@ -22,6 +22,11 @@ should also apply automatically. After that, pushes to
 `joerel12/CULTUREFRAME-MAIN` `main` rebuild each connected service. If an
 existing web service does not redeploy, check its **Settings → Auto-Deploy**
 setting and deploy the latest commit from its Deploys page.
+The Blueprint's **Resources already up to date** message confirms its
+configuration sync; check each service's **Deploys** page separately to see
+which Git commit is live. A new commit after enabling **On Commit** starts the
+first automatic build when earlier code pushes happened while auto-deploy was
+disabled.
 The main service's build command also compiles `public/tailwind.css`. If an
 administrator page shows an oversized logo and plain text, sync the Blueprint
 and rebuild the main service from the latest commit. The served `/tailwind.css`
