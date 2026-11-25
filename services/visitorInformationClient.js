@@ -55,8 +55,12 @@ const DESTINATION_PHOTOS = new Map([
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = process.env.NODE_ENV === "production" ? 65000 : 8000;
-const DEFAULT_ATTEMPTS = process.env.NODE_ENV === "production" ? 4 : 2;
-const DEFAULT_RETRY_DELAY_MS = 1000;
+// Render's free services can take 50 seconds or more to wake. Transient 502/503/504
+// responses are usually returned immediately while the instance is booting, so
+// production retries span just over one minute without extending real timeouts.
+const DEFAULT_ATTEMPTS = process.env.NODE_ENV === "production" ? 7 : 2;
+const DEFAULT_RETRY_DELAY_MS = process.env.NODE_ENV === "production" ? 2000 : 250;
+const MAX_RETRY_DELAY_MS = 16000;
 const TRANSIENT_UPSTREAM_STATUSES = new Set([502, 503, 504]);
 
 export class VisitorInformationError extends Error {
@@ -283,7 +287,7 @@ async function requestJson(pathname, query = {}, options = {}) {
     } finally {
       clearTimeout(timeout);
     }
-    const backoffMs = retryDelayMs * 2 ** (attempt - 1);
+    const backoffMs = Math.min(MAX_RETRY_DELAY_MS, retryDelayMs * 2 ** (attempt - 1));
     if (backoffMs) await new Promise(resolve => setTimeout(resolve, backoffMs));
   }
 
