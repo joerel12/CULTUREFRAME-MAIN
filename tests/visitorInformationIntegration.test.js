@@ -175,10 +175,11 @@ test("retries a transient Visitor Information cold-start response", async () => 
   let attempts = 0;
   const result = await visitorInformationClient.getHome({
     baseUrl: "https://visitor.example.test",
+    attempts: 4,
     retryDelayMs: 0,
     fetchImpl: async () => {
       attempts += 1;
-      if (attempts === 1) return jsonResponse({ error: "Service starting" }, 503);
+      if (attempts < 4) return jsonResponse({ error: "Service starting" }, 503);
       return jsonResponse({
         content: { heroTitle: "Visitor service is ready" },
         featured: [],
@@ -188,7 +189,7 @@ test("retries a transient Visitor Information cold-start response", async () => 
     }
   });
 
-  assert.equal(attempts, 2);
+  assert.equal(attempts, 4);
   assert.equal(result.content.heroTitle, "Visitor service is ready");
 });
 

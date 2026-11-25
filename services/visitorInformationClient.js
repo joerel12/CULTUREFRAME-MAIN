@@ -55,7 +55,8 @@ const DESTINATION_PHOTOS = new Map([
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
 const DEFAULT_TIMEOUT_MS = process.env.NODE_ENV === "production" ? 65000 : 8000;
-const DEFAULT_RETRY_DELAY_MS = 750;
+const DEFAULT_ATTEMPTS = process.env.NODE_ENV === "production" ? 4 : 2;
+const DEFAULT_RETRY_DELAY_MS = 1000;
 const TRANSIENT_UPSTREAM_STATUSES = new Set([502, 503, 504]);
 
 export class VisitorInformationError extends Error {
@@ -249,7 +250,7 @@ async function requestJson(pathname, query = {}, options = {}) {
     });
   }
 
-  const attempts = Math.max(1, Number.parseInt(options.attempts, 10) || 2);
+  const attempts = Math.max(1, Number.parseInt(options.attempts, 10) || DEFAULT_ATTEMPTS);
   const timeoutMs = Math.max(100, Number.parseInt(options.timeoutMs, 10) || DEFAULT_TIMEOUT_MS);
   const parsedRetryDelayMs = Number.parseInt(options.retryDelayMs, 10);
   const retryDelayMs = Number.isFinite(parsedRetryDelayMs)
@@ -272,8 +273,8 @@ async function requestJson(pathname, query = {}, options = {}) {
       await response.body?.cancel();
     } catch (error) {
       lastError = error;
-      if (attempt === attempts) {
-        const timedOut = error?.name === "AbortError";
+      const timedOut = error?.name === "AbortError";
+      if (timedOut || attempt === attempts) {
         throw new VisitorInformationError(
           timedOut ? "The Visitor Information service took too long to respond." : "The Visitor Information service is currently unavailable.",
           { code: timedOut ? "UPSTREAM_TIMEOUT" : "UPSTREAM_UNAVAILABLE", statusCode: 503, cause: error }
@@ -282,7 +283,8 @@ async function requestJson(pathname, query = {}, options = {}) {
     } finally {
       clearTimeout(timeout);
     }
-    if (retryDelayMs) await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+    const backoffMs = retryDelayMs * 2 ** (attempt - 1);
+    if (backoffMs) await new Promise(resolve => setTimeout(resolve, backoffMs));
   }
 
   if (!response && lastError) {
