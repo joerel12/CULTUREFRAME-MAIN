@@ -18,7 +18,7 @@
             <!-- Product Image -->
             <div class="relative h-48 bg-gray-100 overflow-hidden">
               {{#if this.image_url}}
-                <img src="{{this.image_url}}" alt="{{this.name}}" class="w-full h-full object-cover hover:scale-110 transition-transform duration-300">
+                <img src="{{this.image_url}}" alt="{{this.name}}" class="w-full h-full object-cover hover:scale-110 transition-transform duration-300" onerror="this.onerror=null;this.src='/images/placeholders/record-placeholder.svg'">
               {{else}}
                 <div class="w-full h-full flex items-center justify-center bg-emerald-50">
                   <span class="text-6xl">📦</span>

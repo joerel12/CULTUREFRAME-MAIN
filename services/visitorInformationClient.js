@@ -54,7 +54,9 @@ const DESTINATION_PHOTOS = new Map([
 ]);
 
 const MAX_RESPONSE_BYTES = 1024 * 1024;
-const DEFAULT_TIMEOUT_MS = 8000;
+const DEFAULT_TIMEOUT_MS = process.env.NODE_ENV === "production" ? 65000 : 8000;
+const DEFAULT_RETRY_DELAY_MS = 750;
+const TRANSIENT_UPSTREAM_STATUSES = new Set([502, 503, 504]);
 
 export class VisitorInformationError extends Error {
   constructor(message, { code = "VISITOR_INFORMATION_ERROR", statusCode = 502, cause } = {}) {
@@ -239,33 +241,54 @@ async function requestJson(pathname, query = {}, options = {}) {
     if (value !== undefined && value !== null && value !== "") url.searchParams.set(key, String(value));
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), options.timeoutMs || DEFAULT_TIMEOUT_MS);
   const fetchImpl = options.fetchImpl || globalThis.fetch;
   if (typeof fetchImpl !== "function") {
-    clearTimeout(timeout);
     throw new VisitorInformationError("This Node.js version does not provide fetch().", {
       code: "FETCH_UNAVAILABLE",
       statusCode: 503
     });
   }
 
+  const attempts = Math.max(1, Number.parseInt(options.attempts, 10) || 2);
+  const timeoutMs = Math.max(100, Number.parseInt(options.timeoutMs, 10) || DEFAULT_TIMEOUT_MS);
+  const parsedRetryDelayMs = Number.parseInt(options.retryDelayMs, 10);
+  const retryDelayMs = Number.isFinite(parsedRetryDelayMs)
+    ? Math.max(0, parsedRetryDelayMs)
+    : DEFAULT_RETRY_DELAY_MS;
   let response;
-  try {
-    response = await fetchImpl(url, {
-      method: "GET",
-      headers: { Accept: "application/json" },
-      redirect: "error",
-      signal: controller.signal
+  let lastError;
+
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      response = await fetchImpl(url, {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        redirect: "error",
+        signal: controller.signal
+      });
+      if (!TRANSIENT_UPSTREAM_STATUSES.has(response.status) || attempt === attempts) break;
+      await response.body?.cancel();
+    } catch (error) {
+      lastError = error;
+      if (attempt === attempts) {
+        const timedOut = error?.name === "AbortError";
+        throw new VisitorInformationError(
+          timedOut ? "The Visitor Information service took too long to respond." : "The Visitor Information service is currently unavailable.",
+          { code: timedOut ? "UPSTREAM_TIMEOUT" : "UPSTREAM_UNAVAILABLE", statusCode: 503, cause: error }
+        );
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+    if (retryDelayMs) await new Promise(resolve => setTimeout(resolve, retryDelayMs));
+  }
+
+  if (!response && lastError) {
+    throw new VisitorInformationError("The Visitor Information service is currently unavailable.", {
+      code: "UPSTREAM_UNAVAILABLE", statusCode: 503, cause: lastError
     });
-  } catch (error) {
-    const timedOut = error?.name === "AbortError";
-    throw new VisitorInformationError(
-      timedOut ? "The Visitor Information service took too long to respond." : "The Visitor Information service is currently unavailable.",
-      { code: timedOut ? "UPSTREAM_TIMEOUT" : "UPSTREAM_UNAVAILABLE", statusCode: 503, cause: error }
-    );
-  } finally {
-    clearTimeout(timeout);
   }
 
   if (!response.ok) {

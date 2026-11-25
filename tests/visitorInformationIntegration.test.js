@@ -171,6 +171,27 @@ test("rejects non-JSON upstream responses", async () => {
   );
 });
 
+test("retries a transient Visitor Information cold-start response", async () => {
+  let attempts = 0;
+  const result = await visitorInformationClient.getHome({
+    baseUrl: "https://visitor.example.test",
+    retryDelayMs: 0,
+    fetchImpl: async () => {
+      attempts += 1;
+      if (attempts === 1) return jsonResponse({ error: "Service starting" }, 503);
+      return jsonResponse({
+        content: { heroTitle: "Visitor service is ready" },
+        featured: [],
+        upcoming: [],
+        destinations: []
+      });
+    }
+  });
+
+  assert.equal(attempts, 2);
+  assert.equal(result.content.heroTitle, "Visitor service is ready");
+});
+
 test("all Discover templates compile with the application partials", () => {
   const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
   const partialDirectory = path.join(projectRoot, "views", "partials");

@@ -158,6 +158,8 @@
                   <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">₱{{this.price}}</td>
                   <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-emerald-600">₱{{this.subtotal}}</td>
                 </tr>
+                {{else}}
+                <tr><td colspan="4" class="px-6 py-10 text-center text-gray-500">No order items are attached to this record.</td></tr>
                 {{/each}}
               </tbody>
               <tfoot class="bg-gradient-to-r from-gray-50 to-gray-100">

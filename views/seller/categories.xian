@@ -21,6 +21,12 @@
               <div class="text-sm text-gray-500">{{productCount}} product(s)</div>
               <form method="POST" action="/seller/categories/delete/{{id}}" onsubmit="return confirm('Delete this unused category?');"><button type="submit" class="cf-btn bg-red-50 text-red-700" {{#if productCount}}disabled{{/if}}>Delete</button></form>
             </div>
+          {{else}}
+            <div class="px-5 py-12 text-center text-gray-500">
+              <i class="fas fa-tags mb-3 text-3xl text-emerald-300" aria-hidden="true"></i>
+              <p class="font-bold text-gray-700">No product categories yet</p>
+              <p class="mt-1 text-sm">Add the first category above before creating a product.</p>
+            </div>
           {{/each}}
         </div>
       </div>

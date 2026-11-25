@@ -80,6 +80,8 @@
             <p class="text-xs text-gray-400">each</p>
           </div>
         </div>
+        {{else}}
+        <div class="px-5 py-10 text-center text-sm text-gray-500">No items are attached to this order record.</div>
         {{/each}}
       </div>
       <div class="px-5 py-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center">
